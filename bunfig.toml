@@ -1,0 +1,2 @@
+[script]
+build = "bun build bin/index.ts"

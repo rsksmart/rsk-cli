@@ -1,0 +1,16 @@
+{
+  "compilerOptions": {
+    "module": "Node16", // Set this to Node16 to match moduleResolution
+    "target": "es6",
+    "moduleResolution": "node16", // Keep this as node16
+    "outDir": "./dist",
+    "rootDir": "./",
+    "strict": true,
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true
+  },
+  "include": ["bin/**/*.ts", "src/**/*.ts"],
+  "exclude": ["node_modules", "dist"]
+}

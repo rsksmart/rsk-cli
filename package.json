@@ -1,0 +1,42 @@
+{
+  "name": "rsk-cli",
+  "version": "1.0.0",
+  "description": "CLI tool for Rootstock blockchain using viem",
+  "main": "dist/index.js",
+  "bin": {
+    "rsk-cli": "./dist/bin/index.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "wallet": "pnpm run build && node dist/bin/index.js createWallet",
+    "balance": "pnpm run build && node dist/bin/index.js balance",
+    "transfer": "pnpm run build && node dist/bin/index.js  transfer --testnet --address 0xa5f45f5bddefC810C48aCC1D5CdA5e5a4c6BC59E --value 0.001"
+  },
+  "keywords": [
+    "rootstock",
+    "blockchain",
+    "cli",
+    "ethereum",
+    "viem"
+  ],
+  "author": "Rootstock Labs",
+  "license": "MIT",
+  "type": "module",
+  "devDependencies": {
+    "@types/bun": "latest",
+    "@types/figlet": "^1.5.8",
+    "typescript": "^5.0.0"
+  },
+  "peerDependencies": {
+    "typescript": "^5.0.0"
+  },
+  "dependencies": {
+    "chalk": "^5.3.0",
+    "commander": "^12.1.0",
+    "crypto": "^1.0.1",
+    "figlet": "^1.7.0",
+    "inquirer": "^10.1.8",
+    "ora": "^8.0.1",
+    "viem": "^2.19.4"
+  }
+}
