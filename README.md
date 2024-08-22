@@ -104,3 +104,19 @@ bun bin/index.ts
       Block Number: 654321
       Gas Used: 21000
       ```
+
+  ### 4. **Check Transaction Status**
+
+  The `tx` command allows you to check the status of a specific transaction on the Rootstock blockchain by providing the transaction ID. You can check the status on either the mainnet or testnet using the appropriate flags.
+
+  #### **Mainnet**
+
+  ```bash
+  rsk-cli tx --txid 0x86deb77e1d666ae6848630496d672da8b5f48292681bda33f8f04245c55dde26
+  ```
+
+  #### **Testnet**
+
+  ```bash
+  rsk-cli tx --testnet --txid 0x86deb77e1d666ae6848630496d672da8b5f48292681bda33f8f04245c55dde26
+  ```
