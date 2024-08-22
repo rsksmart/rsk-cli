@@ -7,12 +7,16 @@ import { transferCommand } from '../src/commands/transfer.js';
 import { txCommand } from '../src/commands/tx.js';
 import figlet from 'figlet';
 import chalk from 'chalk';
+import { deployCommand } from '../src/commands/deploy.js';
 
 interface CommandOptions {
   testnet?: boolean;
   address?: string;
   value?: string;
   txid?: string;
+  abi?: string;          
+  bytecode?: string;      
+  constructorArgs?: any;
 }
 
 // Define a custom orange color
@@ -84,6 +88,19 @@ program
     
     await txCommand(!!options.testnet, formattedTxId as `0x${string}`);
   });
+
+ // Add the deploy contract command
+program
+.command('deploy')
+.description('Deploy a contract')
+.requiredOption('--abi <path>', 'Path to the ABI file')
+.requiredOption('--bytecode <path>', 'Path to the bytecode file')
+.option('--constructorArgs <args>', 'JSON string of constructor arguments')
+.option('-t, --testnet', 'Deploy on the testnet')
+.action(async (options: CommandOptions) => {
+  const constructorArgs = options.constructorArgs ? JSON.parse(options.constructorArgs) : [];
+  await deployCommand(options.abi!, options.bytecode!, !!options.testnet, constructorArgs);
+});
 
 // Parse command-line arguments
 program.parse(process.argv);

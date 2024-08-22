@@ -11,7 +11,8 @@
     "wallet": "pnpm run build && node dist/bin/index.js createWallet",
     "balance": "pnpm run build && node dist/bin/index.js balance",
     "transfer": "pnpm run build && node dist/bin/index.js transfer --testnet --address 0xa5f45f5bddefC810C48aCC1D5CdA5e5a4c6BC59E --value 0.001",
-    "tx-status": "pnpm run build && node dist/bin/index.js tx --testnet --txid 0x86deb77e1d666ae6848630496d672da8b5f48292681bda33f8f04245c55dde26"
+    "tx-status": "pnpm run build && node dist/bin/index.js tx --testnet --txid 0x876a0a9b16759350c41930a4204e5d9acf5704a7f201447a337094189af961c4",
+    "deploy": "pnpm run build && node dist/bin/index.js deploy --testnet --abi src/utils/contracts/src_utils_contracts_simpleStorage_sol_SimpleStorage.abi --bytecode src/utils/contracts/src_utils_contracts_simpleStorage_sol_SimpleStorage.bin --constructorArgs [777]"
   },
   "keywords": [
     "rootstock",
@@ -28,6 +29,7 @@
     "@types/chalk": "^2.2.0",
     "@types/commander": "^2.12.2",
     "@types/figlet": "^1.5.8",
+    "solc": "0.8.20",
     "typescript": "^5.0.0"
   },
   "peerDependencies": {
