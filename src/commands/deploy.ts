@@ -1,81 +1,96 @@
-import ViemProvider from '../utils/viemProvider.js';
-import chalk from 'chalk';
-import fs from 'fs';
+import ViemProvider from "../utils/viemProvider.js";
+import chalk from "chalk";
+import fs from "fs";
+import ora from "ora";
 
 export async function deployCommand(
-  abiPath: string, 
-  bytecodePath: string, 
-  testnet: boolean, 
+  abiPath: string,
+  bytecodePath: string,
+  testnet: boolean,
   args: any[] = []
 ): Promise<void> {
   try {
-    console.log(chalk.blue(`🔧 Initializing ViemProvider for ${testnet ? 'testnet' : 'mainnet'}...`));
-    const provider = new ViemProvider(testnet ? 'rootstockTestnet' : 'rootstock');
+    console.log(
+      chalk.blue(
+        `🔧 Initializing ViemProvider for ${testnet ? "testnet" : "mainnet"}...`
+      )
+    );
+    const provider = new ViemProvider(testnet);
     const walletClient = await provider.getWalletClient();
 
     if (!walletClient.account) {
-      console.error(chalk.red('🚨 Wallet account is undefined. Make sure the wallet is properly loaded.'));
+      console.error(
+        chalk.red(
+          "🚨 Wallet account is undefined. Make sure the wallet is properly loaded."
+        )
+      );
       return;
     }
 
-    console.log(chalk.blue(`🔑 Wallet account: ${walletClient.account.address}`));
+    console.log(
+      chalk.blue(`🔑 Wallet account: ${walletClient.account.address}`)
+    );
 
     console.log(chalk.blue(`📄 Reading ABI from ${abiPath}...`));
-    const abiContent = fs.readFileSync(abiPath, 'utf8');
+    const abiContent = fs.readFileSync(abiPath, "utf8");
     const abi = JSON.parse(abiContent);
 
     if (!Array.isArray(abi)) {
-      console.error(chalk.red('⚠️ The ABI file is not a valid JSON array.'));
+      console.error(chalk.red("⚠️ The ABI file is not a valid JSON array."));
       return;
     }
 
     console.log(chalk.blue(`📄 Reading Bytecode from ${bytecodePath}...`));
-    let bytecode = fs.readFileSync(bytecodePath, 'utf8').trim();
-    if (!bytecode.startsWith('0x')) {
+    let bytecode = fs.readFileSync(bytecodePath, "utf8").trim();
+    if (!bytecode.startsWith("0x")) {
       bytecode = `0x${bytecode}`;
     }
 
     if (!bytecode) {
-      console.error(chalk.red('⚠️ Invalid Bytecode file.'));
+      console.error(chalk.red("⚠️ Invalid Bytecode file."));
       return;
     }
 
-    console.log(chalk.green(`🚀 Deploying contract to ${testnet ? 'testnet' : 'mainnet'}...`));
+    const publicClient = await provider.getPublicClient();
 
     const deployParams = {
       abi,
       bytecode: bytecode as `0x${string}`,
-      account: walletClient.account.address as `0x${string}`,
-      args,  // Constructor arguments, if any
+      account: walletClient.account,
+      args,
     };
 
-    console.log(chalk.blue(`📊 Deployment Parameters: ${JSON.stringify(deployParams, null, 2)}`));
+    const spinner = ora("⏳ Deploying contract...").start();
 
-    // @ts-ignore: Suppress type error related to the deployContract method
-    const hash = await walletClient.deployContract(deployParams);
+    try {
+      // @ts-ignore
+      const hash = await walletClient.deployContract(deployParams);
 
-    console.log(chalk.green(`🎉 Contract deployment transaction sent!`));
-    console.log(chalk.green(`🔑 Transaction Hash: ${hash}`));
+      spinner.succeed("🎉 Contract deployment transaction sent!");
+      console.log(`🔑 Transaction Hash: ${hash}`);
 
-    console.log(chalk.blue(`⏳ Waiting for transaction receipt...`));
-    const publicClient = await provider.getPublicClient();
-    const receipt = await publicClient.waitForTransactionReceipt({ hash });
+      spinner.start("⏳ Waiting for transaction receipt...");
 
-    console.log(chalk.blue(`📝 Transaction Receipt: ${JSON.stringify(receipt, null, 2)}`));
+      const receipt = await publicClient.waitForTransactionReceipt({ hash });
 
-    console.log(chalk.green(`📜 Contract deployed successfully!`));
-    console.log(chalk.green(`📍 Contract Address: ${receipt.contractAddress}`));
-  } catch (error) {
-    if (error instanceof Error) {
-      console.error(chalk.red('🚨 Error deploying contract:'), chalk.yellow(error.message));
-      console.error(chalk.red('📋 Stack trace:'), chalk.yellow(error.stack));
+      spinner.succeed("📜 Contract deployed successfully!");
+      console.log(
+        chalk.green(`📍 Contract Address: ${receipt.contractAddress}`)
+      );
 
-      // Log the raw response body if it's an HTTP error
-      if ('response' in error && error.response) {
-        console.error(chalk.red('📄 Response Body:'), chalk.yellow(JSON.stringify(error.response)));
-      }
-    } else {
-      console.error(chalk.red('🚨 An unknown error occurred.'));
+      const explorerUrl = testnet
+        ? `https://explorer.testnet.rootstock.io/address/${receipt.contractAddress}`
+        : `https://explorer.rootstock.io/address/${receipt.contractAddress}`;
+
+      console.log(
+        chalk.white(`🔗 View on Explorer:`),
+        chalk.dim(`${explorerUrl}`)
+      );
+    } catch (error) {
+      spinner.fail("❌ Error during contract deployment.");
+      throw error;
     }
+  } catch (error) {
+    console.error("❌ Error deploying contract:", error);
   }
 }
