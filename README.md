@@ -2,7 +2,7 @@
 
 ## Description
 
-`rsk-cli` is a command-line tool for interacting with Rootstock blockchain 
+`rsk-cli` is a command-line tool for interacting with Rootstock blockchain
 
 ## Installation
 
@@ -20,10 +20,10 @@ Before you can start developing with `rsk-cli`, ensure that you have the followi
 
 1. **Node.js**: Make sure Node.js is installed, as it is required for running the CLI tool.
 2. **Bun**: Bun is a fast JavaScript runtime that the CLI uses for development. To install Bun, run the following command:
-    
-    ```bash
-    curl -fsSL https://bun.sh/install | bash
-    ```
+
+   ```bash
+   curl -fsSL https://bun.sh/install | bash
+   ```
 
 To install dependencies:
 
@@ -54,13 +54,12 @@ This command will guide you through the process of wallet management, offering o
 - Import a custom wallet
 
 > **ℹ️ Info:**
-> 
+>
 > When you choose to save a wallet using `rsk-cli`, your private key is securely encrypted to protect it from unauthorized access.
 >
 > The tool uses AES-256-CBC encryption, a robust encryption standard. Your password is used to derive a strong encryption key through the `scrypt` function, ensuring that even weak passwords result in strong keys. A random Initialization Vector (IV) is also generated to ensure that even if the same data is encrypted multiple times, the output will be different each time.
 >
 > After encryption, your wallet's private key, along with the necessary encryption metadata, is securely stored in a file named `rootstock-wallet.json` in the current working directory. This file allows you to manage and reuse your wallets securely within `rsk-cli` without exposing your sensitive private keys.
-
 
 Example output when creating a new wallet:
 
@@ -154,9 +153,41 @@ rsk-cli tx --testnet --txid 0x86deb77e1d666ae6848630496d672da8b5f48292681bda33f8
 ```
 
 Output example:
+
 ```
 📄 Wallet Address: 0x08C4E4BdAb2473E454B8B2a4400358792786d341
 🌐 Network: Rootstock Testnet
 💰 Current Balance: 0.5015859620415593 RBTC
 🔗 Ensure that transactions are being conducted on the correct network.
+```
+
+### 5. Deploy Smart Contract
+
+The deploy command allows you to deploy a smart contract on the Rootstock blockchain. This command supports deployment on both the mainnet and testnet.
+
+#### Mainnet
+
+```bash
+rsk-cli deploy --abi <path_to_abi> --bytecode <path_to_bytecode> --args <arg1> <arg2> ...
+```
+
+#### Testnet
+
+```bash
+rsk-cli deploy --testnet --abi <path_to_abi> --bytecode <path_to_bytecode> --args <arg1> <arg2> ...
+```
+
+Output example:
+
+```
+🔧 Initializing ViemProvider for testnet...
+? Enter your password to decrypt the wallet: ****
+🔑 Wallet account: 0xb4eb1352Ac339766727Df550A24D21f90935E78c
+📄 Reading ABI from files/abi.json...
+📄 Reading Bytecode from files/bytecode.bin...
+✔ 🎉 Contract deployment transaction sent!
+🔑 Transaction Hash: 0x4e4c6ed5998f3ea5391a66258c1dd0da1fa968d685b3d925d596ac16fdf81836
+✔ 📜 Contract deployed successfully!
+📍 Contract Address: 0xf922e98776686ae39119bc3ea224f54bd0500d3f
+🔗 View on Explorer: https://explorer.testnet.rootstock.io/address/0xf922e98776686ae39119bc3ea224f54bd0500d3f
 ```
