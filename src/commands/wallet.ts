@@ -13,59 +13,51 @@ type InquirerAnswers = {
   saveWallet?: boolean;
   privateKey?: string;
   address?: string;
+  useExistingWallet?: boolean;
 };
 
-export async function createWalletCommand() {
+export async function walletCommand() {
   try {
     // Step 1: Check if a wallet already exists
     if (fs.existsSync(walletFilePath)) {
+      // If a wallet file is found, read and parse the wallet data
+      const walletData = JSON.parse(fs.readFileSync(walletFilePath, 'utf8'));
+
+      // Ask the user if they want to use the existing wallet found on the system
+      const useExistingWalletQuestion: any = [
+        {
+          type: 'confirm',
+          name: 'useExistingWallet',
+          message: '🔍 A saved wallet was found. Would you like to use this existing wallet?',
+          default: true,
+        },
+      ];
+
+      const { useExistingWallet } = await inquirer.prompt<InquirerAnswers>(useExistingWalletQuestion);
+
+      if (useExistingWallet) {
+        // If the user chooses to use the existing wallet, display the wallet's address
+        console.log(chalk.green('🎉 Using the existing wallet.'));
+        console.log(chalk.white(`📄 Address:`), chalk.green(`${chalk.bold(walletData.address)}`));
+        return; // Exit the function as no further action is needed
+      }
+
+      // If the user chooses not to use the existing wallet, present them with two options
       const questions: any = [
         {
           type: 'list',
           name: 'action',
-          message: '🔍 A saved wallet was found. What would you like to do?',
+          message: 'What would you like to do instead?',
           choices: [
-            '🗂️  Use existing wallet',
-            '🆕 Create a new wallet',
-            '🔑 Insert wallet address and private key',
+            '🆕 Create a new wallet',  // Option to create a new wallet
+            '🔑 Insert wallet address and private key', // Option to provide a custom wallet address and private key
           ],
         },
       ];
 
       const { action } = await inquirer.prompt<InquirerAnswers>(questions);
 
-      if (action === '🗂️ Use existing wallet') {
-        // Decrypt the existing wallet
-        const encryptedWalletData: { encryptedPrivateKey: string, iv: string } = JSON.parse(fs.readFileSync(walletFilePath, 'utf8'));
-        const passwordQuestion: any = [
-          {
-            type: 'password',
-            name: 'password',
-            message: '🔒 Enter your password to decrypt the wallet:',
-            mask: '*',
-          },
-        ];
-
-        const { password } = await inquirer.prompt<InquirerAnswers>(passwordQuestion);
-
-        try {
-          const iv = Buffer.from(encryptedWalletData.iv, 'hex');
-          const key = crypto.scryptSync(password!, iv, 32); // Derive a key using the password
-          const decipher = crypto.createDecipheriv('aes-256-cbc', key, iv);
-
-          let decryptedPrivateKey = decipher.update(encryptedWalletData.encryptedPrivateKey, 'hex', 'utf8');
-          decryptedPrivateKey += decipher.final('utf8');
-
-          // Ensure the private key has the '0x' prefix and enforce the type
-          const prefixedPrivateKey = `0x${decryptedPrivateKey.replace(/^0x/, '')}` as `0x${string}`;
-          const account = privateKeyToAccount(prefixedPrivateKey);
-          console.log(chalk.green('✅ Wallet decrypted successfully!'));
-          console.log(chalk.white(`📄 Address:`), chalk.green(`${chalk.bold(account.address)}`));
-        } catch (error) {
-          console.error(chalk.red('❌ Failed to decrypt the wallet. Please check your password.'));
-        }
-        return;
-      } else if (action === '🔑 Insert wallet address and private key') {
+      if (action === '🔑 Insert wallet address and private key') {
         // Allow user to input their wallet address and private key
         const inputQuestions: any = [
           {
@@ -123,13 +115,13 @@ export async function createWalletCommand() {
             let encryptedPrivateKey = cipher.update(prefixedPrivateKey, 'utf8', 'hex');
             encryptedPrivateKey += cipher.final('hex');
 
-            const walletData = {
+            const newWalletData = {
               address: account.address,
               encryptedPrivateKey: encryptedPrivateKey,
               iv: iv.toString('hex'),
             };
 
-            fs.writeFileSync(walletFilePath, JSON.stringify(walletData, null, 2), 'utf8');
+            fs.writeFileSync(walletFilePath, JSON.stringify(newWalletData, null, 2), 'utf8');
             console.log(chalk.green(`💾 Wallet saved securely at ${walletFilePath}`));
           }
         } else {

@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { Command } from 'commander';
-import { createWalletCommand } from '../src/commands/createWallet.js';
+import { walletCommand } from '../src/commands/wallet.js';
 import { balanceCommand } from '../src/commands/balance.js';
 import { transferCommand } from '../src/commands/transfer.js';
 import { txCommand } from '../src/commands/tx.js';
@@ -35,13 +35,13 @@ const program = new Command();
 program
   .name('rsk-cli')
   .description('CLI tool for interacting with Rootstock blockchain')
-  .version('1.0.0');
+  .version('0.0.');
 
 program
   .command('wallet')
-  .description('Create a new wallet or handles the actual')
+  .description('Manage your wallet: create a new one, use an existing wallet, or import a custom wallet')
   .action(async () => {
-    await createWalletCommand();
+    await walletCommand();
   });
 
 program
