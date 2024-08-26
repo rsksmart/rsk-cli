@@ -94,10 +94,7 @@ program
   .description("Deploy a contract")
   .requiredOption("--abi <path>", "Path to the ABI file")
   .requiredOption("--bytecode <path>", "Path to the bytecode file")
-  .option(
-    "--constructorArgs <args...>",
-    "Constructor arguments (space-separated)"
-  )
+  .option("--args <args...>", "Constructor arguments (space-separated)")
   .option("-t, --testnet", "Deploy on the testnet")
   .action(async (options: CommandOptions) => {
     const constructorArgs = options.constructorArgs || [];
