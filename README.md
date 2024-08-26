@@ -53,6 +53,15 @@ This command will guide you through the process of wallet management, offering o
 - Use an existing wallet
 - Import a custom wallet
 
+> **ℹ️ Info:**
+> 
+> When you choose to save a wallet using `rsk-cli`, your private key is securely encrypted to protect it from unauthorized access.
+>
+> The tool uses AES-256-CBC encryption, a robust encryption standard. Your password is used to derive a strong encryption key through the `scrypt` function, ensuring that even weak passwords result in strong keys. A random Initialization Vector (IV) is also generated to ensure that even if the same data is encrypted multiple times, the output will be different each time.
+>
+> After encryption, your wallet's private key, along with the necessary encryption metadata, is securely stored in a file named `rootstock-wallet.json` in the current working directory. This file allows you to manage and reuse your wallets securely within `rsk-cli` without exposing your sensitive private keys.
+
+
 Example output when creating a new wallet:
 
 ```
