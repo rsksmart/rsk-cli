@@ -1,5 +1,4 @@
 #!/usr/bin/env node
-
 import { Command } from 'commander';
 import { createWalletCommand } from '../src/commands/createWallet.js';
 import { balanceCommand } from '../src/commands/balance.js';
@@ -19,7 +18,6 @@ interface CommandOptions {
   constructorArgs?: any;
 }
 
-// Define a custom orange color
 const orange = chalk.rgb(255, 165, 0);
 
 console.log(
@@ -32,34 +30,28 @@ console.log(
   )
 );
 
-// Initialize the program with Commander
 const program = new Command();
 
-// Configure the CLI
 program
   .name('rsk-cli')
   .description('CLI tool for interacting with Rootstock blockchain')
   .version('1.0.0');
 
-// Add the create wallet command
 program
-  .command('createWallet')
-  .description('Create a new wallet on the selected network')
+  .command('wallet')
+  .description('Create a new wallet or handles the actual')
   .action(async () => {
     await createWalletCommand();
   });
 
-// Add the balance command
 program
   .command('balance')
   .description('Check the balance of the saved wallet')
   .option('-t, --testnet', 'Check the balance on the testnet')
   .action(async (options: CommandOptions) => {
-    const network = !!options.testnet ? 'testnet' : 'mainnet';
-    await balanceCommand(!!options.testnet); // Ensure it's always boolean
+    await balanceCommand(!!options.testnet); 
   });
 
-// Add the transfer command
 program
   .command('transfer')
   .description('Transfer rBTC to the provided address')
@@ -74,14 +66,12 @@ program
     }
   });
 
-// Add the transaction status command
 program
   .command('tx')
   .description('Check the status of a transaction')
   .option('-t, --testnet', 'Check the transaction status on the testnet')
   .requiredOption('-i, --txid <txid>', 'Transaction ID')
   .action(async (options: CommandOptions) => {
-    // Ensure txid starts with "0x" and cast it to the correct type
     const formattedTxId = options.txid!.startsWith('0x')
       ? options.txid
       : `0x${options.txid}`;
@@ -89,7 +79,6 @@ program
     await txCommand(!!options.testnet, formattedTxId as `0x${string}`);
   });
 
- // Add the deploy contract command
 program
 .command('deploy')
 .description('Deploy a contract')
@@ -102,5 +91,4 @@ program
   await deployCommand(options.abi!, options.bytecode!, !!options.testnet, constructorArgs);
 });
 
-// Parse command-line arguments
 program.parse(process.argv);
