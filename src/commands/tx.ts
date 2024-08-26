@@ -39,10 +39,7 @@ export async function txCommand(testnet: boolean, txid: string): Promise<void> {
     console.log(table.toString());
   } catch (error) {
     if (error instanceof Error) {
-      console.error(
-        chalk.red("🚨 Error checking transaction status:"),
-        chalk.yellow(error.message)
-      );
+      console.error(chalk.red('🚨 Error checking transaction status:'), chalk.yellow(`Error checking transaction status: Invalid transaction hash`));
     } else {
       console.error(chalk.red("🚨 An unknown error occurred."));
     }
