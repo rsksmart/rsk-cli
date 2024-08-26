@@ -45,7 +45,7 @@ program
 program
   .command('createWallet')
   .description('Create a new wallet on the selected network')
-  .action(async (options: CommandOptions) => {
+  .action(async () => {
     await createWalletCommand();
   });
 
