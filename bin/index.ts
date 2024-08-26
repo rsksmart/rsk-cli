@@ -60,12 +60,12 @@ program
   .requiredOption('-v, --value <value>', 'Amount to transfer in rBTC')
   .action(async (options: CommandOptions) => {
     try {
-      await transferCommand(!!options.testnet, `0x${options.address!}`, parseFloat(options.value!));
+      const address = `0x${options.address!.replace(/^0x/, '')}` as `0x${string}`;
+      await transferCommand(!!options.testnet, address, parseFloat(options.value!));
     } catch (error) {
       console.error(chalk.red('Error during transfer:'), error);
     }
   });
-
 program
   .command('tx')
   .description('Check the status of a transaction')
