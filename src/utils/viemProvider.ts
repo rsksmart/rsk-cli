@@ -9,11 +9,9 @@ import inquirer from 'inquirer';
 const walletFilePath = path.join(process.cwd(), 'rootstock-wallet.json');
 
 class ViemProvider {
-  private network: string;
   public chain: typeof rootstock | typeof rootstockTestnet;
   
   constructor(network: string) {
-    this.network = network;
     this.chain = network === 'rootstockTestnet' ? rootstockTestnet : rootstock;
   }
 
