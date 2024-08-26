@@ -52,7 +52,7 @@ export async function walletCommand() {
         message: "What would you like to do?",
         choices: [
           "🆕 Create a new wallet",
-          "🔑 Insert wallet address and private key",
+          "🔑 Insert your private key",
         ],
       },
     ];
@@ -121,7 +121,7 @@ export async function walletCommand() {
       return;
     }
 
-    if (action === "🔑 Insert wallet address and private key") {
+    if (action === "🔑 Insert your private key") {
       const inputQuestions: any = [
         {
           type: "password",
