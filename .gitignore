@@ -1,7 +1,7 @@
 # Based on https://raw.githubusercontent.com/github/gitignore/main/Node.gitignore
 
 rootstock-wallet.json
-
+rootstock-wallet-dev.json
 #lock files 
 pnpm-lock.yaml
 bun.lockb
