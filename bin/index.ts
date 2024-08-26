@@ -15,7 +15,7 @@ interface CommandOptions {
   txid?: string;
   abi?: string;
   bytecode?: string;
-  constructorArgs?: any;
+  args?: any;
 }
 
 const orange = chalk.rgb(255, 165, 0);
@@ -97,12 +97,12 @@ program
   .option("--args <args...>", "Constructor arguments (space-separated)")
   .option("-t, --testnet", "Deploy on the testnet")
   .action(async (options: CommandOptions) => {
-    const constructorArgs = options.constructorArgs || [];
+    const args = options.args || [];
     await deployCommand(
       options.abi!,
       options.bytecode!,
       !!options.testnet,
-      constructorArgs
+      args
     );
   });
 

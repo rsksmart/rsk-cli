@@ -73,7 +73,12 @@ export async function deployCommand(
 
       const receipt = await publicClient.waitForTransactionReceipt({ hash });
 
+      if (receipt?.status === "reverted") {
+        throw new Error("An error occurred during contract deployment.");
+      }
+
       spinner.succeed("📜 Contract deployed successfully!");
+
       console.log(
         chalk.green(`📍 Contract Address: ${receipt.contractAddress}`)
       );
