@@ -7,6 +7,7 @@ import { txCommand } from "../src/commands/tx.js";
 import figlet from "figlet";
 import chalk from "chalk";
 import { deployCommand } from "../src/commands/deploy.js";
+import { verifyCommand } from "../src/commands/verify.js";
 
 interface CommandOptions {
   testnet?: boolean;
@@ -16,6 +17,7 @@ interface CommandOptions {
   abi?: string;
   bytecode?: string;
   args?: any;
+  json?: any;
 }
 
 const orange = chalk.rgb(255, 165, 0);
@@ -104,6 +106,24 @@ program
       !!options.testnet,
       args
     );
+  });
+
+program
+  .command("verify")
+  .description("Verify a contract")
+  .requiredOption("--json <path>", "Path to the JSON Standard Output")
+  .option("-t, --testnet", "Deploy on the testnet")
+  .action(async (options: CommandOptions) => {
+    await verifyCommand(options.json!, !!options.testnet);
+  });
+
+program
+  .command("contract")
+  .description("Interact with a contract")
+  .requiredOption("-a, --address <address>", "Address of a verified contract")
+  .option("-t, --testnet", "Deploy on the testnet")
+  .action(async (options: CommandOptions) => {
+    await verifyCommand(options.json!, !!options.testnet);
   });
 
 program.parse(process.argv);
