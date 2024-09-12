@@ -192,7 +192,7 @@ Output example:
 🔗 View on Explorer: https://explorer.testnet.rootstock.io/address/0xf922e98776686ae39119bc3ea224f54bd0500d3f
 ```
 
-### 5. Verify Smart Contract
+### 6. Verify Smart Contract
 
 The verify command allows you to verify a smart contract on the Rootstock blockchain using JSON Standard Input via Rootstock Explorer API. This command supports contract verification on both the mainnet and testnet.
 
