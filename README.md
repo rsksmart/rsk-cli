@@ -191,3 +191,47 @@ Output example:
 📍 Contract Address: 0xf922e98776686ae39119bc3ea224f54bd0500d3f
 🔗 View on Explorer: https://explorer.testnet.rootstock.io/address/0xf922e98776686ae39119bc3ea224f54bd0500d3f
 ```
+
+### 5. Verify Smart Contract
+
+The verify command allows you to verify a smart contract on the Rootstock blockchain using JSON Standard Input via Rootstock Explorer API. This command supports contract verification on both the mainnet and testnet.
+
+#### Mainnet
+
+With arguments:
+
+```bash
+rsk-cli verify --json <path_to_json> --address <address> --name <contract_name> --decodedArgs <arg1> <arg2> ...
+```
+
+Without arguments:
+
+```bash
+rsk-cli verify --json <path_to_json> --address <address> --name <contract_name>
+```
+
+#### Testnet
+
+With arguments:
+
+```bash
+rsk-cli verify --testnet --json <path_to_json> --address <address> --name <contract_name> --decodedArgs <arg1> <arg2> ...
+```
+
+Without arguments:
+
+```bash
+rsk-cli verify --testnet --json <path_to_json> --address <address> --name <contract_name>
+```
+
+Output example:
+
+```
+🔧 Initializing verification on testnet...
+📄 Reading JSON Standard Input from files/30637d574184a42337b9861a661ee057.json...
+🔎 Verifying contract ComplexStorage deployed at 0x5E6Fad85585E857A76368dD0962D3B0CCf48Eb21..
+📄 Using constructor arguments: 0x28eb8d29e4713e211d1ddab19df3de16086bb8fa, 1
+✔ 🎉 Contract verification request sent!
+✔ 📜 Contract verified successfully!
+🔗 View on Explorer: https://explorer.testnet.rootstock.io/address/0x5E6Fad85585E857A76368dD0962D3B0CCf48Eb21
+```
