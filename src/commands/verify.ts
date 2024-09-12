@@ -1,10 +1,14 @@
 import chalk from "chalk";
 import fs from "fs";
 import ora from "ora";
+import { wait } from "../utils/index.js";
 
 export async function verifyCommand(
   jsonPath: string,
-  testnet: boolean
+  address: string,
+  name: string,
+  testnet: boolean,
+  args: any[] = []
 ): Promise<void> {
   try {
     console.log(
@@ -13,59 +17,145 @@ export async function verifyCommand(
       )
     );
 
+    const baseUrl = testnet
+      ? "https://be.explorer.testnet.rootstock.io"
+      : "https://be.explorer.rootstock.io";
+
     console.log(
-      chalk.blue(`📄 Reading JSON Standard Output from ${jsonPath}...`)
+      chalk.blue(`📄 Reading JSON Standard Input from ${jsonPath}...`)
     );
     const json = fs.readFileSync(jsonPath, "utf8");
     const parsedJson = JSON.parse(json);
 
-    if (!Array.isArray(parsedJson)) {
-      console.error(
-        chalk.red("⚠️ The JSON Standard Output file has an invalid format.")
-      );
+    if (!parsedJson) {
+      console.error(chalk.red("⚠️ The JSON Standard Input file is empty."));
       return;
     }
 
-    const spinner = ora("⏳ Verifying contract...").start();
+    console.log(
+      `🔎 Verifying contract ${chalk.green(
+        `${name}`
+      )} deployed at ${chalk.green(`${address}`)}..`
+    );
+
+    const spinner = ora().start();
 
     try {
-      // @ts-ignore
-      const response = await fetch(`https://api-goerli.rootstock.io/verify`, {
+      const solidityVersion = parsedJson.solcLongVersion;
+      const { language, sources, settings } = parsedJson.input;
+
+      const requestBody = {
+        module: "contractVerifier",
+        action: "verify",
+        getDelayed: true,
+        params: {
+          request: {
+            address: address.toLowerCase(),
+            name,
+            version: solidityVersion,
+            language,
+            sources,
+            settings,
+          },
+        },
+      };
+
+      if (args.length > 0) {
+        spinner.stop();
+        console.log(
+          chalk.blue(`📄 Using constructor arguments: ${args.join(", ")}`)
+        );
+        spinner.start();
+        // @ts-ignore
+        requestBody.params.request.constructorArguments = args;
+      }
+
+      const response = await fetch(`${baseUrl}/api`, {
         method: "POST",
+        body: JSON.stringify(requestBody),
         headers: {
           "Content-Type": "application/json",
-          "x-api-key": "bbc965c4-c3a3-4e10-8091-a17750df0d91",
         },
-
-        body: JSON.stringify(parsedJson),
       });
 
       if (!response.ok) {
         spinner.fail("❌ Error during contract verification.");
-        throw new Error("An error occurred during contract verification.");
+        throw new Error(
+          "Please check your JSON Standard Input file and try again."
+        );
       }
 
+      const resData = await response.json();
+      const { _id } = resData.data;
+
       spinner.succeed("🎉 Contract verification request sent!");
+      spinner.start("⏳ Waiting for verification confirmation...");
 
-      spinner.start("⏳ Waiting for verification completion...");
+      const maxRetries = 10;
+      const retryDelay = 4000;
 
-      const data = await response.json();
+      const match = await pollVerificationResult(
+        baseUrl,
+        _id,
+        maxRetries,
+        retryDelay
+      );
+
+      if (!match) {
+        spinner.fail("❌ Contract verification failed.");
+        throw new Error("Contract verification failed.");
+      }
 
       spinner.succeed("📜 Contract verified successfully!");
 
       const explorerUrl = testnet
-        ? `https://explorer.testnet.rootstock.io/address/${data.contractAddress}`
-        : `https://explorer.rootstock.io/address/${data.contractAddress}`;
+        ? `https://explorer.testnet.rootstock.io/address/${address}`
+        : `https://explorer.rootstock.io/address/${address}`;
 
       console.log(
         chalk.white(`🔗 View on Explorer:`),
         chalk.dim(`${explorerUrl}`)
       );
     } catch (error) {
-      spinner.fail("❌ Error during contract verifications.");
+      spinner.fail("❌ Error during contract verification.");
       throw error;
     }
   } catch (error) {
-    console.error("❌ Error deploying contract:", error);
+    console.error("❌ Error verifying contract:", error);
   }
+}
+
+async function pollVerificationResult(
+  baseUrl: string,
+  verificationId: string,
+  maxRetries: number,
+  retryDelay: number
+): Promise<boolean> {
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    const confirmation = await fetch(
+      `${baseUrl}/api?module=contractVerifier&action=getVerificationResult&id=${verificationId}`
+    );
+
+    if (!confirmation.ok) {
+      console.log(
+        chalk.yellow("⚠️ Error fetching verification status, retrying...")
+      );
+    } else {
+      const confirmationData = await confirmation.json();
+      const { match } = confirmationData.data;
+
+      if (match !== undefined) {
+        return match;
+      }
+    }
+
+    await wait(retryDelay);
+  }
+
+  console.log(
+    chalk.red(
+      "⚠️ Maximum retries reached, verification status could not be confirmed."
+    )
+  );
+  return false;
 }

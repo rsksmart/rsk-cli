@@ -18,6 +18,8 @@ interface CommandOptions {
   bytecode?: string;
   args?: any;
   json?: any;
+  name?: string;
+  decodedArgs?: any;
 }
 
 const orange = chalk.rgb(255, 165, 0);
@@ -111,10 +113,23 @@ program
 program
   .command("verify")
   .description("Verify a contract")
-  .requiredOption("--json <path>", "Path to the JSON Standard Output")
+  .requiredOption("--json <path>", "Path to the JSON Standard Input")
+  .requiredOption("--name <name>", "Name of the contract")
+  .requiredOption("-a, --address <address>", "Address of the deployed contract")
   .option("-t, --testnet", "Deploy on the testnet")
+  .option(
+    "-da, --decodedArgs <args...>",
+    "Decoded Constructor arguments (space-separated)"
+  )
   .action(async (options: CommandOptions) => {
-    await verifyCommand(options.json!, !!options.testnet);
+    const args = options.decodedArgs || [];
+    await verifyCommand(
+      options.json!,
+      options.address!,
+      options.name!,
+      !!options.testnet,
+      args
+    );
   });
 
 program
@@ -122,8 +137,9 @@ program
   .description("Interact with a contract")
   .requiredOption("-a, --address <address>", "Address of a verified contract")
   .option("-t, --testnet", "Deploy on the testnet")
+
   .action(async (options: CommandOptions) => {
-    await verifyCommand(options.json!, !!options.testnet);
+    // await verifyCommand(options.json!, !!options.testnet);
   });
 
 program.parse(process.argv);
