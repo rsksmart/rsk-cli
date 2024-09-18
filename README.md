@@ -236,6 +236,35 @@ Output example:
 🔗 View on Explorer: https://explorer.testnet.rootstock.io/address/0x5E6Fad85585E857A76368dD0962D3B0CCf48Eb21
 ```
 
+### 7. Interact with verified smart contracts
+
+The contract command allows you to interact with a smart contract on the Rootstock blockchain. This command lists all available read functions of a verified smart contract and allows you to call them. Write functions are excluded to ensure no state-changing operations are performed accidentally.
+
+#### Mainnet
+
+```bash
+rsk-cli contract --address <address>
+```
+
+#### Testnet
+
+```bash
+rsk-cli contract --address <address> --testnet
+```
+
+Output example:
+
+```
+🔧 Initializing interaction on testnet...
+🔎 Checking if contract 0x15c41c730b86d9a598bf00da2d27d963b6dd2318 is verified...
+? Select a read function to call: symbol
+📜 You selected: symbol
+
+✅ Function symbol called successfully!
+✔ 🔧 Result: ROOT
+🔗 View on Explorer: https://explorer.testnet.rootstock.io/address/0x15c41c730b86d9a598bf00da2d27d963b6dd2318
+```
+
 ## Contributing
 
 We welcome contributions from the community. Please fork the repository and submit pull requests with your changes. Ensure your code adheres to the project's main objective.
