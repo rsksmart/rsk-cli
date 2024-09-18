@@ -8,6 +8,7 @@ import figlet from "figlet";
 import chalk from "chalk";
 import { deployCommand } from "../src/commands/deploy.js";
 import { verifyCommand } from "../src/commands/verify.js";
+import { ReadContract } from "../src/commands/contract.js";
 
 interface CommandOptions {
   testnet?: boolean;
@@ -137,9 +138,8 @@ program
   .description("Interact with a contract")
   .requiredOption("-a, --address <address>", "Address of a verified contract")
   .option("-t, --testnet", "Deploy on the testnet")
-
   .action(async (options: CommandOptions) => {
-    // await verifyCommand(options.json!, !!options.testnet);
+    await ReadContract(options.address! as `0x${string}`, !!options.testnet);
   });
 
 program.parse(process.argv);
