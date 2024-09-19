@@ -128,9 +128,8 @@ export async function ReadContract(
       );
       spinner.succeed(chalk.white(`🔧 Result:`) + " " + chalk.green(data));
     } catch (error) {
-      console.error(
-        chalk.red(`❌ Error calling function ${selectedFunction}:`),
-        error
+      spinner.fail(
+        `❌ Error while calling function ${chalk.cyan(selectedFunction)}.`
       );
     }
 
@@ -144,6 +143,5 @@ export async function ReadContract(
     );
   } catch (error) {
     spinner.fail("❌ Error during contract interaction.");
-    throw error;
   }
 }
