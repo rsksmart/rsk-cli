@@ -20,6 +20,21 @@ export async function verifyCommand(
     ? "https://be.explorer.testnet.rootstock.io"
     : "https://be.explorer.rootstock.io";
 
+  const response = await fetch(
+    `${baseUrl}/api?module=verificationResults&action=getVerification&address=${address}`
+  );
+
+  const resData = await response.json();
+
+  if (resData.data !== null) {
+    console.log(
+      chalk.green(
+        `✅ Contract ${chalk.green(`${address}`)} is already verified.`
+      )
+    );
+    return;
+  }
+
   console.log(chalk.blue(`📄 Reading JSON Standard Input from ${jsonPath}...`));
 
   const json = fs.readFileSync(jsonPath, "utf8");
@@ -39,14 +54,17 @@ export async function verifyCommand(
   const spinner = ora().start();
 
   try {
-    const solidityVersion = parsedJson.solcLongVersion;
-
-    if (solidityVersion === undefined || parsedJson.input === undefined) {
+    if (
+      !parsedJson.hasOwnProperty("solcLongVersion") ||
+      !parsedJson.hasOwnProperty("input")
+    ) {
       spinner.fail(
         "❌ Please check your JSON Standard Input file and try again."
       );
       return;
     }
+
+    const solidityVersion = parsedJson.solcLongVersion;
 
     const { language, sources, settings } = parsedJson.input;
 
