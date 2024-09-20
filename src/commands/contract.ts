@@ -14,9 +14,11 @@ function isValidAddress(address: string): boolean {
 }
 
 export async function ReadContract(
-  address: `0x${string}`,
+  uppercaseAddress: `0x${string}`,
   testnet: boolean
 ): Promise<void> {
+  const address = uppercaseAddress.toLowerCase() as `0x${string}`;
+
   if (!isValidAddress(address)) {
     console.log(
       chalk.red("❌ Invalid address format. Please provide a valid address.")
@@ -66,6 +68,7 @@ export async function ReadContract(
     );
 
     if (readFunctions.length === 0) {
+      spinner.stop();
       console.log(chalk.yellow("⚠️ No read functions found in the contract."));
       return;
     }

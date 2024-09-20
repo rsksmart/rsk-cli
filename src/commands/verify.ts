@@ -21,7 +21,7 @@ export async function verifyCommand(
     : "https://be.explorer.rootstock.io";
 
   const response = await fetch(
-    `${baseUrl}/api?module=verificationResults&action=getVerification&address=${address}`
+    `${baseUrl}/api?module=verificationResults&action=getVerification&address=${address.toLowerCase()}`
   );
 
   const resData = await response.json();
