@@ -36,12 +36,15 @@ export async function verifyCommand(
   }
 
   console.log(chalk.blue(`📄 Reading JSON Standard Input from ${jsonPath}...`));
+  let parsedJson;
 
-  const json = fs.readFileSync(jsonPath, "utf8");
-  const parsedJson = JSON.parse(json);
-
-  if (!parsedJson) {
-    console.error(chalk.red("⚠️ The JSON Standard Input file is empty."));
+  try {
+    const json = fs.readFileSync(jsonPath, "utf8");
+    parsedJson = JSON.parse(json);
+  } catch (error) {
+    console.error(
+      chalk.red("⚠️ Please check your JSON Standard Input file and try again.")
+    );
     return;
   }
 
