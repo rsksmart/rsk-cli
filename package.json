@@ -2,7 +2,7 @@
   "name": "@rsksmart/rsk-cli",
   "version": "1.0.3",
   "description": "CLI tool for Rootstock network using Viem",
-  "repository": "https://github.com/rsksmart/rsk-cli.git",
+  "repository": "git@github.com:rsksmart/rsk-cli.git",
   "main": "./dist/bin/index.js",
   "bin": {
     "rsk-cli": "./dist/bin/index.js"
