@@ -9,7 +9,7 @@
 To install the CLI tool globally, use the following command:
 
 ```bash
-npm install -g rsk-cli
+npm i -g @rsksmart/rsk-cli
 ```
 
 ## Development
@@ -19,23 +19,6 @@ npm install -g rsk-cli
 Before you can start developing with `rsk-cli`, ensure that you have the following tools installed on your system:
 
 1. **Node.js**: Make sure Node.js is installed, as it is required for running the CLI tool.
-2. **Bun**: Bun is a fast JavaScript runtime that the CLI uses for development. To install Bun, run the following command:
-
-   ```bash
-   curl -fsSL https://bun.sh/install | bash
-   ```
-
-To install dependencies:
-
-```bash
-bun install
-```
-
-To run:
-
-```bash
-bun bin/index.ts
-```
 
 ## Features
 
