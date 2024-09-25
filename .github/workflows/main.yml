@@ -3,7 +3,6 @@ name: Deploy library on NPM
 on:
   release:
     types: [created]
-    
 
 jobs:
   publish:
@@ -18,7 +17,7 @@ jobs:
         uses: andstor/file-existence-action@v3
         with:
           files: "package.json, README.md"
-          
+
       - name: File exists
         if: steps.check_files.outputs.files_exists != 'true'
         # Only runs if all of the files exists
@@ -40,7 +39,7 @@ jobs:
         if: github.ref != steps.get_package_info.outputs.PACKAGE_VERSION
         # Fail if package version not properly setted
         run: exit 1
-      
+
       - name: Check if package repository matches with repository
         if: github.repositoryUrl != steps.get_package_info.outputs.PACKAGE_REPOSITORY
         # Fail if package repository doesn't match with repository
@@ -49,7 +48,7 @@ jobs:
       - name: Push package to npmjs.com
         uses: actions/setup-node@v1
         with:
-          node-version: 16
+          node-version: 20
           registry-url: https://registry.npmjs.org/
 
       - name: Install dependencies
@@ -57,15 +56,15 @@ jobs:
 
       - name: Pre upload validation
         id: pack
-        run: | 
+        run: |
           npm pack --dry-run >> output 2>&1
           echo PRE_UPLOAD_HASH=$(cat output| grep shasum | cut -f4 -d" ") >> $GITHUB_OUTPUT
-        
+
       - name: Upload package
         run: npm publish --access public
         env:
           NODE_AUTH_TOKEN: ${{secrets.NPM_TOKEN}}
-      
+
       - name: Post upload validation
         id: unpack
         run: |
