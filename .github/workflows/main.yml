@@ -54,6 +54,16 @@ jobs:
       - name: Install dependencies
         run: npm install
 
+      - name: Build the project
+        run: npm run build
+
+      - name: Verify dist folder exists
+        run: |
+          if [ ! -d "dist" ]; then
+            echo "Error: dist folder not found!"
+            exit 1
+          fi
+
       - name: Pre upload validation
         id: pack
         run: |
