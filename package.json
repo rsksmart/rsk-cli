@@ -1,8 +1,11 @@
 {
   "name": "@rsksmart/rsk-cli",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "CLI tool for Rootstock network using Viem",
-  "repository": "git@github.com:rsksmart/rsk-cli.git",
+  "repository": {
+    "type": "git",
+    "url": "git@github.com:rsksmart/rsk-cli.git"
+  },
   "main": "dist/bin/index.js",
   "bin": {
     "rsk-cli": "./dist/bin/index.js"
@@ -24,6 +27,9 @@
   "author": "rookiecol",
   "license": "MIT",
   "type": "module",
+  "files": [
+    "dist/"
+  ],
   "devDependencies": {
     "@types/bun": "latest",
     "@types/chalk": "^2.2.0",
