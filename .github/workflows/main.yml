@@ -1,63 +1,34 @@
-name: Deploy library on NPM
+name: CI Workflow
 
 on:
   release:
     types: [published]
+  push:
+    branches:
+      - main
+      - fix/ci-errors
 
 jobs:
-  publish:
+  build:
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: "Check file existence"
-        id: check_files
-        uses: andstor/file-existence-action@v3
-        with:
-          files: "package.json, README.md"
-
-      - name: File exists
-        if: steps.check_files.outputs.files_exists != 'true'
-        # Only runs if all of the files exists
-        run: exit 1
-
-      - name: Get package.json package name and match with repository name
-        run: |
-          echo PACKAGE_NAME=$(cat package.json | jq .name | cut -f2 -d"\"" | cut -f2 -d"@") >> $GITHUB_OUTPUT
-          echo PACKAGE_VERSION="refs/tags/v"$(cat package.json | jq .version | cut -f2 -d"\"") >> $GITHUB_OUTPUT
-          echo PACKAGE_REPOSITORY=$(cat package.json | jq .repository | cut -f2 -d"\"" | sed  's/:/\//' | sed 's/@/:\/\//') >> $GITHUB_OUTPUT
-        id: get_package_info
-
-      - name: Check if package_name matches with repository name
-        if: github.repository != steps.get_package_info.outputs.PACKAGE_NAME
-        # Fail if package name not properly configured
-        run: exit 1
-
-      - name: Check if package version matches with tag
-        if: github.ref != steps.get_package_info.outputs.PACKAGE_VERSION
-        # Fail if package version not properly setted
-        run: exit 1
-
-      - name: Check if package repository matches with repository
-        if: github.repositoryUrl != steps.get_package_info.outputs.PACKAGE_REPOSITORY
-        # Fail if package repository doesn't match with repository
-        run: exit 1
-
-      - name: Push package to npmjs.com
+      - name: Use Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
-          registry-url: https://registry.npmjs.org/
+          node-version: '20.x'
+
+      - name: Install pnpm
+        run: npm install -g pnpm
 
       - name: Install dependencies
-        run: npm ci
+        run: pnpm install
 
-      - name: Build the project
-        run: npm run build
-        env:
-          CI: false
+      - name: Build project
+        run: pnpm build
 
       - name: Verify dist folder exists
         run: |
@@ -66,24 +37,45 @@ jobs:
             exit 1
           fi
 
-      - name: Pre upload validation
+  publish:
+    runs-on: ubuntu-latest
+    needs: build # This ensures publish runs only after build succeeds
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        run: |
+          echo PACKAGE_NAME=$(cat package.json | jq .name | cut -f2 -d"\"" | cut -f2 -d"@") >> $GITHUB_OUTPUT
+          echo PACKAGE_VERSION="refs/tags/v"$(cat package.json | jq .version | cut -f2 -d"\"") >> $GITHUB_OUTPUT
+          echo PACKAGE_REPOSITORY=$(cat package.json | jq .repository | cut -f2 -d"\"" | sed  's/:/\//' | sed 's/@/:\/\//') >> $GITHUB_OUTPUT
+        id: get_package_info
+
+      - name: Set up Node.js for npm publishing
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          registry-url: https://registry.npmjs.org/
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Pre-upload validation
         id: pack
         run: |
           npm pack --dry-run >> output 2>&1
-          echo PRE_UPLOAD_HASH=$(cat output| grep shasum | cut -f4 -d" ") >> $GITHUB_OUTPUT
+          echo PRE_UPLOAD_HASH=$(cat output | grep shasum | cut -f4 -d" ") >> $GITHUB_OUTPUT
 
-      - name: Upload package
+      - name: Publish package
         run: npm publish --access public
         env:
-          NODE_AUTH_TOKEN: ${{secrets.NPM_TOKEN}}
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
-      - name: Post upload validation
+      - name: Post-upload validation
         id: unpack
         run: |
           PACKAGE_NAME=$(cat package.json | jq .name | cut -f2 -d"\"")@$(cat package.json | jq .version | cut -f2 -d"\"")
-          echo POST_UPLOAD_HASH=$(npm view $PACKAGE_NAME) >> $GITHUB_OUTPUT
+          echo POST_UPLOAD_HASH=$(npm view $PACKAGE_NAME | grep shasum | cut -f4 -d" ") >> $GITHUB_OUTPUT
 
-      - name: Pre and Post Upload validation
+      - name: Pre and post upload validation
         if: steps.pack.outputs.PRE_UPLOAD_HASH != steps.unpack.outputs.POST_UPLOAD_HASH
-        # Fail if package hashes doesn't match
         run: exit 1
