@@ -1,0 +1,15 @@
+name: Build
+on:
+    push
+
+jobs:
+    build:
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@d632683dd7b4114ad314bca15554477dd762a938
+
+            - name: Install dependencies
+              run: npm install
+
+            - name: Build
+              run: npm run build
