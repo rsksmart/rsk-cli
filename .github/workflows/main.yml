@@ -38,7 +38,7 @@ jobs:
 
   publish:
     runs-on: ubuntu-latest
-    needs: build # This ensures publish runs only after build succeeds
+    needs: build 
 
     steps:
       - name: Checkout
