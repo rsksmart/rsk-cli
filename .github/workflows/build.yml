@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+      - fix/ci-errors
 jobs:
   build:
     runs-on: ubuntu-latest
