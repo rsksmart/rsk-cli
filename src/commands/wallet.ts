@@ -96,8 +96,8 @@ export async function walletCommand() {
       );
 
       const iv = crypto.randomBytes(16);
-      const key = crypto.scryptSync(password!, iv, 32);
-      const cipher = crypto.createCipheriv("aes-256-cbc", key, iv);
+      const key = crypto.scryptSync(password!, Uint8Array.from(iv), 32);
+      const cipher = crypto.createCipheriv("aes-256-cbc", Uint8Array.from(key), Uint8Array.from(iv));
 
       let encryptedPrivateKey = cipher.update(
         prefixedPrivateKey,
@@ -161,8 +161,8 @@ export async function walletCommand() {
       );
 
       const iv = crypto.randomBytes(16);
-      const key = crypto.scryptSync(password!, iv, 32);
-      const cipher = crypto.createCipheriv("aes-256-cbc", key, iv);
+      const key = crypto.scryptSync(password!, Uint8Array.from(iv), 32);
+      const cipher = crypto.createCipheriv("aes-256-cbc", Uint8Array.from(key), Uint8Array.from(iv));
 
       let encryptedPrivateKey = cipher.update(
         prefixedPrivateKey,

@@ -66,9 +66,9 @@ class ViemProvider {
     const { password } = await inquirer.prompt(passwordQuestion);
 
     try {
-      const decipherIv = Buffer.from(iv, "hex");
+      const decipherIv = Uint8Array.from(Buffer.from(iv, "hex"));
       const key = crypto.scryptSync(password, decipherIv, 32);
-      const decipher = crypto.createDecipheriv("aes-256-cbc", key, decipherIv);
+      const decipher = crypto.createDecipheriv("aes-256-cbc", Uint8Array.from(key), decipherIv);
 
       let decryptedPrivateKey = decipher.update(
         encryptedPrivateKey,
