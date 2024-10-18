@@ -1,5 +1,5 @@
-import { walletFilePath } from "./constants";
-import { WalletsFile } from "./types";
+import { walletFilePath } from "./constants.js";
+import { WalletsFile } from "./types.js";
 import fs from "fs";
 
 export function wait(ms: number): Promise<void> {

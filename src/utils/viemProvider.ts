@@ -11,7 +11,7 @@ import fs from "fs";
 import crypto from "crypto";
 import inquirer from "inquirer";
 import chalk from "chalk";
-import { walletFilePath } from "./constants";
+import { walletFilePath } from "./constants.js";
 
 class ViemProvider {
   public chain: typeof rootstock | typeof rootstockTestnet;

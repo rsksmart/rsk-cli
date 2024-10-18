@@ -3,9 +3,9 @@ import chalk from "chalk";
 import inquirer from "inquirer";
 import fs from "fs";
 import crypto from "crypto";
-import { loadWallets } from "../utils";
-import { InquirerAnswers } from "../utils/types";
-import { walletFilePath } from "../utils/constants";
+import { loadWallets } from "../utils/index.js";
+import { InquirerAnswers } from "../utils/types.js";
+import { walletFilePath } from "../utils/constants.js";
 
 export async function walletCommand() {
   try {
