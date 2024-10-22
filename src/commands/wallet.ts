@@ -378,7 +378,7 @@ export async function walletCommand() {
         {
           type: "confirm",
           name: "confirmDelete",
-          message: `⚠️ Are you sure you want to delete the wallet "${walletName}"? This action cannot be undone.`,
+          message: `❗️ Are you sure you want to delete the wallet "${walletName}"? This action cannot be undone.`,
           default: false,
         },
       ];
