@@ -164,6 +164,23 @@ export async function walletCommand() {
         inputQuestions
       );
 
+      const prefixedPrivateKey = `0x${privateKey!.replace(
+        /^0x/,
+        ""
+      )}` as `0x${string}`;
+      const account = privateKeyToAccount(prefixedPrivateKey);
+
+      if (
+        Object.values(walletsData.wallets).some(
+          (wallet) => wallet.address === account.address
+        )
+      ) {
+        console.log(
+          chalk.red(`❌ Wallet with address ${account.address} already saved.`)
+        );
+        return;
+      }
+
       const walletNameQuestion: any = [
         {
           type: "input",
@@ -180,12 +197,6 @@ export async function walletCommand() {
         console.log(chalk.red(`❌ Wallet named ${walletName} already exists.`));
         return;
       }
-
-      const prefixedPrivateKey = `0x${privateKey!.replace(
-        /^0x/,
-        ""
-      )}` as `0x${string}`;
-      const account = privateKeyToAccount(prefixedPrivateKey);
 
       const passwordQuestion: any = [
         {
