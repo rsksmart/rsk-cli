@@ -8,15 +8,3 @@ export type WalletData = {
   encryptedPrivateKey: string;
   iv: string;
 };
-
-export type InquirerAnswers = {
-  action?: string;
-  password?: string;
-  saveWallet?: boolean;
-  walletName?: string;
-  privateKey?: string;
-  address?: string;
-  setCurrentWallet?: boolean;
-  confirmDelete?: boolean;
-  newWalletName?: string;
-};

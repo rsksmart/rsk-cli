@@ -4,8 +4,19 @@ import inquirer from "inquirer";
 import fs from "fs";
 import crypto from "crypto";
 import { loadWallets } from "../utils/index.js";
-import { InquirerAnswers } from "../utils/types.js";
 import { walletFilePath } from "../utils/constants.js";
+
+type InquirerAnswers = {
+  action?: string;
+  password?: string;
+  saveWallet?: boolean;
+  walletName?: string;
+  privateKey?: string;
+  address?: string;
+  setCurrentWallet?: boolean;
+  confirmDelete?: boolean;
+  newWalletName?: string;
+};
 
 export async function walletCommand() {
   try {
