@@ -40,6 +40,7 @@
   },
   "dependencies": {
     "@openzeppelin/contracts": "^5.0.2",
+    "@rsksmart/rsk-precompiled-abis": "^6.0.0-ARROWHEAD",
     "chalk": "^5.3.0",
     "cli-table3": "^0.6.5",
     "commander": "^12.1.0",
