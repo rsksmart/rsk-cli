@@ -310,6 +310,33 @@ Output example:
 🔗 View on Explorer: https://explorer.testnet.rootstock.io/address/0x15c41c730b86d9a598bf00da2d27d963b6dd2318
 ```
 
+### 8. Interact with RSK bridge contract
+
+The bridge command allows you to interact with the RSK bridge contract on the Rootstock blockchain. This command lists all allowed read and write functions of the RSK bridge contract and allows you to call them.
+
+#### Mainnet
+
+```bash
+rsk-cli bridge
+```
+
+#### Testnet
+
+```bash
+rsk-cli bridge --testnet
+```
+
+Output example:
+
+```
+🔧 Initializing bridge for testnet...
+? Select the type of function you want to call: read
+? Select a read function to call: getBtcBlockchainBestChainHeight
+✅ Function getBtcBlockchainBestChainHeight called successfully!
+✔ 🔧 Result: 3168757
+🔗 View on Explorer: https://explorer.testnet.rootstock.io/address/0x0000000000000000000000000000000001000006
+```
+
 ## Contributing
 
 We welcome contributions from the community. Please fork the repository and submit pull requests with your changes. Ensure your code adheres to the project's main objective.
