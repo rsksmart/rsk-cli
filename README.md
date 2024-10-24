@@ -18,7 +18,7 @@ npm i -g @rsksmart/rsk-cli
 
 Before you can start developing with `rsk-cli`, ensure that you have the following tools installed on your system:
 
-1. **Node.js**: Make sure Node.js is installed, as it is required for running the CLI tool.
+- **Node.js**: Make sure Node.js is installed, as it is required for running the CLI tool.
 
 ## Features
 
@@ -33,8 +33,11 @@ rsk-cli wallet
 This command will guide you through the process of wallet management, offering options to:
 
 - Create a new Ethereum-compatible wallet
-- Use an existing wallet
-- Import a custom wallet
+- Import an existing wallet
+- List all saved wallets
+- Switch between saved wallets
+- Update a wallet's name
+- Delete a saved wallet
 
 > **ℹ️ Info:**
 >
@@ -44,14 +47,73 @@ This command will guide you through the process of wallet management, offering o
 >
 > After encryption, your wallet's private key, along with the necessary encryption metadata, is securely stored in a file named `rootstock-wallet.json` in the current working directory. This file allows you to manage and reuse your wallets securely within `rsk-cli` without exposing your sensitive private keys.
 
-Example output when creating a new wallet:
+- Example output when creating a new wallet:
 
-```
-Wallet created successfully on Rootstock!
-Address: 0x63281026e39bCa0F6B371a354ae3b0c79AC1e93B
-Private Key: 0xc5b8b8d70f5afb837f85698b5c8360b1af821f590dfe302af8cba465465fcbd6
-Please save the private key in a secure location.
-```
+  ```
+  🎉 Wallet created successfully on Rootstock!
+  ? 🔒 Enter a password to encrypt your wallet: ****
+  ? 🖋️ Enter a name for your wallet: firstWallet
+  📄 Address: 0x443Cdb69aDA3B9Ca617cc14763FBA57bfB82fd00
+  🔑 Private Key: <PRIVATE_KEY>
+  🔒 Please save the private key in a secure location.
+  💾 Wallet saved securely at /path/to/package/rootstock-wallet.json
+  ```
+
+- Example output when importing an existing wallet:
+
+  ```
+  ? 🔑 Enter your private key: ****************************************************************
+  ? 🖋️ Enter a name for your wallet: imported
+  ? 🔒 Enter a password to encrypt your wallet: ****
+  ? 🔍 Would you like to set this as the current wallet? yes
+  ✅ Wallet set as current!
+  ✅ Wallet validated successfully!
+  📄 Address: 0x4913AbCD40a9455a28134b4ccc37f4f95225e593
+  💾 Wallet saved securely at /path/to/package/rootstock-wallet.json
+  ```
+
+- Example output when listing all saved wallets:
+
+  ```
+  📜 Saved wallets (2):
+
+  - firstWallet: 0x443Cdb69aDA3B9Ca617cc14763FBA57bfB82fd00
+  - imported: 0x4913AbCD40a9455a28134b4ccc37f4f95225e593
+
+  🔑 Current wallet: imported
+  ```
+
+- Example output when switching between saved wallets:
+
+  ```
+  ? 🔁 Select the wallet you want to switch to: firstWallet
+  ✅ Successfully switched to wallet: firstWallet
+  📄 Address: 0x443Cdb69aDA3B9Ca617cc14763FBA57bfB82fd00
+  💾 Wallet switch saved at /path/to/package/rootstock-wallet.json
+  ```
+
+- Example output when updating a wallet's name:
+
+  ```
+  📜 Available wallets:
+  - firstWallet: 0x443Cdb69aDA3B9Ca617cc14763FBA57bfB82fd00 (Current)
+  - imported: 0x4913AbCD40a9455a28134b4ccc37f4f95225e593
+  ? 📝 Select the wallet you want to update the name for: imported
+  ? 🖋️ Enter the new name for the wallet "imported": test
+  ✅ Wallet name updated from "imported" to "test".
+  💾 Changes saved at /path/to/package/rootstock-wallet.json
+  ```
+
+- Example output when deleting a wallet:
+
+  ```
+  📜 Other available wallets:
+  - test: 0x4913AbCD40a9455a28134b4ccc37f4f95225e593
+  ? ❌ Select the wallet you want to delete: test
+  ? ⚠️ Are you sure you want to delete the wallet "test"? This action cannot be undone. yes
+  🗑️ Wallet "test" has been deleted.
+  💾 Changes saved at /path/to/package/rootstock-wallet.json
+  ```
 
 ### 2. Check Balance
 
@@ -246,6 +308,33 @@ Output example:
 ✅ Function symbol called successfully!
 ✔ 🔧 Result: ROOT
 🔗 View on Explorer: https://explorer.testnet.rootstock.io/address/0x15c41c730b86d9a598bf00da2d27d963b6dd2318
+```
+
+### 8. Interact with RSK bridge contract
+
+The bridge command allows you to interact with the RSK bridge contract on the Rootstock blockchain. This command lists all allowed read and write functions of the RSK bridge contract and allows you to call them.
+
+#### Mainnet
+
+```bash
+rsk-cli bridge
+```
+
+#### Testnet
+
+```bash
+rsk-cli bridge --testnet
+```
+
+Output example:
+
+```
+🔧 Initializing bridge for testnet...
+? Select the type of function you want to call: read
+? Select a read function to call: getBtcBlockchainBestChainHeight
+✅ Function getBtcBlockchainBestChainHeight called successfully!
+✔ 🔧 Result: 3168757
+🔗 View on Explorer: https://explorer.testnet.rootstock.io/address/0x0000000000000000000000000000000001000006
 ```
 
 ## Contributing
