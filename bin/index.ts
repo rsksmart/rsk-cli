@@ -145,7 +145,7 @@ program
 
 program
   .command("bridge")
-  .description("Interact with a RSK bridge")
+  .description("Interact with RSK bridge")
   .option("-t, --testnet", "Deploy on the testnet")
   .action(async (options: CommandOptions) => {
     await bridgeCommand(!!options.testnet);

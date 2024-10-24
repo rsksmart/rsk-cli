@@ -72,7 +72,7 @@ This command will guide you through the process of wallet management, offering o
   💾 Wallet saved securely at /path/to/package/rootstock-wallet.json
   ```
 
-- Example output when listing all saved wallet:
+- Example output when listing all saved wallets:
 
   ```
   📜 Saved wallets (2):
