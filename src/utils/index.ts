@@ -1,14 +1,17 @@
 import { walletFilePath } from "./constants.js";
-import { WalletsFile } from "./types.js";
 import fs from "fs";
 
 export function wait(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-export function loadWallets(): WalletsFile {
+export function loadWallets(): string {
   if (fs.existsSync(walletFilePath)) {
-    return JSON.parse(fs.readFileSync(walletFilePath, "utf8"));
+    const walletsData = fs.readFileSync(walletFilePath, "utf8");
+
+    if (walletsData) {
+      return walletsData ?? JSON.stringify({ wallets: {} });
+    }
   }
-  return { wallets: {} };
+  return JSON.stringify({ wallets: {} });
 }

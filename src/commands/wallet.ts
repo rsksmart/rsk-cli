@@ -1,7 +1,7 @@
 import { generatePrivateKey, privateKeyToAccount } from "viem/accounts";
 import chalk from "chalk";
 import inquirer from "inquirer";
-import fs from "fs";
+import fs from "fs-extra";
 import crypto from "crypto";
 import { loadWallets } from "../utils/index.js";
 import { InquirerAnswers } from "../utils/types.js";
@@ -12,12 +12,16 @@ export async function walletCommand() {
     if (fs.existsSync(walletFilePath)) {
       console.log(chalk.grey("📁 Wallet data file found."));
 
-      const walletsData = loadWallets();
+      const walletsDataString = loadWallets();
 
-      if (walletsData.currentWallet) {
-        console.log(
-          chalk.yellow(`\n🔑 Current wallet: ${walletsData.currentWallet}`)
-        );
+      if (walletsDataString) {
+        const walletsData = JSON.parse(walletsDataString);
+
+        if (walletsData.currentWallet) {
+          console.log(
+            chalk.yellow(`\n🔑 Current wallet: ${walletsData.currentWallet}`)
+          );
+        }
       }
     }
 
@@ -46,7 +50,9 @@ export async function walletCommand() {
         ""
       )}` as `0x${string}`;
       const account = privateKeyToAccount(prefixedPrivateKey);
-      const walletsData = loadWallets();
+      const walletsDataString = loadWallets();
+
+      const walletsData: any = JSON.parse(walletsDataString);
 
       console.log(
         chalk.rgb(255, 165, 0)(`🎉 Wallet created successfully on Rootstock!`)
@@ -139,17 +145,13 @@ export async function walletCommand() {
 
       walletsData.wallets[walletName!] = walletData;
 
-      fs.writeFileSync(
-        walletFilePath,
-        JSON.stringify(walletsData, null, 2),
-        "utf8"
-      );
-      console.log(chalk.green(`💾 Wallet saved securely at ${walletFilePath}`));
-      return;
+      writeWalletData(walletFilePath, walletsData);
     }
 
     if (action === "🔑 Import existing wallet") {
-      const walletsData = loadWallets();
+      const walletsDataString = loadWallets();
+
+      const walletsData = JSON.parse(walletsDataString);
 
       const inputQuestions: any = [
         {
@@ -172,7 +174,7 @@ export async function walletCommand() {
 
       if (
         Object.values(walletsData.wallets).some(
-          (wallet) => wallet.address === account.address
+          (wallet: any) => wallet.address === account.address
         )
       ) {
         console.log(
@@ -262,16 +264,13 @@ export async function walletCommand() {
         chalk.green(`${chalk.bold(account.address)}`)
       );
 
-      fs.writeFileSync(
-        walletFilePath,
-        JSON.stringify(walletsData, null, 2),
-        "utf8"
-      );
-      console.log(chalk.green(`💾 Wallet saved securely at ${walletFilePath}`));
+      writeWalletData(walletFilePath, walletsData);
     }
 
     if (action === "🔍 List saved wallets") {
-      const walletsData = loadWallets();
+      const walletsDataString = loadWallets();
+
+      const walletsData = JSON.parse(walletsDataString);
       const walletCount = Object.keys(walletsData.wallets).length;
 
       if (walletCount === 0) {
@@ -296,7 +295,9 @@ export async function walletCommand() {
     }
 
     if (action === "🔁 Switch wallet") {
-      const walletsData = loadWallets();
+      const walletsDataString = loadWallets();
+
+      const walletsData = JSON.parse(walletsDataString);
       const walletNames = Object.keys(walletsData.wallets);
 
       const otherWallets = walletNames.filter(
@@ -331,16 +332,13 @@ export async function walletCommand() {
         chalk.green(`${chalk.bold(walletsData.wallets[walletName!].address)}`)
       );
 
-      fs.writeFileSync(
-        walletFilePath,
-        JSON.stringify(walletsData, null, 2),
-        "utf8"
-      );
-      console.log(chalk.green(`💾 Wallet switch saved at ${walletFilePath}`));
+      writeWalletData(walletFilePath, walletsData);
     }
 
     if (action === "❌ Delete wallet") {
-      const walletsData = loadWallets();
+      const walletsDataString = loadWallets();
+
+      const walletsData = JSON.parse(walletsDataString);
       const walletNames = Object.keys(walletsData.wallets);
 
       const otherWallets = walletNames.filter(
@@ -395,16 +393,13 @@ export async function walletCommand() {
       delete walletsData.wallets[walletName!];
       console.log(chalk.red(`🗑️ Wallet "${walletName}" has been deleted.`));
 
-      fs.writeFileSync(
-        walletFilePath,
-        JSON.stringify(walletsData, null, 2),
-        "utf8"
-      );
-      console.log(chalk.green(`💾 Changes saved at ${walletFilePath}`));
+      writeWalletData(walletFilePath, walletsData);
     }
 
     if (action === "📝 Update wallet name") {
-      const walletsData = loadWallets();
+      const walletsDataString = loadWallets();
+
+      const walletsData = JSON.parse(walletsDataString);
       const walletNames = Object.keys(walletsData.wallets);
 
       if (walletNames.length === 0) {
@@ -473,16 +468,27 @@ export async function walletCommand() {
         )
       );
 
-      fs.writeFileSync(
-        walletFilePath,
-        JSON.stringify(walletsData, null, 2),
-        "utf8"
-      );
-      console.log(chalk.green(`💾 Changes saved at ${walletFilePath}`));
+      writeWalletData(walletFilePath, walletsData);
     }
   } catch (error: any) {
     console.error(
       chalk.red("❌ Error creating or managing wallets:"),
+      chalk.yellow(error.message || error)
+    );
+  }
+}
+
+async function writeWalletData(walletFilePath: string, walletsData: any) {
+  try {
+    fs.writeFileSync(
+      walletFilePath,
+      JSON.stringify(walletsData, null, 2),
+      "utf8"
+    );
+    console.log(chalk.green(`💾 Changes saved at ${walletFilePath}`));
+  } catch (error: any) {
+    console.error(
+      chalk.red("❌ Error saving wallet data:"),
       chalk.yellow(error.message || error)
     );
   }
