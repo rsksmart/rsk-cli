@@ -9,10 +9,11 @@ import chalk from "chalk";
 import { deployCommand } from "../src/commands/deploy.js";
 import { verifyCommand } from "../src/commands/verify.js";
 import { ReadContract } from "../src/commands/contract.js";
+import { Address } from "viem";
 
 interface CommandOptions {
   testnet?: boolean;
-  address?: string;
+  address?: Address;
   value?: string;
   txid?: string;
   abi?: string;
@@ -55,8 +56,9 @@ program
   .command("balance")
   .description("Check the balance of the saved wallet")
   .option("-t, --testnet", "Check the balance on the testnet")
+  .option("-a, --address <address>", "Check the balance of a specific address")
   .action(async (options: CommandOptions) => {
-    await balanceCommand(!!options.testnet);
+    await balanceCommand(!!options.testnet, options.address);
   });
 
 program

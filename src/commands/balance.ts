@@ -2,34 +2,42 @@ import ViemProvider from "../utils/viemProvider.js";
 import fs from "fs";
 import path from "path";
 import chalk from "chalk";
-
+import { Address, isAddress } from "viem";
 const walletFilePath = path.join(process.cwd(), "rootstock-wallet.json");
 
-export async function balanceCommand(testnet: boolean) {
+export async function balanceCommand(testnet: boolean, address?: Address) {
   try {
-    if (!fs.existsSync(walletFilePath)) {
-      console.log(
-        chalk.red("🚫 No saved wallet found. Please create a wallet first.")
+    let targetAddress: Address;
+
+    if (address) {
+      if (!isAddress(address)) {
+        console.log(chalk.red("🚫 Invalid address provided"));
+        return;
+      }
+      targetAddress = address;
+    } else {
+      if (!fs.existsSync(walletFilePath)) {
+        console.log(chalk.red("🚫 No saved wallet found"));
+        return;
+      }
+      const { address: savedAddress } = JSON.parse(
+        fs.readFileSync(walletFilePath, "utf8")
       );
-      return;
-    }
-
-    const walletData = JSON.parse(fs.readFileSync(walletFilePath, "utf8"));
-    const { address } = walletData;
-
-    if (!address) {
-      console.log(chalk.red("⚠️ No valid address found in the saved wallet."));
-      return;
+      if (!savedAddress) {
+        console.log(chalk.red("⚠️ Invalid wallet data"));
+        return;
+      }
+      targetAddress = savedAddress;
     }
 
     const provider = new ViemProvider(testnet);
     const client = await provider.getPublicClient();
 
-    const balance = await client.getBalance({ address });
+    const balance = await client.getBalance({ address: targetAddress });
 
     const rbtcBalance = Number(balance) / 10 ** 18;
 
-    console.log(chalk.white(`📄 Wallet Address:`), chalk.green(address));
+    console.log(chalk.white(`📄 Wallet Address:`), chalk.green(targetAddress));
     console.log(
       chalk.white(`🌐 Network:`),
       chalk.green(testnet ? "Rootstock Testnet" : "Rootstock Mainnet")
