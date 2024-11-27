@@ -1,6 +1,6 @@
 {
   "name": "@rsksmart/rsk-cli",
-  "version": "1.0.4",
+  "version": "1.0.5",
   "description": "CLI tool for Rootstock network using Viem",
   "repository": "git@github.com:rsksmart/rsk-cli.git",
   "main": "./dist/bin/index.js",
@@ -40,6 +40,7 @@
   },
   "dependencies": {
     "@openzeppelin/contracts": "^5.0.2",
+    "@rsksmart/rsk-precompiled-abis": "^6.0.0-ARROWHEAD",
     "@types/fs-extra": "^11.0.4",
     "chalk": "^5.3.0",
     "cli-table3": "^0.6.5",
