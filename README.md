@@ -142,6 +142,14 @@ Use the `-t` or `--testnet` flag to check the balance on the Rootstock testnet.
 rsk-cli balance -t
 ```
 
+#### Wallet
+
+Use the `--wallet` flag to dynamically select wallet
+
+```bash
+rsk-cli balance --wallet <name>
+```
+
 Output example:
 
 ```
@@ -164,6 +172,14 @@ Use the `-t` or `--testnet` flag to execute the transfer on the Rootstock testne
 
 ```bash
 rsk-cli transfer --testnet --address 0x0x08C4E4BdAb2473E454B8B2a4400358792786d341 --value 0.001
+```
+
+#### Wallet
+
+Use the `--wallet` flag to dynamically select wallet
+
+```bash
+rsk-cli transfer --wallet <name> --address 0x0x08C4E4BdAb2473E454B8B2a4400358792786d341 --value 0.001
 ```
 
 Output example:
@@ -220,6 +236,12 @@ rsk-cli deploy --abi <path_to_abi> --bytecode <path_to_bytecode> --args <arg1> <
 
 ```bash
 rsk-cli deploy --testnet --abi <path_to_abi> --bytecode <path_to_bytecode> --args <arg1> <arg2> ...
+```
+
+#### Wallet
+
+```bash
+rsk-cli deploy --wallet <name> --abi <path_to_abi> --bytecode <path_to_bytecode> --args <arg1> <arg2> ...
 ```
 
 Output example:
@@ -324,6 +346,12 @@ rsk-cli bridge
 
 ```bash
 rsk-cli bridge --testnet
+```
+
+#### Wallet
+
+```bash
+rsk-cli bridge --wallet <name>
 ```
 
 Output example:

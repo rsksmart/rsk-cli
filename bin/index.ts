@@ -22,6 +22,7 @@ interface CommandOptions {
   json?: any;
   name?: string;
   decodedArgs?: any;
+  wallet?: string;
 }
 
 const orange = chalk.rgb(255, 165, 0);
@@ -56,14 +57,16 @@ program
   .command("balance")
   .description("Check the balance of the saved wallet")
   .option("-t, --testnet", "Check the balance on the testnet")
+  .option("--wallet <wallet>", "Name of the wallet")
   .action(async (options: CommandOptions) => {
-    await balanceCommand(!!options.testnet);
+    await balanceCommand(!!options.testnet, options.wallet!);
   });
 
 program
   .command("transfer")
   .description("Transfer rBTC to the provided address")
   .option("-t, --testnet", "Transfer on the testnet")
+  .option("--wallet <wallet>", "Name of the wallet")
   .requiredOption("-a, --address <address>", "Recipient address")
   .requiredOption("-v, --value <value>", "Amount to transfer in rBTC")
   .action(async (options: CommandOptions) => {
@@ -75,7 +78,8 @@ program
       await transferCommand(
         !!options.testnet,
         address,
-        parseFloat(options.value!)
+        parseFloat(options.value!),
+        options.wallet!
       );
     } catch (error) {
       console.error(chalk.red("Error during transfer:"), error);
@@ -100,6 +104,7 @@ program
   .description("Deploy a contract")
   .requiredOption("--abi <path>", "Path to the ABI file")
   .requiredOption("--bytecode <path>", "Path to the bytecode file")
+  .option("--wallet <wallet>", "Name of the wallet")
   .option("--args <args...>", "Constructor arguments (space-separated)")
   .option("-t, --testnet", "Deploy on the testnet")
   .action(async (options: CommandOptions) => {
@@ -108,7 +113,8 @@ program
       options.abi!,
       options.bytecode!,
       !!options.testnet,
-      args
+      args,
+      options.wallet!
     );
   });
 
@@ -147,8 +153,9 @@ program
   .command("bridge")
   .description("Interact with RSK bridge")
   .option("-t, --testnet", "Deploy on the testnet")
+  .option("--wallet <wallet>", "Name of the wallet")
   .action(async (options: CommandOptions) => {
-    await bridgeCommand(!!options.testnet);
+    await bridgeCommand(!!options.testnet, options.wallet!);
   });
 
 program.parse(process.argv);

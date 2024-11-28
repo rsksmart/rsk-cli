@@ -3,7 +3,7 @@ import fs from "fs";
 import chalk from "chalk";
 import { walletFilePath } from "../utils/constants.js";
 
-export async function balanceCommand(testnet: boolean) {
+export async function balanceCommand(testnet: boolean, name: string) {
   try {
     if (!fs.existsSync(walletFilePath)) {
       console.log(
@@ -24,8 +24,20 @@ export async function balanceCommand(testnet: boolean) {
     }
 
     const { currentWallet, wallets } = walletsData;
+    let wallet = wallets[currentWallet];
 
-    const wallet = wallets[currentWallet];
+    if (name) {
+      if (!wallets[name]) {
+        console.log(
+          chalk.yellow(
+            "⚠️ Wallet with the provided name does not exist. Using current wallet."
+          )
+        );
+      } else {
+        wallet = wallets[name];
+      }
+    }
+
     const { address } = wallet;
 
     if (!address) {
