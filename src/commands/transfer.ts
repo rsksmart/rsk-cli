@@ -37,10 +37,10 @@ export async function transferCommand(
     if (name) {
       if (!wallets[name]) {
         console.log(
-          chalk.yellow(
-            "⚠️ Wallet with the provided name does not exist. Using current wallet."
-          )
+          chalk.red("⚠️ Wallet with the provided name does not exist.")
         );
+
+        throw new Error();
       } else {
         wallet = wallets[name];
       }
