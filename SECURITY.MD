@@ -4,7 +4,7 @@ The Rootstock team and community take security bugs in rootstock seriously. Besi
 
 ## Responsible Disclosure
 
-For all security related issues, rsk-runes has two main points of contact. Reach us at <security@rootstocklabs.com> or use the GitHub Security Advisory ["Report a Vulnerability"](https://github.com/rsksmart/rsk-runes/security/advisories/new) tab.
+For all security related issues, rsk-runes has two main points of contact. Reach us at <security@rootstocklabs.com> or use the GitHub Security Advisory ["Report a Vulnerability"](https://github.com/rsksmart/rsk-cli/security/advisories/new) tab.
 
 The Rootstock team will send a response indicating the next steps in handling your report. After the initial reply to your report, the security team will keep you informed of the progress towards a fix and full announcement, and may ask for additional information or guidance.
 
