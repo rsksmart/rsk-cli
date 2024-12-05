@@ -30,7 +30,7 @@
   "devDependencies": {
     "@types/bun": "latest",
     "@types/figlet": "^1.5.8",
-    "solc": "0.8.20",
+    "solc": "0.8.28",
     "typescript": "^5.0.0"
   },
   "peerDependencies": {
