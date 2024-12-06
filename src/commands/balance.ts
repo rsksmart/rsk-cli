@@ -17,6 +17,7 @@ export async function balanceCommand(
   holderAddress?: Address
 ) {
   const spinner = ora();
+
   try {
     const targetAddress = getAddress(holderAddress);
 

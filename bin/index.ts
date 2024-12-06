@@ -10,7 +10,7 @@ import { deployCommand } from "../src/commands/deploy.js";
 import { verifyCommand } from "../src/commands/verify.js";
 import { ReadContract } from "../src/commands/contract.js";
 import { Address } from "viem";
-
+import { bridgeCommand } from "../src/commands/bridge.js";
 interface CommandOptions {
   testnet?: boolean;
   address?: Address;
@@ -42,7 +42,7 @@ const program = new Command();
 program
   .name("rsk-cli")
   .description("CLI tool for interacting with Rootstock blockchain")
-  .version("0.0.");
+  .version("1.0.4", "-v, --version", "Display the current version");
 
 program
   .command("wallet")
@@ -143,6 +143,14 @@ program
   .option("-t, --testnet", "Deploy on the testnet")
   .action(async (options: CommandOptions) => {
     await ReadContract(options.address! as `0x${string}`, !!options.testnet);
+  });
+
+program
+  .command("bridge")
+  .description("Interact with RSK bridge")
+  .option("-t, --testnet", "Deploy on the testnet")
+  .action(async (options: CommandOptions) => {
+    await bridgeCommand(!!options.testnet);
   });
 
 program.parse(process.argv);

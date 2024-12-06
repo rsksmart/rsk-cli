@@ -2,10 +2,8 @@ import ViemProvider from "../utils/viemProvider.js";
 import chalk from "chalk";
 import ora from "ora";
 import fs from "fs";
-import path from "path";
 import { Address } from "viem";
-
-const walletFilePath = path.join(process.cwd(), "rootstock-wallet.json");
+import { walletFilePath } from "../utils/constants.js";
 
 export async function transferCommand(
   testnet: boolean,
@@ -20,8 +18,21 @@ export async function transferCommand(
       return;
     }
 
-    const walletData = JSON.parse(fs.readFileSync(walletFilePath, "utf8"));
-    const { address: walletAddress } = walletData;
+    const walletsData = JSON.parse(fs.readFileSync(walletFilePath, "utf8"));
+
+    if (!walletsData.currentWallet || !walletsData.wallets) {
+      console.log(
+        chalk.red(
+          "⚠️ No valid wallet found. Please create or import a wallet first."
+        )
+      );
+      throw new Error();
+    }
+
+    const { currentWallet, wallets } = walletsData;
+
+    const wallet = wallets[currentWallet];
+    const { address: walletAddress } = wallet;
 
     if (!walletAddress) {
       console.log(chalk.red("⚠️ No valid address found in the saved wallet."));
