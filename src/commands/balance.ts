@@ -1,43 +1,118 @@
 import ViemProvider from "../utils/viemProvider.js";
-import fs from "fs";
-import path from "path";
 import chalk from "chalk";
+import inquirer from "inquirer";
+import { getTokenInfo, resolveTokenAddress } from "../utils/tokenHelper.js";
+import ora from "ora";
+import { console } from "inspector";
+import {
+  getAddress,
+  isValidContract,
+  validateAndFormatAddress,
+} from "../utils/index.js";
+import { Address, formatUnits } from "viem";
+import { TOKENS } from "../constants/tokenAdress.js";
 
-const walletFilePath = path.join(process.cwd(), "rootstock-wallet.json");
-
-export async function balanceCommand(testnet: boolean) {
+export async function balanceCommand(
+  testnet: boolean,
+  holderAddress?: Address
+) {
+  const spinner = ora();
   try {
-    if (!fs.existsSync(walletFilePath)) {
+    const targetAddress = getAddress(holderAddress);
+
+    if (!targetAddress) {
+      console.log(chalk.red("⚠️ No valid aholder ddress found"));
+      return;
+    }
+    const provider = new ViemProvider(testnet);
+    const client = await provider.getPublicClient();
+
+    const { token } = await inquirer.prompt({
+      type: "list",
+      name: "token",
+      message: "Select token to check balance:",
+      choices: ["rBTC", ...Object.keys(TOKENS), "Custom Token"],
+    });
+
+    if (token === "rBTC") {
+      spinner.start(chalk.white("🔍 Checking balance..."));
+      const balance = await client.getBalance({ address: targetAddress });
+      const rbtcBalance = formatUnits(balance, 18);
+
+      spinner.succeed(chalk.green("Balance retrieved successfully"));
+
       console.log(
-        chalk.red("🚫 No saved wallet found. Please create a wallet first.")
+        chalk.white(`📄 Wallet Address:`),
+        chalk.green(targetAddress)
+      );
+      console.log(
+        chalk.white(`🌐 Network:`),
+        chalk.green(testnet ? "Rootstock Testnet" : "Rootstock Mainnet")
+      );
+      console.log(
+        chalk.white(`💰 Current Balance:`),
+        chalk.green(`${rbtcBalance} RBTC`)
+      );
+      console.log(
+        chalk.blue(
+          `🔗 Ensure that transactions are being conducted on the correct network.`
+        )
       );
       return;
     }
 
-    const walletData = JSON.parse(fs.readFileSync(walletFilePath, "utf8"));
-    const { address } = walletData;
+    let tokenAddress: Address;
 
-    if (!address) {
-      console.log(chalk.red("⚠️ No valid address found in the saved wallet."));
-      return;
+    if (token === "Custom Token") {
+      spinner.stop();
+      const { address } = await inquirer.prompt({
+        type: "input",
+        name: "address",
+        message: "Enter the token address:",
+        validate: async (input: string) => {
+          try {
+            const address = input as Address;
+            const formattedContractAddress = validateAndFormatAddress(address);
+            if (!formattedContractAddress) {
+              console.log(chalk.red());
+              return "🚫 Invalid contract address";
+            }
+            if (!(await isValidContract(client, formattedContractAddress))) {
+              return " 🚫 Invalid contract address or contract not found";
+            }
+            return true;
+          } catch {
+            return false;
+          }
+        },
+      });
+      tokenAddress = address.toLowerCase() as Address;
+    } else {
+      tokenAddress = resolveTokenAddress(token, testnet);
     }
 
-    const provider = new ViemProvider(testnet);
-    const client = await provider.getPublicClient();
+    spinner.start(chalk.white("🔍 Checking balance..."));
 
-    const balance = await client.getBalance({ address });
-
-    const rbtcBalance = Number(balance) / 10 ** 18;
-
-    console.log(chalk.white(`📄 Wallet Address:`), chalk.green(address));
-    console.log(
-      chalk.white(`🌐 Network:`),
-      chalk.green(testnet ? "Rootstock Testnet" : "Rootstock Mainnet")
+    const { balance, decimals, name, symbol } = await getTokenInfo(
+      client,
+      tokenAddress,
+      targetAddress
     );
+    const formattedBalance = formatUnits(balance, decimals);
+
+    spinner.succeed(chalk.green("Balance retrieved successfully"));
+
     console.log(
-      chalk.white(`💰 Current Balance:`),
-      chalk.green(`${rbtcBalance} RBTC`)
+      chalk.white(`📄 Token Information:
+     Name: ${chalk.green(name)}
+     Contract: ${chalk.green(tokenAddress)}
+  👤 Holder Address: ${chalk.green(targetAddress)}
+  💰 Balance: ${chalk.green(`${formattedBalance} ${symbol}`)}
+  🌐 Network: ${chalk.green(
+    testnet ? "Rootstock Testnet" : "Rootstock Mainnet"
+  )}`)
     );
+
     console.log(
       chalk.blue(
         `🔗 Ensure that transactions are being conducted on the correct network.`

@@ -10,7 +10,6 @@ import { deployCommand } from "../src/commands/deploy.js";
 import { verifyCommand } from "../src/commands/verify.js";
 import { ReadContract } from "../src/commands/contract.js";
 import { Address } from "viem";
-import { checkTokenBalance, transferToken } from "../src/commands/token.js";
 
 interface CommandOptions {
   testnet?: boolean;
@@ -58,8 +57,9 @@ program
   .command("balance")
   .description("Check the balance of the saved wallet")
   .option("-t, --testnet", "Check the balance on the testnet")
+  .option("-a ,--address <address>", "Token holder address")
   .action(async (options: CommandOptions) => {
-    await balanceCommand(!!options.testnet);
+    await balanceCommand(!!options.testnet, options.address);
   });
 
 program
@@ -143,40 +143,6 @@ program
   .option("-t, --testnet", "Deploy on the testnet")
   .action(async (options: CommandOptions) => {
     await ReadContract(options.address! as `0x${string}`, !!options.testnet);
-  });
-
-const token = program
-  .command("token")
-  .description("Interact with ERC20 tokens");
-
-token
-  .command("balance")
-  .description("Check token balance")
-  .requiredOption("-c,--contract <address>", "Token contract address")
-  .option("-a ,--address <address>", "Token holder address")
-  .option("-t, --testnet", "Use testnet")
-  .action(async (options: CommandOptions) => {
-    await checkTokenBalance(
-      !!options.testnet,
-      options.contract as Address,
-      options.address
-    );
-  });
-
-token
-  .command("transfer")
-  .description("Transfer tokens")
-  .requiredOption("-c,--contract <address>", "Token contract address")
-  .requiredOption("-a,--address <address>", "Recipient address")
-  .requiredOption("-v,--value <amount>", "Amount to transfer")
-  .option("-t, --testnet", "Use testnet")
-  .action(async (options: CommandOptions) => {
-    await transferToken(
-      !!options.testnet,
-      options.contract as Address,
-      options.address as Address,
-      options.value!
-    );
   });
 
 program.parse(process.argv);
