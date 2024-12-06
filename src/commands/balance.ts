@@ -22,7 +22,6 @@ export async function balanceCommand(
     const targetAddress = getAddress(holderAddress);
 
     if (!targetAddress) {
-      console.log(chalk.red("⚠️ No valid aholder ddress found"));
       return;
     }
     const provider = new ViemProvider(testnet);
