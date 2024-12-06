@@ -1,7 +1,6 @@
 import { Address, isAddress, PublicClient } from "viem";
 import chalk from "chalk";
 import fs from "fs";
-import path from "path";
 import {
   ALLOWED_BRIDGE_METHODS,
   METHOD_TYPES,
@@ -46,9 +45,10 @@ export function getAddress(address?: Address): Address | undefined {
   }
 
   try {
-    const { address: savedAddress } = JSON.parse(
+    const { currentWallet, wallets } = JSON.parse(
       fs.readFileSync(walletFilePath, "utf8")
     );
+    const savedAddress = wallets[currentWallet].address;
     return validateAndFormatAddress(savedAddress);
   } catch (error) {
     console.log(chalk.red("⚠️ Invalid wallet data"));
