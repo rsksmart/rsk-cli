@@ -8,11 +8,10 @@ import {
 import { rootstock, rootstockTestnet } from "viem/chains";
 import { privateKeyToAccount } from "viem/accounts";
 import fs from "fs";
-import path from "path";
 import crypto from "crypto";
 import inquirer from "inquirer";
-
-const walletFilePath = path.join(process.cwd(), "rootstock-wallet.json");
+import chalk from "chalk";
+import { walletFilePath } from "./constants.js";
 
 class ViemProvider {
   public chain: typeof rootstock | typeof rootstockTestnet;
@@ -42,17 +41,23 @@ class ViemProvider {
     account: ReturnType<typeof privateKeyToAccount>;
   }> {
     if (!fs.existsSync(walletFilePath)) {
-      throw new Error("No saved wallet found. Please create a wallet first.");
-    }
-
-    const walletData = JSON.parse(fs.readFileSync(walletFilePath, "utf8"));
-    const { encryptedPrivateKey, iv } = walletData;
-
-    if (!encryptedPrivateKey || !iv) {
       throw new Error(
-        "No valid encrypted private key found in the saved wallet."
+        "No wallets found. Please create or import a wallet first."
       );
     }
+
+    const walletsData = JSON.parse(fs.readFileSync(walletFilePath, "utf8"));
+
+    if (!walletsData.currentWallet || !walletsData.wallets) {
+      console.log(
+        chalk.red(
+          "⚠️ No valid wallet found. Please create or import a wallet first."
+        )
+      );
+      throw new Error();
+    }
+
+    const { currentWallet, wallets } = walletsData;
 
     const passwordQuestion: any = [
       {
@@ -65,10 +70,17 @@ class ViemProvider {
 
     const { password } = await inquirer.prompt(passwordQuestion);
 
+    const wallet = wallets[currentWallet];
+    const { encryptedPrivateKey, iv } = wallet;
+
     try {
       const decipherIv = Uint8Array.from(Buffer.from(iv, "hex"));
       const key = crypto.scryptSync(password, decipherIv, 32);
-      const decipher = crypto.createDecipheriv("aes-256-cbc", Uint8Array.from(key), decipherIv);
+      const decipher = crypto.createDecipheriv(
+        "aes-256-cbc",
+        Uint8Array.from(key),
+        decipherIv
+      );
 
       let decryptedPrivateKey = decipher.update(
         encryptedPrivateKey,
@@ -84,7 +96,7 @@ class ViemProvider {
       return { account };
     } catch (error) {
       throw new Error(
-        "Failed to decrypt the private key. Please check your password."
+        "Failed to decrypt the private key. Please check your password and try again."
       );
     }
   }
