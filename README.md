@@ -337,6 +337,49 @@ Output example:
 🔗 View on Explorer: https://explorer.testnet.rootstock.io/address/0x0000000000000000000000000000000001000006
 ```
 
+### 9. Fetch Wallet History
+
+The history command allows you to fetch the transaction history for a wallet on the Rootstock blockchain. This includes transactions such as ERC20, ERC721, and external transfers. You can specify whether to fetch the history from the Mainnet or Testnet by providing the appropriate flag
+
+#### Mainnet
+
+```bash
+rsk-cli history
+```
+
+#### Testnet
+
+```bash
+rsk-cli history --testnet
+```
+
+Output example:
+
+```
+? 🔒 Enter Alchemy API key to fetch history: ********************************
+🔍 Fetching transaction history for 0x19661D036D4e590948b9c00eef3807b88fBfA8e1 ...
+✅ Transaction history fetched successfully: [
+  {
+    "blockNum": "0x57bdd9",
+    "uniqueId": "0xde678614cd9e20fe5891c25069afef680174456b104f31c9078eb486abd95a64:external",
+    "hash": "0xde678614cd9e20fe5891c25069afef680174456b104f31c9078eb486abd95a64",
+    "from": "0x19661d036d4e590948b9c00eef3807b88fbfa8e1",
+    "to": "0xb45805aead9407f5c7860ff8eccaedd4d0ab36a6",
+    "value": 0.000003,
+    "erc721TokenId": null,
+    "erc1155Metadata": null,
+    "tokenId": null,
+    "asset": "ETH",
+    "category": "external",
+    "rawContract": {
+      "value": "0x2ba7def3000",
+      "address": null,
+      "decimal": "0x12"
+    }
+  }
+]
+```
+
 ## Contributing
 
 We welcome contributions from the community. Please fork the repository and submit pull requests with your changes. Ensure your code adheres to the project's main objective.
