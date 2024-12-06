@@ -1,7 +1,11 @@
 import ViemProvider from "../utils/viemProvider.js";
 import chalk from "chalk";
 import inquirer from "inquirer";
-import { getTokenInfo, resolveTokenAddress } from "../utils/tokenHelper.js";
+import {
+  getTokenInfo,
+  isERC20Contract,
+  resolveTokenAddress,
+} from "../utils/tokenHelper.js";
 import ora from "ora";
 import { console } from "inspector";
 import {
@@ -78,7 +82,10 @@ export async function balanceCommand(
               return "🚫 Invalid contract address";
             }
             if (!(await isValidContract(client, formattedContractAddress))) {
-              return " 🚫 Invalid contract address or contract not found";
+              return "🚫 Invalid contract address or contract not found";
+            }
+            if (!(await isERC20Contract(client, formattedContractAddress))) {
+              return "🚫 Invalid contract address, only ERC20 tokens are supported";
             }
             return true;
           } catch {
@@ -98,6 +105,7 @@ export async function balanceCommand(
       tokenAddress,
       targetAddress
     );
+    console.log(name, balance, decimals, symbol);
     const formattedBalance = formatUnits(balance, decimals);
 
     spinner.succeed(chalk.green("Balance retrieved successfully"));
@@ -127,5 +135,7 @@ export async function balanceCommand(
     } else {
       console.error(chalk.red("🚨 An unknown error occurred."));
     }
+  } finally {
+    spinner.stop();
   }
 }

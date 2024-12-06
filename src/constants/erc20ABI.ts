@@ -28,6 +28,13 @@ export const erc20ABI = [
     type: "function",
   },
   {
+    constant: true,
+    inputs: [],
+    name: "totalSupply",
+    outputs: [{ name: "", type: "uint256" }],
+    type: "function",
+  },
+  {
     constant: false,
     inputs: [
       { name: "_to", type: "address" },

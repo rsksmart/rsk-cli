@@ -34,6 +34,9 @@ export async function isValidContract(
   }
 }
 
+
+
+
 export function getAddress(address?: Address): Address | undefined {
   if (address) {
     return validateAndFormatAddress(address);

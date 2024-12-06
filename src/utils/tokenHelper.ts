@@ -1,4 +1,4 @@
-import { Address, PublicClient } from "viem";
+import { Address, encodeFunctionData, PublicClient } from "viem";
 import { erc20ABI } from "../constants/erc20ABI.js";
 import { TOKENS } from "../constants/tokenAdress";
 
@@ -47,4 +47,56 @@ export async function getTokenInfo(
     name: name,
     symbol: symbol,
   };
+}
+
+export async function isERC20Contract(
+  client: PublicClient,
+  address: Address
+): Promise<boolean> {
+  try {
+    const checks = await Promise.all([
+      client
+        .call({
+          to: address,
+          data: encodeFunctionData({
+            abi: erc20ABI,
+            functionName: "totalSupply",
+          }),
+        })
+        .then(() => true)
+        .catch(() => false),
+      client
+        .call({
+          to: address,
+          data: encodeFunctionData({
+            abi: erc20ABI,
+            functionName: "decimals",
+          }),
+        })
+        .then(() => true)
+        .catch(() => false),
+
+      client
+        .call({
+          to: address,
+          data: encodeFunctionData({
+            abi: erc20ABI,
+            functionName: "symbol",
+          }),
+        })
+        .then(() => true)
+        .catch(() => false),
+    ]);
+
+    const isERC20 = checks.every((check) => check === true);
+
+    if (!isERC20) {
+      return false;
+    }
+
+    return true;
+  } catch (error) {
+    console.error("Error checking ERC20 contract:", error);
+    return false;
+  }
 }
