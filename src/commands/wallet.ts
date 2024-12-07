@@ -513,14 +513,10 @@ export async function walletCommand() {
   }
 }
 
-async function writeWalletData(walletFilePath: string, walletsData: any) {
+async function writeWalletData(filePath: string, data: any) {
   try {
-    fs.writeFileSync(
-      walletFilePath,
-      JSON.stringify(walletsData, null, 2),
-      "utf8"
-    );
-    console.log(chalk.green(`💾 Changes saved at ${walletFilePath}`));
+    fs.writeFileSync(filePath, JSON.stringify(data, null, 2), "utf8");
+    console.log(chalk.green(`💾 Changes saved at ${filePath}`));
   } catch (error: any) {
     console.error(
       chalk.red("❌ Error saving wallet data:"),
@@ -546,7 +542,7 @@ async function backupCommand(backupPath: string) {
 
     if (fs.existsSync(absoluteBackupPath) && fs.lstatSync(absoluteBackupPath).isDirectory()) {
       absoluteBackupPath = path.join(absoluteBackupPath, 'wallet_backup.json');
-      console.log(chalk.yellow(`⚠️ You provided a directory. Using default file name: wallet_backup.json`));
+      console.log(chalk.yellow(`⚠️ Provided a directory. Using default file name: wallet_backup.json`));
     }
 
     if (!fs.existsSync(backupDir)) {
@@ -554,21 +550,13 @@ async function backupCommand(backupPath: string) {
       console.log(chalk.green(`📂 Created backup directory: ${backupDir}`));
     }
 
-    const walletData = fs.readFileSync(walletFilePath, "utf8");
+    const walletData = JSON.parse(fs.readFileSync(walletFilePath, "utf8"));
 
-    try {
-      fs.writeFileSync(absoluteBackupPath, walletData, "utf8");
-      console.log(
-        chalk.green("✅ Wallet backup created successfully!"),
-        chalk.green(`\n💾 Backup saved successfully at: ${absoluteBackupPath}`)
-      );
-    } catch (writeError: any) {
-      console.error(
-        chalk.red("🚨 Error saving the backup file:"),
-        chalk.yellow(writeError.message)
-      );
-    }
-
+    writeWalletData(absoluteBackupPath, walletData);
+    console.log(
+      chalk.green("✅ Wallet backup created successfully!"),
+      chalk.green(`\n💾 Backup saved successfully at: ${absoluteBackupPath}`)
+    );
   } catch (error: any) {
     console.error(
       chalk.red("🚨 Error during wallet backup:"),
