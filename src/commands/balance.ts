@@ -105,7 +105,6 @@ export async function balanceCommand(
       tokenAddress,
       targetAddress
     );
-    console.log(name, balance, decimals, symbol);
     const formattedBalance = formatUnits(balance, decimals);
 
     spinner.succeed(chalk.green("Balance retrieved successfully"));
