@@ -10,6 +10,7 @@ import { deployCommand } from "../src/commands/deploy.js";
 import { verifyCommand } from "../src/commands/verify.js";
 import { ReadContract } from "../src/commands/contract.js";
 import { bridgeCommand } from "../src/commands/bridge.js";
+import { historyCommand } from "../src/commands/history.js";
 
 interface CommandOptions {
   testnet?: boolean;
@@ -149,6 +150,14 @@ program
   .option("-t, --testnet", "Deploy on the testnet")
   .action(async (options: CommandOptions) => {
     await bridgeCommand(!!options.testnet);
+  });
+
+program
+  .command("history")
+  .description("Fetch history for current wallet")
+  .option("-t, --testnet", "History of wallet on the testnet")
+  .action(async (options: CommandOptions) => {
+    await historyCommand(!!options.testnet);
   });
 
 program.parse(process.argv);
