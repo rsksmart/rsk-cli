@@ -8,7 +8,8 @@ import { walletFilePath } from "../utils/constants.js";
 export async function transferCommand(
   testnet: boolean,
   toAddress: Address,
-  value: number
+  value: number,
+  name?: string
 ) {
   try {
     if (!fs.existsSync(walletFilePath)) {
@@ -31,7 +32,19 @@ export async function transferCommand(
 
     const { currentWallet, wallets } = walletsData;
 
-    const wallet = wallets[currentWallet];
+    let wallet = wallets[currentWallet];
+
+    if (name) {
+      if (!wallets[name]) {
+        console.log(
+          chalk.red("⚠️ Wallet with the provided name does not exist.")
+        );
+
+        throw new Error();
+      } else {
+        wallet = wallets[name];
+      }
+    }
     const { address: walletAddress } = wallet;
 
     if (!walletAddress) {
@@ -64,7 +77,7 @@ export async function transferCommand(
       return;
     }
 
-    const walletClient = await provider.getWalletClient();
+    const walletClient = await provider.getWalletClient(name);
 
     const account = walletClient.account;
     if (!account) {
