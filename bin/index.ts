@@ -10,6 +10,7 @@ import { deployCommand } from "../src/commands/deploy.js";
 import { verifyCommand } from "../src/commands/verify.js";
 import { ReadContract } from "../src/commands/contract.js";
 import { bridgeCommand } from "../src/commands/bridge.js";
+import { batchTransferCommand } from "../src/commands/batchTransfer.js";
 
 interface CommandOptions {
   testnet?: boolean;
@@ -22,6 +23,7 @@ interface CommandOptions {
   json?: any;
   name?: string;
   decodedArgs?: any;
+  file?: string;
 }
 
 const orange = chalk.rgb(255, 165, 0);
@@ -130,6 +132,7 @@ program
       options.address!,
       options.name!,
       !!options.testnet,
+      
       args
     );
   });
@@ -149,6 +152,19 @@ program
   .option("-t, --testnet", "Deploy on the testnet")
   .action(async (options: CommandOptions) => {
     await bridgeCommand(!!options.testnet);
+  });
+
+program
+  .command("batch-transfer")
+  .description("Execute batch transactions from a file")
+  .requiredOption("-f, --file <file>", "Path to the batch file")
+  .option("-t, --testnet", "Execute on the testnet")
+  .action(async (options: CommandOptions) => {
+    try {
+      await batchTransferCommand(options.file!, !!options.testnet);
+    } catch (error) {
+      console.error(chalk.red("Error during batch processing:"), error);
+    }
   });
 
 program.parse(process.argv);

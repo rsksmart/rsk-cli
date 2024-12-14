@@ -12,7 +12,8 @@
     "wallet": "pnpm run build && node dist/bin/index.js wallet",
     "balance": "pnpm run build && node dist/bin/index.js balance",
     "transfer": "pnpm run build && node dist/bin/index.js transfer --testnet --address 0xa5f45f5bddefC810C48aCC1D5CdA5e5a4c6BC59E --value 0.001",
-    "tx-status": "pnpm run build && node dist/bin/index.js tx --testnet --txid 0x876a0a9b167889350c41930a4204e5d9acf5704a7f201447a337094189af961c4"
+    "tx-status": "pnpm run build && node dist/bin/index.js tx --testnet --txid 0x876a0a9b167889350c41930a4204e5d9acf5704a7f201447a337094189af961c4",
+    "batch-transfer": "pnpm run build && node dist/bin/index.js batch-transfer --testnet --file"
   },
   "keywords": [
     "rootstock",
