@@ -19,6 +19,7 @@ interface CommandOptions {
   txid?: string;
   abi?: string;
   bytecode?: string;
+  apiKey?: string;
   args?: any;
   json?: any;
   name?: string;
@@ -155,9 +156,10 @@ program
 program
   .command("history")
   .description("Fetch history for current wallet")
+  .option("--apiKey <apiKey", "Alchemy API key")
   .option("-t, --testnet", "History of wallet on the testnet")
   .action(async (options: CommandOptions) => {
-    await historyCommand(!!options.testnet);
+    await historyCommand(!!options.testnet, options.apiKey!);
   });
 
 program.parse(process.argv);

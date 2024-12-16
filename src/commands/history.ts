@@ -1,14 +1,23 @@
 import chalk from "chalk";
 import fs from "fs";
 import { walletFilePath } from "../utils/constants.js";
-import inquirer from "inquirer";
 
-type InquirerAnswers = {
-  apiKey?: string;
-};
-
-export async function historyCommand(testnet: boolean) {
+export async function historyCommand(testnet: boolean, apiKey: string) {
   try {
+    // Check if API key exists in storage or passed as argument
+    let storedApiKey = getApiKeyFromStorage();
+
+    if (apiKey && !storedApiKey) {
+      await writeApiKey(apiKey);
+    }
+
+    if (!apiKey && !storedApiKey) {
+      console.log(chalk.red("🔑 Alchemy API key is missing."));
+      return;
+    }
+
+    const finalApiKey = apiKey || storedApiKey;
+
     if (!fs.existsSync(walletFilePath)) {
       console.log(
         chalk.red("🚫 No saved wallet found. Please create a wallet first.")
@@ -31,17 +40,6 @@ export async function historyCommand(testnet: boolean) {
     const wallet = wallets[currentWallet];
     const { address: walletAddress } = wallet;
 
-    const apiKeyQuestion: any = [
-      {
-        type: "password",
-        name: "apiKey",
-        message: "🔒 Enter Alchemy API key to fetch history:",
-        mask: "*",
-      },
-    ];
-
-    const { apiKey } = await inquirer.prompt<InquirerAnswers>(apiKeyQuestion);
-
     console.log(
       chalk.blue(`🔍 Fetching transaction history for ${walletAddress} ... `)
     );
@@ -59,8 +57,8 @@ export async function historyCommand(testnet: boolean) {
       ],
     });
 
-    const testnetUrl = `https://rootstock-testnet.g.alchemy.com/v2/${apiKey}`;
-    const mainnetUrl = `https://rootstock-mainnet.g.alchemy.com/v2/${apiKey}`;
+    const testnetUrl = `https://rootstock-testnet.g.alchemy.com/v2/${finalApiKey}`;
+    const mainnetUrl = `https://rootstock-mainnet.g.alchemy.com/v2/${finalApiKey}`;
     const baseURL = testnet ? testnetUrl : mainnetUrl;
 
     const response = await fetch(baseURL, {
@@ -70,7 +68,6 @@ export async function historyCommand(testnet: boolean) {
     });
 
     if (!response.ok) {
-      // Check if HTTP response is unsuccessful
       console.error(
         chalk.red(`❌ API request failed with status: ${response.status}`)
       );
@@ -87,20 +84,65 @@ export async function historyCommand(testnet: boolean) {
       return;
     }
 
-    // Handle missing or empty transfers
     const transfers = result.result?.transfers;
     if (!transfers || transfers.length === 0) {
       console.log(chalk.yellow("⚠️ No transactions found."));
       return;
     }
-
-    console.log(
-      chalk.green("✅ Transaction history fetched successfully:"),
-      chalk.blue(JSON.stringify(transfers, null, 2))
-    );
+    for (const transfer of transfers) {
+      console.log(chalk.green(`✅ Transfer:`));
+      console.log(`   From: ${transfer.from}`);
+      console.log(`   To: ${transfer.to}`);
+      console.log(`   Token: ${transfer.asset || "N/A"}`);
+      console.log(`   Value: ${transfer.value || "N/A"}`);
+      console.log(`   Tx Hash: ${transfer.hash}`);
+    }
   } catch (error: any) {
     console.error(
       chalk.red(`🚨 An unknown error occurred: ${error.message || error}`)
+    );
+  }
+}
+
+async function writeApiKey(apiKey: string) {
+  try {
+    // Check if wallet file exists
+    if (!fs.existsSync(walletFilePath)) {
+      console.error(
+        chalk.red("🚫 Wallet file not found. Please create a wallet first.")
+      );
+      return;
+    }
+
+    // Read the existing wallet file
+    const walletsData = JSON.parse(fs.readFileSync(walletFilePath, "utf8"));
+
+    // Add or update the alchemyApiKey
+    walletsData.alchemyApiKey = apiKey;
+
+    // Write the updated JSON back to the file
+    fs.writeFileSync(walletFilePath, JSON.stringify(walletsData, null, 2));
+
+    console.log(chalk.green(`✅ Alchemy API key updated successfully.`));
+  } catch (error: any) {
+    console.error(
+      chalk.red("❌ Error updating Alchemy API key:"),
+      chalk.yellow(error.message || error)
+    );
+  }
+}
+
+function getApiKeyFromStorage(): string | undefined {
+  try {
+    if (fs.existsSync(walletFilePath)) {
+      const configData = JSON.parse(fs.readFileSync(walletFilePath, "utf8"));
+      return configData.alchemyApiKey;
+    }
+    return undefined;
+  } catch (error: any) {
+    console.error(
+      chalk.red("❌ Error reading alchemy API key:"),
+      chalk.yellow(error.message || error)
     );
   }
 }
