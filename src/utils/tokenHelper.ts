@@ -1,5 +1,4 @@
-import { Address, encodeFunctionData, PublicClient } from "viem";
-import { erc20ABI } from "../constants/erc20ABI.js";
+import { Address, encodeFunctionData, PublicClient, erc20Abi } from "viem";
 import { TOKENS } from "../constants/tokenAdress";
 
 export function resolveTokenAddress(token: string, testnet: boolean): Address {
@@ -20,23 +19,23 @@ export async function getTokenInfo(
   const [balance, decimals, name, symbol] = await Promise.all([
     client.readContract({
       address: tokenAddress,
-      abi: erc20ABI,
+      abi: erc20Abi,
       functionName: "balanceOf",
       args: [holderAddress],
     }),
     client.readContract({
       address: tokenAddress,
-      abi: erc20ABI,
+      abi: erc20Abi,
       functionName: "decimals",
     }),
     client.readContract({
       address: tokenAddress,
-      abi: erc20ABI,
+      abi: erc20Abi,
       functionName: "name",
     }) as Promise<string>,
     client.readContract({
       address: tokenAddress,
-      abi: erc20ABI,
+      abi: erc20Abi,
       functionName: "symbol",
     }) as Promise<string>,
   ]);
@@ -59,7 +58,7 @@ export async function isERC20Contract(
         .call({
           to: address,
           data: encodeFunctionData({
-            abi: erc20ABI,
+            abi: erc20Abi,
             functionName: "totalSupply",
           }),
         })
@@ -69,7 +68,7 @@ export async function isERC20Contract(
         .call({
           to: address,
           data: encodeFunctionData({
-            abi: erc20ABI,
+            abi: erc20Abi,
             functionName: "decimals",
           }),
         })
@@ -80,7 +79,7 @@ export async function isERC20Contract(
         .call({
           to: address,
           data: encodeFunctionData({
-            abi: erc20ABI,
+            abi: erc20Abi,
             functionName: "symbol",
           }),
         })
