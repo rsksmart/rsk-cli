@@ -5,12 +5,12 @@ export const TOKENS: Record<string, Record<string, Address>> = {
     mainnet: "0x2acc95758f8b5F583470ba265eb685a8f45fc9d5",
     testnet: "0x19f64674d8a5b4e652319f5e239efd3bc969a1fe",
   },
-  rUSDT: {
-    mainnet: "0xEf213441a85DF4d7acBdAe0Cf78004E1e486BB96",
-    testnet: "0x2694785f9c3006edf88df3a66ba7adf106dbd6a0",
+  USDRIF: {
+    mainnet: "0x3A15461d8ae0f0fb5fa2629e9da7D66a794a6e37",
+    testnet: "0xd1b0d1bc03491f49b9aea967ddd07b37f7327e63",
   },
-  rDoc: {
-    mainnet: "0x2d919f19D4892381d58EdEbEcA66D5642ceF1A1F",
-    testnet: "0x7fb303d9806a72563c46aad8d874b301419c374b",
+  DoC: {
+    mainnet: "0xe700691da7B9851f2f35f8b8182c69c53ccad9db",
+    testnet: "0xd37a3e5874be2dc6c732ad21c008a1e4032a6040",
   },
 };
