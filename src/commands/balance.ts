@@ -7,7 +7,6 @@ import {
   resolveTokenAddress,
 } from "../utils/tokenHelper.js";
 import ora from "ora";
-import { console } from "inspector";
 import {
   getAddress,
   isValidContract,
