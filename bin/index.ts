@@ -24,6 +24,7 @@ interface CommandOptions {
   json?: any;
   name?: string;
   decodedArgs?: any;
+  number?: string;
 }
 
 const orange = chalk.rgb(255, 165, 0);
@@ -157,9 +158,10 @@ program
   .command("history")
   .description("Fetch history for current wallet")
   .option("--apiKey <apiKey", "Alchemy API key")
+  .option("--number <number>", "Number of transactions to fetch")
   .option("-t, --testnet", "History of wallet on the testnet")
   .action(async (options: CommandOptions) => {
-    await historyCommand(!!options.testnet, options.apiKey!);
+    await historyCommand(!!options.testnet, options.apiKey!, options.number!);
   });
 
 program.parse(process.argv);

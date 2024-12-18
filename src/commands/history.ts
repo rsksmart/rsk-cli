@@ -2,7 +2,11 @@ import chalk from "chalk";
 import fs from "fs";
 import { walletFilePath } from "../utils/constants.js";
 
-export async function historyCommand(testnet: boolean, apiKey: string) {
+export async function historyCommand(
+  testnet: boolean,
+  apiKey: string,
+  number: string
+) {
   try {
     // Check if API key exists in storage or passed as argument
     let storedApiKey = getApiKeyFromStorage();
@@ -41,7 +45,11 @@ export async function historyCommand(testnet: boolean, apiKey: string) {
     const { address: walletAddress } = wallet;
 
     console.log(
-      chalk.blue(`🔍 Fetching transaction history for ${walletAddress} ... `)
+      chalk.blue(
+        `🔍 Fetching transaction history on Rootstack ${
+          testnet ? "Testnet" : "Mainnet"
+        } for ${walletAddress} ... `
+      )
     );
 
     const data = JSON.stringify({
@@ -53,6 +61,7 @@ export async function historyCommand(testnet: boolean, apiKey: string) {
           fromBlock: "0x0",
           fromAddress: walletAddress,
           category: ["external", "erc20", "erc721", "erc1155"],
+          withMetadata: true,
         },
       ],
     });
@@ -84,10 +93,15 @@ export async function historyCommand(testnet: boolean, apiKey: string) {
       return;
     }
 
-    const transfers = result.result?.transfers;
+    let transfers = result.result?.transfers;
+
     if (!transfers || transfers.length === 0) {
       console.log(chalk.yellow("⚠️ No transactions found."));
       return;
+    }
+
+    if (number) {
+      transfers = transfers.slice(0, parseInt(number));
     }
     for (const transfer of transfers) {
       console.log(chalk.green(`✅ Transfer:`));
@@ -96,6 +110,7 @@ export async function historyCommand(testnet: boolean, apiKey: string) {
       console.log(`   Token: ${transfer.asset || "N/A"}`);
       console.log(`   Value: ${transfer.value || "N/A"}`);
       console.log(`   Tx Hash: ${transfer.hash}`);
+      console.log(`   Time: ${new Date(transfer.metadata.blockTimestamp)}`);
     }
   } catch (error: any) {
     console.error(
@@ -106,14 +121,6 @@ export async function historyCommand(testnet: boolean, apiKey: string) {
 
 async function writeApiKey(apiKey: string) {
   try {
-    // Check if wallet file exists
-    if (!fs.existsSync(walletFilePath)) {
-      console.error(
-        chalk.red("🚫 Wallet file not found. Please create a wallet first.")
-      );
-      return;
-    }
-
     // Read the existing wallet file
     const walletsData = JSON.parse(fs.readFileSync(walletFilePath, "utf8"));
 
