@@ -11,6 +11,8 @@ import { verifyCommand } from "../src/commands/verify.js";
 import { ReadContract } from "../src/commands/contract.js";
 import { Address } from "viem";
 import { bridgeCommand } from "../src/commands/bridge.js";
+import { historyCommand } from "../src/commands/history.js";
+
 interface CommandOptions {
   testnet?: boolean;
   address?: Address;
@@ -19,10 +21,12 @@ interface CommandOptions {
   txid?: string;
   abi?: string;
   bytecode?: string;
+  apiKey?: string;
   args?: any;
   json?: any;
   name?: string;
   decodedArgs?: any;
+  number?: string;
 }
 
 const orange = chalk.rgb(255, 165, 0);
@@ -151,6 +155,16 @@ program
   .option("-t, --testnet", "Deploy on the testnet")
   .action(async (options: CommandOptions) => {
     await bridgeCommand(!!options.testnet);
+  });
+
+program
+  .command("history")
+  .description("Fetch history for current wallet")
+  .option("--apiKey <apiKey", "Alchemy API key")
+  .option("--number <number>", "Number of transactions to fetch")
+  .option("-t, --testnet", "History of wallet on the testnet")
+  .action(async (options: CommandOptions) => {
+    await historyCommand(!!options.testnet, options.apiKey!, options.number!);
   });
 
 program.parse(process.argv);
