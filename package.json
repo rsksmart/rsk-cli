@@ -9,10 +9,12 @@
   },
   "scripts": {
     "build": "tsc",
+    "dev": "tsc -w",
     "wallet": "pnpm run build && node dist/bin/index.js wallet",
     "balance": "pnpm run build && node dist/bin/index.js balance",
     "transfer": "pnpm run build && node dist/bin/index.js transfer --testnet --address 0xa5f45f5bddefC810C48aCC1D5CdA5e5a4c6BC59E --value 0.001",
-    "tx-status": "pnpm run build && node dist/bin/index.js tx --testnet --txid 0x876a0a9b167889350c41930a4204e5d9acf5704a7f201447a337094189af961c4"
+    "tx-status": "pnpm run build && node dist/bin/index.js tx --testnet --txid 0x876a0a9b167889350c41930a4204e5d9acf5704a7f201447a337094189af961c4",
+    "history": "pnpm run build && node dist/bin/index.js history"
   },
   "keywords": [
     "rootstock",
@@ -30,7 +32,7 @@
   "devDependencies": {
     "@types/bun": "latest",
     "@types/figlet": "^1.5.8",
-    "solc": "0.8.20",
+    "solc": "0.8.28",
     "typescript": "^5.0.0"
   },
   "peerDependencies": {
@@ -45,7 +47,7 @@
     "commander": "^12.1.0",
     "figlet": "^1.7.0",
     "fs-extra": "^11.2.0",
-    "inquirer": "^10.1.8",
+    "inquirer": "^12.1.0",
     "ora": "^8.0.1",
     "viem": "^2.19.4"
   }
