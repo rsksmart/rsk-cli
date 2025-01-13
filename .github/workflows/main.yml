@@ -3,10 +3,6 @@ name: Publish library on NPM
 on:
   release:
     types: [published]
-  push:
-    branches:
-      - main
-      - fix/ci-errors
       
 permissions: read-all
 
