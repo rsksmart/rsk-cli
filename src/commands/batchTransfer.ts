@@ -1,19 +1,40 @@
+import fs from "fs";
 import chalk from "chalk";
 import ora from "ora";
 import readline from "readline";
+import { walletFilePath } from "../utils/constants.js";
 import ViemProvider from "../utils/viemProvider.js";
 import { Address } from "viem";
 
 export async function batchTransferCommand(
+	filePath?: string,
 	testnet: boolean = false,
 	interactive: boolean = false
 ) {
 	try {
 		let batchData: { to: Address; value: number }[] = [];
 
+		// Handle input mode
 		if (interactive) {
+			// Interactive input
 			batchData = await promptForTransactions();
+		} else if (filePath) {
+			// File input
+			if (!fs.existsSync(filePath)) {
+				console.log(
+					chalk.red(
+						"🚫 Batch file not found. Please provide a valid file."
+					)
+				);
+				return;
+			}
+			const fileContent = JSON.parse(fs.readFileSync(filePath, "utf8"));
+			batchData = fileContent.transactions.map((tx: any) => ({
+				to: validateAddress(tx.address),
+				value: tx.amount,
+			}));
 		} else {
+			// JSON input via stdin
 			const stdin = await readStdin();
 			if (stdin) {
 				const jsonData = JSON.parse(stdin);
@@ -35,6 +56,7 @@ export async function batchTransferCommand(
 			return;
 		}
 
+		// Initialize wallet provider
 		const provider = new ViemProvider(testnet);
 		const walletClient = await provider.getWalletClient();
 		const account = walletClient.account;
@@ -46,6 +68,7 @@ export async function batchTransferCommand(
 			return;
 		}
 
+		// Fetch balance
 		const publicClient = await provider.getPublicClient();
 		const balance = await publicClient.getBalance({
 			address: account.address,
@@ -61,6 +84,7 @@ export async function batchTransferCommand(
 			chalk.green(`${rbtcBalance} RBTC`)
 		);
 
+		// Process transactions
 		for (const { to, value } of batchData) {
 			if (rbtcBalance < value) {
 				console.log(

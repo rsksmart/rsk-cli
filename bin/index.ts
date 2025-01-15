@@ -166,18 +166,27 @@ program
 	.description("Execute batch transactions interactively or from stdin")
 	.option("-i, --interactive", "Execute interactively and input transactions")
 	.option("-t, --testnet", "Execute on the testnet")
-	.action(async (options: CommandOptions) => {
+	.option("-f, --file <file>", "Execute transactions from a file")
+	.action(async (options) => {
 		try {
 			const interactive = !!options.interactive;
 			const testnet = !!options.testnet;
+			const file = options.file;
 
-			await batchTransferCommand(testnet, interactive);
-		} catch (error) {
-			console.error(
+			if (interactive && file) {
 				console.error(
-					chalk.red("Error during batch processing:"),
-					error
-				)
+					chalk.red(
+						"🚨 Cannot use both interactive mode and file input simultaneously."
+					)
+				);
+				return;
+			}
+
+			await batchTransferCommand(file, testnet, interactive);
+		} catch (error: any) {
+			console.error(
+				chalk.red("🚨 Error during batch transfer:"),
+				chalk.yellow(error.message || "Unknown error")
 			);
 		}
 	});
