@@ -10,6 +10,7 @@ import { deployCommand } from "../src/commands/deploy.js";
 import { verifyCommand } from "../src/commands/verify.js";
 import { ReadContract } from "../src/commands/contract.js";
 import { bridgeCommand } from "../src/commands/bridge.js";
+import { selectAddress } from "../src/commands/selectAddress.js";
 
 interface CommandOptions {
   testnet?: boolean;
@@ -64,23 +65,30 @@ program
   .command("transfer")
   .description("Transfer rBTC to the provided address")
   .option("-t, --testnet", "Transfer on the testnet")
-  .requiredOption("-a, --address <address>", "Recipient address")
+  .option("-a, --address <address>", "Recipient address")
   .requiredOption("-v, --value <value>", "Amount to transfer in rBTC")
   .action(async (options: CommandOptions) => {
     try {
-      const address = `0x${options.address!.replace(
-        /^0x/,
-        ""
-      )}` as `0x${string}`;
-      await transferCommand(
-        !!options.testnet,
-        address,
-        parseFloat(options.value!)
-      );
-    } catch (error) {
-      console.error(chalk.red("Error during transfer:"), error);
+      if (!options.value) {
+        throw new Error("Value is required for the transfer.");
+      }
+
+      const value = parseFloat(options.value);
+
+      if (isNaN(value) || value <= 0) {
+        throw new Error("Invalid value specified for transfer.");
+      }
+
+      const address = options.address
+        ? (`0x${options.address.replace(/^0x/, "")}` as `0x${string}`)
+        : await selectAddress();
+
+      await transferCommand(!!options.testnet, address, value);
+    } catch (error:any) {
+      console.error(chalk.red("Error during transfer:"), error.message || error);
     }
   });
+
 
 program
   .command("tx")

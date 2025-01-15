@@ -5,6 +5,7 @@ import fs from "fs-extra";
 import crypto from "crypto";
 import { loadWallets } from "../utils/index.js";
 import { walletFilePath } from "../utils/constants.js";
+import { addressBookCommand } from "./addressbook.js";
 
 type InquirerAnswers = {
   action?: string;
@@ -48,6 +49,7 @@ export async function walletCommand() {
           "🔁 Switch wallet",
           "📝 Update wallet name",
           "❌ Delete wallet",
+          "📖 Address Book",
         ],
       },
     ];
@@ -481,6 +483,10 @@ export async function walletCommand() {
 
       writeWalletData(walletFilePath, walletsData);
     }
+
+    if (action === "📖 Address Book") {
+      await addressBookCommand();
+    }
   } catch (error: any) {
     console.error(
       chalk.red("❌ Error creating or managing wallets:"),
@@ -489,7 +495,7 @@ export async function walletCommand() {
   }
 }
 
-async function writeWalletData(walletFilePath: string, walletsData: any) {
+export async function writeWalletData(walletFilePath: string, walletsData: any) {
   try {
     fs.writeFileSync(
       walletFilePath,
