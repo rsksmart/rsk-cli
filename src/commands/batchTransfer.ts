@@ -1,99 +1,169 @@
-import fs from "fs";
 import chalk from "chalk";
 import ora from "ora";
-import { walletFilePath } from "../utils/constants.js";
+import readline from "readline";
 import ViemProvider from "../utils/viemProvider.js";
+import { Address } from "viem";
 
-export async function batchTransferCommand(filePath: string, testnet: boolean) {
-  try {
-    if (!fs.existsSync(filePath)) {
-      console.log(chalk.red("🚫 Batch file not found. Please provide a valid file."));
-      return;
-    }
+export async function batchTransferCommand(
+	testnet: boolean = false,
+	interactive: boolean = false
+) {
+	try {
+		let batchData: { to: Address; value: number }[] = [];
 
-    const batchData = JSON.parse(fs.readFileSync(filePath, "utf8"));
+		if (interactive) {
+			batchData = await promptForTransactions();
+		} else {
+			const stdin = await readStdin();
+			if (stdin) {
+				const jsonData = JSON.parse(stdin);
+				if (!Array.isArray(jsonData.transactions)) {
+					console.log(
+						chalk.red("🚫 Invalid JSON format for transactions.")
+					);
+					return;
+				}
+				batchData = jsonData.transactions.map((tx: any) => ({
+					to: validateAddress(tx.address),
+					value: tx.amount,
+				}));
+			}
+		}
 
-    if (!Array.isArray(batchData) || batchData.length === 0) {
-      console.log(chalk.red("⚠️ Invalid batch data. Please check the file content."));
-      return;
-    }
+		if (batchData.length === 0) {
+			console.log(chalk.red("⚠️ No transactions provided. Exiting..."));
+			return;
+		}
 
-    if (!fs.existsSync(walletFilePath)) {
-      console.log(chalk.red("🚫 No saved wallet found. Please create a wallet first."));
-      return;
-    }
+		const provider = new ViemProvider(testnet);
+		const walletClient = await provider.getWalletClient();
+		const account = walletClient.account;
 
-    const walletsData = JSON.parse(fs.readFileSync(walletFilePath, "utf8"));
+		if (!account) {
+			console.log(
+				chalk.red("🚫 Failed to retrieve wallet account. Exiting...")
+			);
+			return;
+		}
 
-    if (!walletsData.currentWallet || !walletsData.wallets) {
-      console.log(chalk.red("⚠️ No valid wallet found. Please create or import a wallet first."));
-      throw new Error();
-    }
+		const publicClient = await provider.getPublicClient();
+		const balance = await publicClient.getBalance({
+			address: account.address,
+		});
+		const rbtcBalance = Number(balance) / 10 ** 18;
 
-    const { currentWallet, wallets } = walletsData;
-    const wallet = wallets[currentWallet];
-    const { address: walletAddress } = wallet;
+		console.log(
+			chalk.white(`📄 Wallet Address:`),
+			chalk.green(account.address)
+		);
+		console.log(
+			chalk.white(`💰 Current Balance:`),
+			chalk.green(`${rbtcBalance} RBTC`)
+		);
 
-    if (!walletAddress) {
-      console.log(chalk.red("⚠️ No valid address found in the saved wallet."));
-      return;
-    }
+		for (const { to, value } of batchData) {
+			if (rbtcBalance < value) {
+				console.log(
+					chalk.red(
+						`🚫 Insufficient balance to transfer ${value} RBTC.`
+					)
+				);
+				break;
+			}
 
-    const provider = new ViemProvider(testnet);
-    const publicClient = await provider.getPublicClient();
-    const balance = await publicClient.getBalance({ address: walletAddress });
+			const txHash = await walletClient.sendTransaction({
+				account,
+				chain: provider.chain,
+				to,
+				value: BigInt(Math.floor(value * 10 ** 18)),
+			});
 
-    const rbtcBalance = Number(balance) / 10 ** 18;
-    console.log(chalk.white(`📄 Wallet Address:`), chalk.green(walletAddress));
-    console.log(chalk.white(`💰 Current Balance:`), chalk.green(`${rbtcBalance} RBTC`));
+			console.log(
+				chalk.white(`🔄 Transaction initiated. TxHash:`),
+				chalk.green(txHash)
+			);
 
-    for (const transfer of batchData) {
-      const { to, value } = transfer;
-      if (!to || !value) {
-        console.log(chalk.red("⚠️ Invalid transaction data in batch. Skipping..."));
-        continue;
-      }
+			const spinner = ora("⏳ Waiting for confirmation...").start();
 
-      if (rbtcBalance < value) {
-        console.log(chalk.red(`🚫 Insufficient balance to transfer ${value} RBTC.`));
-        break;
-      }
+			const receipt = await publicClient.waitForTransactionReceipt({
+				hash: txHash,
+			});
+			spinner.stop();
 
-      const walletClient = await provider.getWalletClient();
-      const account = walletClient.account;
-      if (!account) {
-        console.log(chalk.red("⚠️ Failed to retrieve the account. Skipping this transaction."));
-        continue;
-      }
+			if (receipt.status === "success") {
+				console.log(
+					chalk.green("✅ Transaction confirmed successfully!")
+				);
+				console.log(
+					chalk.white(`📦 Block Number:`),
+					chalk.green(receipt.blockNumber)
+				);
+				console.log(
+					chalk.white(`⛽ Gas Used:`),
+					chalk.green(receipt.gasUsed.toString())
+				);
+			} else {
+				console.log(chalk.red("❌ Transaction failed."));
+			}
+		}
+	} catch (error: any) {
+		console.error(
+			chalk.red("🚨 Error during batch transfer:"),
+			chalk.yellow(error.message || "Unknown error")
+		);
+	}
+}
 
-      const txHash = await walletClient.sendTransaction({
-        account: account,
-        chain: provider.chain,
-        to: to,
-        value: BigInt(Math.floor(value * 10 ** 18)),
-      });
+async function promptForTransactions() {
+	const rl = readline.createInterface({
+		input: process.stdin,
+		output: process.stdout,
+	});
 
-      console.log(chalk.white(`🔄 Transaction initiated. TxHash:`), chalk.green(txHash));
+	const transactions: { to: Address; value: number }[] = [];
 
-      const spinner = ora("⏳ Waiting for confirmation...").start();
+	while (true) {
+		const to = validateAddress(await askQuestion(rl, "Enter address: "));
+		const value = parseFloat(await askQuestion(rl, "Enter amount: "));
 
-      const receipt = await publicClient.waitForTransactionReceipt({ hash: txHash });
-      spinner.stop();
+		if (isNaN(value)) {
+			console.log(chalk.red("⚠️ Invalid amount. Please try again."));
+			continue;
+		}
 
-      if (receipt.status === "success") {
-        console.log(chalk.green("✅ Transaction confirmed successfully!"));
-        console.log(chalk.white(`📦 Block Number:`), chalk.green(receipt.blockNumber));
-        console.log(chalk.white(`⛽ Gas Used:`), chalk.green(receipt.gasUsed.toString()));
+		transactions.push({ to, value });
 
-        const explorerUrl = testnet
-          ? `https://explorer.testnet.rootstock.io/tx/${txHash}`
-          : `https://explorer.rootstock.io/tx/${txHash}`;
-        console.log(chalk.white(`🔗 View on Explorer:`), chalk.dim(`${explorerUrl}`));
-      } else {
-        console.log(chalk.red("❌ Transaction failed."));
-      }
-    }
-  } catch (error: any) {
-    console.error(chalk.red("🚨 Error during batch transfer:"), chalk.yellow(error.message || "Unknown error"));
-  }
+		const addAnother = await askQuestion(
+			rl,
+			"Add another transaction? (y/n): "
+		);
+		if (addAnother.toLowerCase() !== "y") break;
+	}
+
+	rl.close();
+	return transactions;
+}
+
+function validateAddress(address: string): Address {
+	if (!/^0x[a-fA-F0-9]{40}$/.test(address)) {
+		throw new Error(`Invalid Ethereum address: ${address}`);
+	}
+	return address as Address;
+}
+
+async function readStdin(): Promise<string> {
+	return new Promise((resolve, reject) => {
+		let data = "";
+		process.stdin.setEncoding("utf8");
+		process.stdin.on("data", (chunk) => (data += chunk));
+		process.stdin.on("end", () => resolve(data));
+		process.stdin.on("error", reject);
+	});
+}
+
+function askQuestion(
+	rl: readline.Interface,
+	question: string
+): Promise<string> {
+	return new Promise((resolve) => rl.question(question, resolve));
 }
