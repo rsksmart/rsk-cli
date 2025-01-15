@@ -14,7 +14,7 @@
     "build": "tsc",
     "wallet": "pnpm run build && node dist/bin/index.js wallet",
     "balance": "pnpm run build && node dist/bin/index.js balance",
-    "transfer": "pnpm run build && node dist/bin/index.js transfer",
+    "transfer": "pnpm run build && node dist/bin/index.js transfer --testnet",
     "tx-status": "pnpm run build && node dist/bin/index.js tx --testnet --txid 0x876a0a9b167889350c41930a4204e5d9acf5704a7f201447a337094189af961c4"
   },
   "keywords": [
