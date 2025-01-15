@@ -42,6 +42,7 @@ This command will guide you through the process of wallet management, offering o
 - List all saved wallets
 - Switch between saved wallets
 - Update a wallet's name
+- Backup the wallet's file
 - Delete a saved wallet
 
 > **ℹ️ Info:**
@@ -109,6 +110,17 @@ This command will guide you through the process of wallet management, offering o
   💾 Changes saved at /path/to/package/rootstock-wallet.json
   ```
 
+- Example output when backing up the wallet file:
+
+  ```
+  🔑 Current wallet: dev
+  ? What would you like to do? 📂 Backup wallet data
+  ? 💾 Enter the path where you want to save the backup: selected/backup/path
+  💾 Changes saved at selected/backup/path
+  ✅ Wallet backup created successfully!
+  💾 Backup saved successfully at: selected/backup/path
+  ```
+
 - Example output when deleting a wallet:
 
   ```
@@ -122,7 +134,7 @@ This command will guide you through the process of wallet management, offering o
 
 ### 2. Check Balance
 
-The `balance` command allows you to check the balance of your saved wallet on the Rootstock blockchain. You can check the balance on either the mainnet or testnet using the appropriate flags.
+The `balance` command allows you to check the balance of any token on the Rootstock blockchain for any of the saved wallets. You can check the balance on either the mainnet or testnet using the appropriate flags.
 
 #### Mainnet
 
@@ -147,7 +159,7 @@ Use the `-t` or `--testnet` flag to check the balance on the Rootstock testnet.
 rsk-cli balance -t
 ```
 
-#### Wallet
+#### Dynamic Wallet Selection
 
 Use the `--wallet` flag to dynamically select wallet
 
@@ -158,7 +170,15 @@ rsk-cli balance --wallet <name>
 Output example:
 
 ```
-Balance on testnet: 0.6789 RBTC
+? Select token to check balance: RIF
+✔ Balance retrieved successfully
+📄 Token Information:
+     Name: tRIF Token
+     Contract: 0x19f64674d8a5b4e652319f5e239efd3bc969a1fe
+  👤 Holder Address: 0x28eb8d29e4713e211d1ddab19df3de16086bb8fa
+  💰 Balance: 0.02 tRIF
+  🌐 Network: Rootstock Testnet
+🔗 Ensure that transactions are being conducted on the correct network.
 ```
 
 ### 3. Transfer rBTC
@@ -179,7 +199,7 @@ Use the `-t` or `--testnet` flag to execute the transfer on the Rootstock testne
 rsk-cli transfer --testnet --address 0x0x08C4E4BdAb2473E454B8B2a4400358792786d341 --value 0.001
 ```
 
-#### Wallet
+#### Dynamic Wallet Selection
 
 Use the `--wallet` flag to dynamically select wallet
 
@@ -243,7 +263,7 @@ rsk-cli deploy --abi <path_to_abi> --bytecode <path_to_bytecode> --args <arg1> <
 rsk-cli deploy --testnet --abi <path_to_abi> --bytecode <path_to_bytecode> --args <arg1> <arg2> ...
 ```
 
-#### Wallet
+#### Dynamic Wallet Selection
 
 ```bash
 rsk-cli deploy --wallet <name> --abi <path_to_abi> --bytecode <path_to_bytecode> --args <arg1> <arg2> ...
@@ -353,7 +373,7 @@ rsk-cli bridge
 rsk-cli bridge --testnet
 ```
 
-#### Wallet
+#### Dynamic Wallet Selection
 
 ```bash
 rsk-cli bridge --wallet <name>
@@ -372,34 +392,34 @@ Output example:
 
 ### 9. Fetch Wallet History
 
-The history command allows you to fetch the transaction history for a wallet on the Rootstock blockchain. This includes transactions such as ERC20, ERC721, and external transfers. You can specify whether to fetch the history from the Mainnet or Testnet by providing the appropriate flag
+The history command allows you to fetch the transaction history for a wallet on the Rootstock blockchain. This includes transactions such as ERC20, ERC721, and external transfers. You can specify whether to fetch the history from the Mainnet or Testnet by providing the appropriate flag. For this command to work, make sure to have an Alchemy API key you can get from [Alchemy Dashboard](https://dashboard.alchemy.com/).
 
 #### Mainnet
 
-With arguments:
+Without having the Alchemy API key previously set:
 
 ```bash
 rsk-cli history --apiKey <apiKey> --number <number>
 ```
 
-Without arguments:
+With Alchemy API key already set:
 
 ```bash
-rsk-cli history
+rsk-cli history --number <number>
 ```
 
 #### Testnet
 
-With arguments:
+Without having the Alchemy API key previously set:
 
 ```bash
 rsk-cli history --testnet --apiKey <apiKey> --number <number>
 ```
 
-Without arguments
+With Alchemy API key already set:
 
 ```bash
-rsk-cli history --testnet
+rsk-cli history --testnet --number <number>
 ```
 
 Output example:
@@ -413,7 +433,7 @@ Output example:
    Token: ETH
    Value: 0.000003
    Tx Hash: 0xde678614cd9e20fe5891c25069afef680174456b104f31c9078eb486abd95a64
-
+   Time: Tue Nov 12 2024 11:46:32 GMT+0700 (Indochina Time)
 ```
 
 ## Contributing

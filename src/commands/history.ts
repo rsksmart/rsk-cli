@@ -16,7 +16,11 @@ export async function historyCommand(
     }
 
     if (!apiKey && !storedApiKey) {
-      console.log(chalk.red("🔑 Alchemy API key is missing."));
+      console.log(
+        chalk.red(
+          "🔑 Add the Alchemy API key as a parameter in the command. Provide it once, and it will be securely saved for future use."
+        )
+      );
       return;
     }
 
