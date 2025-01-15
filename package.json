@@ -1,53 +1,56 @@
 {
-	"name": "@rsksmart/rsk-cli",
-	"version": "1.0.5",
-	"description": "CLI tool for Rootstock network using Viem",
-	"repository": "git@github.com:rsksmart/rsk-cli.git",
-	"main": "./dist/bin/index.js",
-	"bin": {
-		"rsk-cli": "./dist/bin/index.js"
-	},
-	"scripts": {
-		"build": "tsc",
-		"wallet": "pnpm run build && node dist/bin/index.js wallet",
-		"balance": "pnpm run build && node dist/bin/index.js balance",
-		"transfer": "pnpm run build && node dist/bin/index.js transfer --testnet --address 0xa5f45f5bddefC810C48aCC1D5CdA5e5a4c6BC59E --value 0.001",
-		"tx-status": "pnpm run build && node dist/bin/index.js tx --testnet --txid 0x876a0a9b167889350c41930a4204e5d9acf5704a7f201447a337094189af961c4",
-		"batch-transfer": "pnpm run build && node dist/bin/index.js batch-transfer"
-	},
-	"keywords": [
-		"rootstock",
-		"blockchain",
-		"cli",
-		"ethereum",
-		"viem"
-	],
-	"author": "rookiecol",
-	"license": "MIT",
-	"type": "module",
-	"files": [
-		"dist/"
-	],
-	"devDependencies": {
-		"@types/bun": "latest",
-		"@types/figlet": "^1.5.8",
-		"solc": "0.8.20",
-		"typescript": "^5.0.0"
-	},
-	"peerDependencies": {
-		"typescript": "^5.0.0"
-	},
-	"dependencies": {
-		"@openzeppelin/contracts": "^5.0.2",
-		"@rsksmart/rsk-precompiled-abis": "^6.0.0-ARROWHEAD",
-		"@types/fs-extra": "^11.0.4",
-		"chalk": "^5.3.0",
-		"cli-table3": "^0.6.5",
-		"commander": "^12.1.0",
-		"figlet": "^1.7.0",
-		"fs-extra": "^11.2.0",
-		"inquirer": "^10.1.8",
-		"ora": "^8.0.1",
-		"viem": "^2.19.4"
-	}
+  "name": "@rsksmart/rsk-cli",
+  "version": "1.0.6",
+  "description": "CLI tool for Rootstock network using Viem",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/rsksmart/rsk-cli.git"
+  },
+  "main": "./dist/bin/index.js",
+  "bin": {
+    "rsk-cli": "./dist/bin/index.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "wallet": "pnpm run build && node dist/bin/index.js wallet",
+    "balance": "pnpm run build && node dist/bin/index.js balance",
+    "transfer": "pnpm run build && node dist/bin/index.js transfer --testnet --address 0xa5f45f5bddefC810C48aCC1D5CdA5e5a4c6BC59E --value 0.001",
+    "tx-status": "pnpm run build && node dist/bin/index.js tx --testnet --txid 0x876a0a9b167889350c41930a4204e5d9acf5704a7f201447a337094189af961c4",
+    "batch-transfer": "pnpm run build && node dist/bin/index.js batch-transfer"
+  },
+  "keywords": [
+    "rootstock",
+    "blockchain",
+    "cli",
+    "ethereum",
+    "viem"
+  ],
+  "author": "rookiecol",
+  "license": "MIT",
+  "type": "module",
+  "files": [
+    "dist/"
+  ],
+  "devDependencies": {
+    "@types/bun": "latest",
+    "@types/figlet": "^1.5.8",
+    "solc": "0.8.28",
+    "typescript": "^5.0.0"
+  },
+  "peerDependencies": {
+    "typescript": "^5.0.0"
+  },
+  "dependencies": {
+    "@openzeppelin/contracts": "^5.0.2",
+    "@rsksmart/rsk-precompiled-abis": "^6.0.0-ARROWHEAD",
+    "@types/fs-extra": "^11.0.4",
+    "chalk": "^5.3.0",
+    "cli-table3": "^0.6.5",
+    "commander": "^12.1.0",
+    "figlet": "^1.7.0",
+    "fs-extra": "^11.2.0",
+    "inquirer": "^12.1.0",
+    "ora": "^8.0.1",
+    "viem": "^2.19.4"
+  }
 }
