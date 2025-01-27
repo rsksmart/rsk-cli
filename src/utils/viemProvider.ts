@@ -27,9 +27,7 @@ class ViemProvider {
     });
   }
 
-  public async getWalletClient(
-    name: string | undefined
-  ): Promise<WalletClient> {
+  public async getWalletClient(name?: string | null): Promise<WalletClient> {
     const { account } = await this.decryptPrivateKey(name ? name : undefined);
 
     return createWalletClient({
