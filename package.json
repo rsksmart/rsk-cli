@@ -1,6 +1,6 @@
 {
   "name": "@rsksmart/rsk-cli",
-  "version": "1.0.6",
+  "version": "1.0.7",
   "description": "CLI tool for Rootstock network using Viem",
   "repository": {
     "type": "git",
@@ -12,10 +12,13 @@
   },
   "scripts": {
     "build": "tsc",
+    "dev": "tsc -w",
     "wallet": "pnpm run build && node dist/bin/index.js wallet",
     "balance": "pnpm run build && node dist/bin/index.js balance",
-    "transfer": "pnpm run build && node dist/bin/index.js transfer --testnet",
-    "tx-status": "pnpm run build && node dist/bin/index.js tx --testnet --txid 0x876a0a9b167889350c41930a4204e5d9acf5704a7f201447a337094189af961c4"
+    "transfer": "pnpm run build && node dist/bin/index.js transfer --testnet --address 0xa5f45f5bddefC810C48aCC1D5CdA5e5a4c6BC59E --value 0.001",
+    "tx-status": "pnpm run build && node dist/bin/index.js tx --testnet --txid 0x876a0a9b167889350c41930a4204e5d9acf5704a7f201447a337094189af961c4",
+    "batch-transfer": "pnpm run build && node dist/bin/index.js batch-transfer",
+    "history": "pnpm run build && node dist/bin/index.js history"
   },
   "keywords": [
     "rootstock",
@@ -45,7 +48,7 @@
     "@types/fs-extra": "^11.0.4",
     "chalk": "^5.3.0",
     "cli-table3": "^0.6.5",
-    "commander": "^12.1.0",
+    "commander": "^13.1.0",
     "figlet": "^1.7.0",
     "fs-extra": "^11.2.0",
     "inquirer": "^12.1.0",

@@ -7,7 +7,8 @@ export async function deployCommand(
   abiPath: string,
   bytecodePath: string,
   testnet: boolean,
-  args: any[] = []
+  args: any[] = [],
+  name: string
 ): Promise<void> {
   try {
     console.log(
@@ -16,7 +17,7 @@ export async function deployCommand(
       )
     );
     const provider = new ViemProvider(testnet);
-    const walletClient = await provider.getWalletClient();
+    const walletClient = await provider.getWalletClient(name);
 
     if (!walletClient.account) {
       console.error(

@@ -5,6 +5,7 @@ import fs from "fs-extra";
 import crypto from "crypto";
 import { loadWallets } from "../utils/index.js";
 import { walletFilePath } from "../utils/constants.js";
+import path from "path";
 import { addressBookCommand } from "./addressbook.js";
 
 type InquirerAnswers = {
@@ -17,6 +18,7 @@ type InquirerAnswers = {
   setCurrentWallet?: boolean;
   confirmDelete?: boolean;
   newWalletName?: string;
+  backupPath?: string;
 };
 
 export async function walletCommand() {
@@ -48,6 +50,7 @@ export async function walletCommand() {
           "🔍 List saved wallets",
           "🔁 Switch wallet",
           "📝 Update wallet name",
+          "📂 Backup wallet data",
           "❌ Delete wallet",
           "📖 Address Book",
         ],
@@ -484,6 +487,27 @@ export async function walletCommand() {
       writeWalletData(walletFilePath, walletsData);
     }
 
+    if (action === "📂 Backup wallet data") {
+      const backupPathQuestion: any = [
+        {
+          type: "input",
+          name: "backupPath",
+          message: "💾 Enter the path where you want to save the backup:",
+        },
+      ];
+
+      const { backupPath } = await inquirer.prompt<InquirerAnswers>(
+        backupPathQuestion
+      );
+
+      if (!backupPath) {
+        console.log(chalk.red("⚠️ Backup path is required!"));
+        return;
+      }
+
+      await backupCommand(backupPath);
+    }
+
     if (action === "📖 Address Book") {
       await addressBookCommand();
     }
@@ -495,18 +519,54 @@ export async function walletCommand() {
   }
 }
 
-export async function writeWalletData(walletFilePath: string, walletsData: any) {
+export async function writeWalletData(filePath: string, data: any) {
   try {
-    fs.writeFileSync(
-      walletFilePath,
-      JSON.stringify(walletsData, null, 2),
-      "utf8"
-    );
-    console.log(chalk.green(`💾 Changes saved at ${walletFilePath}`));
+    fs.writeFileSync(filePath, JSON.stringify(data, null, 2), "utf8");
+    console.log(chalk.green(`💾 Changes saved at ${filePath}`));
   } catch (error: any) {
     console.error(
       chalk.red("❌ Error saving wallet data:"),
       chalk.yellow(error.message || error)
+    );
+  }
+}
+
+async function backupCommand(backupPath: string) {
+  try {
+    if (!fs.existsSync(walletFilePath)) {
+      console.log(chalk.red("🚫 No saved wallet found. Please create a wallet first."));
+      return;
+    }
+
+    if (!backupPath) {
+      console.log(chalk.red("⚠️ Please provide a valid file path for backup."));
+      return;
+    }
+
+    let absoluteBackupPath = path.resolve(backupPath);
+    const backupDir = path.dirname(absoluteBackupPath);
+
+    if (fs.existsSync(absoluteBackupPath) && fs.lstatSync(absoluteBackupPath).isDirectory()) {
+      absoluteBackupPath = path.join(absoluteBackupPath, 'wallet_backup.json');
+      console.log(chalk.yellow(`⚠️ Provided a directory. Using default file name: wallet_backup.json`));
+    }
+
+    if (!fs.existsSync(backupDir)) {
+      fs.mkdirSync(backupDir, { recursive: true });
+      console.log(chalk.green(`📂 Created backup directory: ${backupDir}`));
+    }
+
+    const walletData = JSON.parse(fs.readFileSync(walletFilePath, "utf8"));
+
+    writeWalletData(absoluteBackupPath, walletData);
+    console.log(
+      chalk.green("✅ Wallet backup created successfully!"),
+      chalk.green(`\n💾 Backup saved successfully at: ${absoluteBackupPath}`)
+    );
+  } catch (error: any) {
+    console.error(
+      chalk.red("🚨 Error during wallet backup:"),
+      chalk.yellow(error.message)
     );
   }
 }
