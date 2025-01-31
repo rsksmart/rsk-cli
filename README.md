@@ -436,6 +436,87 @@ Output example:
    Time: Tue Nov 12 2024 11:46:32 GMT+0700 (Indochina Time)
 ```
 
+### 9. Fetch Wallet History
+
+The batch-transfer command allows you to send multiple transactions in one batch. This feature supports both interactive mode (manual input) and file-based batch processing, enabling you to transfer rBTC to multiple addresses in a single operation.
+
+#### Interactive Mode
+
+In this mode, the CLI will prompt you to enter the recipient addresses and amounts interactively.
+
+#### Mainnet
+
+```bash
+rsk-cli batch-transfer --interactive
+```
+
+#### Testnet
+
+```bash
+rsk-cli batch-transfer --testnet --interactive
+```
+
+Output example:
+
+```
+Enter address: 0xDdC94BFde7C64117F35803AeA4FA4F98A7b4f57C
+Enter amount: 0.0000001
+Add another transaction? (y/n): y
+Enter address: 0x28eb8D29e4713E211D1dDab19dF3de16086BB8fa
+Enter amount: 0.0000001
+Add another transaction? (y/n): n
+✔ Enter your password to decrypt the wallet: ****
+📄 Wallet Address: 0xb4eb1352Ac339766727Df550A24D21f90935E78c
+💰 Current Balance: 0.036531414555536136 RBTC
+🔄 Transaction initiated. TxHash: 0xd559fc4295c75957fec31c6a5f963ed6545589efa7c9050ea5bfae0739823314
+✅ Transaction confirmed successfully!
+📦 Block Number: 6021798
+⛽ Gas Used: 21000
+🔄 Transaction initiated. TxHash: 0xe7fc0c0bbbed6867cf24d69b70d2d16fd2a43ca4da66ee1f6ff0e3cdf0e9f97d
+✅ Transaction confirmed successfully!
+📦 Block Number: 6021800
+⛽ Gas Used: 21000
+```
+
+#### File-based
+
+In this mode, you provide a JSON file containing the batch transactions. The file must include a list of transactions, each specifying the recipient address (address) and the amount (amount). The file should look something like this:
+
+```json
+[
+  { "to": "0x28eb8D29e4713E211D1dDab19dF3de16086BB8fa", "value": 0.000001 },
+  { "to": "0xDdC94BFde7C64117F35803AeA4FA4F98A7b4f57C", "value": 0.000001 }
+]
+```
+
+#### Mainnet
+
+```bash
+rsk-cli batch-transfer --file <path/to/file.json>
+```
+
+#### Testnet
+
+```bash
+rsk-cli batch-transfer --testnet --file <path/to/file.json>
+```
+
+Output example:
+
+```
+✔ Enter your password to decrypt the wallet: ****
+📄 Wallet Address: 0xb4eb1352Ac339766727Df550A24D21f90935E78c
+💰 Current Balance: 0.03653096205477013 RBTC
+🔄 Transaction initiated. TxHash: 0xc985fc690117dbf9be1b25ffefa39e6c958c8b40c219b49870ef46c3b1865f47
+✅ Transaction confirmed successfully!
+📦 Block Number: 6021844
+⛽ Gas Used: 21000
+🔄 Transaction initiated. TxHash: 0xe5d39d8a8d7fb15f5c2d08c7e9b58b21cd68f2e8aef59eb7a24693ab0fe08c65
+✅ Transaction confirmed successfully!
+📦 Block Number: 6021846
+⛽ Gas Used: 21000
+```
+
 ## Contributing
 
 We welcome contributions from the community. Please fork the repository and submit pull requests with your changes. Ensure your code adheres to the project's main objective.
