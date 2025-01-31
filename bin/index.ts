@@ -50,7 +50,7 @@ const program = new Command();
 program
   .name("rsk-cli")
   .description("CLI tool for interacting with Rootstock blockchain")
-  .version("1.0.4", "-v, --version", "Display the current version");
+  .version("1.0.7", "-v, --version", "Display the current version");
 
 program
   .command("wallet")
@@ -77,7 +77,7 @@ program
   .option("-t, --testnet", "Transfer on the testnet")
   .option("--wallet <wallet>", "Name of the wallet")
   .requiredOption("-a, --address <address>", "Recipient address")
-  .requiredOption("-v, --value <value>", "Amount to transfer in rBTC")
+  .requiredOption("--value <value>", "Amount to transfer in rBTC")
   .action(async (options: CommandOptions) => {
     try {
       const address = `0x${options.address!.replace(
@@ -176,6 +176,36 @@ program
   .option("-t, --testnet", "History of wallet on the testnet")
   .action(async (options: CommandOptions) => {
     await historyCommand(!!options.testnet, options.apiKey!, options.number!);
+  });
+
+program
+  .command("batch-transfer")
+  .description("Execute batch transactions interactively or from stdin")
+  .option("-i, --interactive", "Execute interactively and input transactions")
+  .option("-t, --testnet", "Execute on the testnet")
+  .option("-f, --file <path>", "Execute transactions from a file")
+  .action(async (options) => {
+    try {
+      const interactive = !!options.interactive;
+      const testnet = !!options.testnet;
+      const file = options.file;
+
+      if (interactive && file) {
+        console.error(
+          chalk.red(
+            "🚨 Cannot use both interactive mode and file input simultaneously."
+          )
+        );
+        return;
+      }
+
+      await batchTransferCommand(file, testnet, interactive);
+    } catch (error: any) {
+      console.error(
+        chalk.red("🚨 Error during batch transfer:"),
+        chalk.yellow(error.message || "Unknown error")
+      );
+    }
   });
 
 program.parse(process.argv);
