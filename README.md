@@ -145,9 +145,14 @@ rsk-cli balance
 Output example:
 
 ```
-📄 Wallet Address: 0x08C4E4BdAb2473E454B8B2a4400358792786d341
-🌐 Network: Rootstock Testnet
-💰 Current Balance: 0.5015843199087592 RBTC
+? Select token to check balance: RIF
+✔ Balance retrieved successfully
+📄 Token Information:
+     Name: RIF Token
+     Contract: 0x19f64674d8a5b4e652319f5e239efd3bc969a1fe
+  👤 Holder Address: 0x28eb8d29e4713e211d1ddab19df3de16086bb8fa
+  💰 Balance: 0.02 RIF
+  🌐 Network: Rootstock Mainnet
 🔗 Ensure that transactions are being conducted on the correct network.
 ```
 
@@ -157,14 +162,6 @@ Use the `-t` or `--testnet` flag to check the balance on the Rootstock testnet.
 
 ```bash
 rsk-cli balance -t
-```
-
-#### Dynamic Wallet Selection
-
-Use the `--wallet` flag to dynamically select wallet
-
-```bash
-rsk-cli balance --wallet <name>
 ```
 
 Output example:
@@ -179,6 +176,14 @@ Output example:
   💰 Balance: 0.02 tRIF
   🌐 Network: Rootstock Testnet
 🔗 Ensure that transactions are being conducted on the correct network.
+```
+
+#### Dynamic Wallet Selection
+
+Use the `--wallet` flag to dynamically select the wallet.
+
+```bash
+rsk-cli balance --wallet <name>
 ```
 
 ### 3. Transfer rBTC
