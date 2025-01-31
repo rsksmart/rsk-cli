@@ -15,51 +15,51 @@ import { batchTransferCommand } from "../src/commands/batchTransfer.js";
 import { historyCommand } from "../src/commands/history.js";
 
 interface CommandOptions {
-	testnet?: boolean;
-	address?: Address;
-	contract?: Address;
-	value?: string;
-	txid?: string;
-	abi?: string;
-	bytecode?: string;
-	apiKey?: string;
-	args?: any;
-	json?: any;
-	name?: string;
-	decodedArgs?: any;
-	wallet?: string;
-	number?: string;
-	file?: string;
-	interactive?: boolean;
+  testnet?: boolean;
+  address?: Address;
+  contract?: Address;
+  value?: string;
+  txid?: string;
+  abi?: string;
+  bytecode?: string;
+  apiKey?: string;
+  args?: any;
+  json?: any;
+  name?: string;
+  decodedArgs?: any;
+  wallet?: string;
+  number?: string;
+  file?: string;
+  interactive?: boolean;
 }
 
 const orange = chalk.rgb(255, 165, 0);
 
 console.log(
-	orange(
-		figlet.textSync("Rootstock", {
-			font: "3D-ASCII",
-			horizontalLayout: "fitted",
-			verticalLayout: "fitted",
-		})
-	)
+  orange(
+    figlet.textSync("Rootstock", {
+      font: "3D-ASCII",
+      horizontalLayout: "fitted",
+      verticalLayout: "fitted",
+    })
+  )
 );
 
 const program = new Command();
 
 program
-	.name("rsk-cli")
-	.description("CLI tool for interacting with Rootstock blockchain")
-	.version("1.0.4", "-v, --version", "Display the current version");
+  .name("rsk-cli")
+  .description("CLI tool for interacting with Rootstock blockchain")
+  .version("1.0.4", "-v, --version", "Display the current version");
 
 program
-	.command("wallet")
-	.description(
-		"Manage your wallet: create a new one, use an existing wallet, or import a custom wallet"
-	)
-	.action(async () => {
-		await walletCommand();
-	});
+  .command("wallet")
+  .description(
+    "Manage your wallet: create a new one, use an existing wallet, or import a custom wallet"
+  )
+  .action(async () => {
+    await walletCommand();
+  });
 
 program
   .command("balance")
@@ -96,17 +96,17 @@ program
   });
 
 program
-	.command("tx")
-	.description("Check the status of a transaction")
-	.option("-t, --testnet", "Check the transaction status on the testnet")
-	.requiredOption("-i, --txid <txid>", "Transaction ID")
-	.action(async (options: CommandOptions) => {
-		const formattedTxId = options.txid!.startsWith("0x")
-			? options.txid
-			: `0x${options.txid}`;
+  .command("tx")
+  .description("Check the status of a transaction")
+  .option("-t, --testnet", "Check the transaction status on the testnet")
+  .requiredOption("-i, --txid <txid>", "Transaction ID")
+  .action(async (options: CommandOptions) => {
+    const formattedTxId = options.txid!.startsWith("0x")
+      ? options.txid
+      : `0x${options.txid}`;
 
-		await txCommand(!!options.testnet, formattedTxId as `0x${string}`);
-	});
+    await txCommand(!!options.testnet, formattedTxId as `0x${string}`);
+  });
 
 program
   .command("deploy")
@@ -128,42 +128,36 @@ program
   });
 
 program
-	.command("verify")
-	.description("Verify a contract")
-	.requiredOption("--json <path>", "Path to the JSON Standard Input")
-	.requiredOption("--name <name>", "Name of the contract")
-	.requiredOption(
-		"-a, --address <address>",
-		"Address of the deployed contract"
-	)
-	.option("-t, --testnet", "Deploy on the testnet")
-	.option(
-		"-da, --decodedArgs <args...>",
-		"Decoded Constructor arguments (space-separated)"
-	)
-	.action(async (options: CommandOptions) => {
-		const args = options.decodedArgs || [];
-		await verifyCommand(
-			options.json!,
-			options.address!,
-			options.name!,
-			!!options.testnet,
+  .command("verify")
+  .description("Verify a contract")
+  .requiredOption("--json <path>", "Path to the JSON Standard Input")
+  .requiredOption("--name <name>", "Name of the contract")
+  .requiredOption("-a, --address <address>", "Address of the deployed contract")
+  .option("-t, --testnet", "Deploy on the testnet")
+  .option(
+    "--decodedArgs <args...>",
+    "Decoded Constructor arguments (space-separated)"
+  )
+  .action(async (options: CommandOptions) => {
+    const args = options.decodedArgs || [];
+    await verifyCommand(
+      options.json!,
+      options.address!,
+      options.name!,
+      !!options.testnet,
 
-			args
-		);
-	});
+      args
+    );
+  });
 
 program
-	.command("contract")
-	.description("Interact with a contract")
-	.requiredOption("-a, --address <address>", "Address of a verified contract")
-	.option("-t, --testnet", "Deploy on the testnet")
-	.action(async (options: CommandOptions) => {
-		await ReadContract(
-			options.address! as `0x${string}`,
-			!!options.testnet
-		);
-	});
+  .command("contract")
+  .description("Interact with a contract")
+  .requiredOption("-a, --address <address>", "Address of a verified contract")
+  .option("-t, --testnet", "Deploy on the testnet")
+  .action(async (options: CommandOptions) => {
+    await ReadContract(options.address! as `0x${string}`, !!options.testnet);
+  });
 
 program
   .command("bridge")
