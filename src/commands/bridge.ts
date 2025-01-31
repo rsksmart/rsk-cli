@@ -12,7 +12,7 @@ type InquirerAnswers = {
   args?: string[];
 };
 
-export async function bridgeCommand(testnet: boolean) {
+export async function bridgeCommand(testnet: boolean, name: string) {
   try {
     const spinner = ora();
     console.log(
@@ -100,7 +100,7 @@ export async function bridgeCommand(testnet: boolean) {
       }
 
       if (selectedType === "write") {
-        const walletClient = await provider.getWalletClient();
+        const walletClient = await provider.getWalletClient(name);
         const account = walletClient.account;
 
         console.log(chalk.blue(`🔑 Wallet account: ${account?.address}`));

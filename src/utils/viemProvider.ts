@@ -27,8 +27,8 @@ class ViemProvider {
     });
   }
 
-  public async getWalletClient(): Promise<WalletClient> {
-    const { account } = await this.decryptPrivateKey();
+  public async getWalletClient(name?: string | null): Promise<WalletClient> {
+    const { account } = await this.decryptPrivateKey(name ? name : undefined);
 
     return createWalletClient({
       chain: this.chain,
@@ -37,7 +37,7 @@ class ViemProvider {
     });
   }
 
-  private async decryptPrivateKey(): Promise<{
+  private async decryptPrivateKey(name: string | undefined): Promise<{
     account: ReturnType<typeof privateKeyToAccount>;
   }> {
     if (!fs.existsSync(walletFilePath)) {
@@ -58,6 +58,19 @@ class ViemProvider {
     }
 
     const { currentWallet, wallets } = walletsData;
+    let wallet = wallets[currentWallet];
+
+    if (name) {
+      if (!wallets[name]) {
+        console.log(
+          chalk.red("⚠️ Wallet with the provided name does not exist.")
+        );
+
+        throw new Error();
+      } else {
+        wallet = wallets[name];
+      }
+    }
 
     const passwordQuestion: any = [
       {
@@ -70,7 +83,6 @@ class ViemProvider {
 
     const { password } = await inquirer.prompt(passwordQuestion);
 
-    const wallet = wallets[currentWallet];
     const { encryptedPrivateKey, iv } = wallet;
 
     try {
