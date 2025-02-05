@@ -6,6 +6,7 @@ import crypto from "crypto";
 import { loadWallets } from "../utils/index.js";
 import { walletFilePath } from "../utils/constants.js";
 import path from "path";
+import { addressBookCommand } from "./addressbook.js";
 
 type InquirerAnswers = {
   action?: string;
@@ -51,6 +52,7 @@ export async function walletCommand() {
           "📝 Update wallet name",
           "📂 Backup wallet data",
           "❌ Delete wallet",
+          "📖 Address Book",
         ],
       },
     ];
@@ -505,6 +507,10 @@ export async function walletCommand() {
 
       await backupCommand(backupPath);
     }
+
+    if (action === "📖 Address Book") {
+      await addressBookCommand();
+    }
   } catch (error: any) {
     console.error(
       chalk.red("❌ Error creating or managing wallets:"),
@@ -513,7 +519,7 @@ export async function walletCommand() {
   }
 }
 
-async function writeWalletData(filePath: string, data: any) {
+export async function writeWalletData(filePath: string, data: any) {
   try {
     fs.writeFileSync(filePath, JSON.stringify(data, null, 2), "utf8");
     console.log(chalk.green(`💾 Changes saved at ${filePath}`));
