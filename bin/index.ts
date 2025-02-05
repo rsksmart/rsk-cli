@@ -13,6 +13,7 @@ import { Address } from "viem";
 import { bridgeCommand } from "../src/commands/bridge.js";
 import { batchTransferCommand } from "../src/commands/batchTransfer.js";
 import { historyCommand } from "../src/commands/history.js";
+import { selectAddress } from "../src/commands/selectAddress.js";
 
 interface CommandOptions {
   testnet?: boolean;
@@ -50,7 +51,7 @@ const program = new Command();
 program
   .name("rsk-cli")
   .description("CLI tool for interacting with Rootstock blockchain")
-  .version("1.0.8", "-v, --version", "Display the current version");
+  .version("1.0.9", "-v, --version", "Display the current version");
 
 program
   .command("wallet")
@@ -76,10 +77,30 @@ program
   .description("Transfer rBTC to the provided address")
   .option("-t, --testnet", "Transfer on the testnet")
   .option("--wallet <wallet>", "Name of the wallet")
-  .requiredOption("-a, --address <address>", "Recipient address")
+  .option("-a, --address <address>", "Recipient address")
   .requiredOption("--value <value>", "Amount to transfer in rBTC")
   .action(async (options: CommandOptions) => {
     try {
+      if (!options.value) {
+        throw new Error("Value is required for the transfer.");
+      }
+
+      const value = parseFloat(options.value);
+
+      if (isNaN(value) || value <= 0) {
+        throw new Error("Invalid value specified for transfer.");
+      }
+
+      const address = options.address
+        ? (`0x${options.address.replace(/^0x/, "")}` as `0x${string}`)
+        : await selectAddress();
+
+      await transferCommand(!!options.testnet, address, value);
+    } catch (error: any) {
+      console.error(
+        chalk.red("Error during transfer:"),
+        error.message || error
+      );
       const address = `0x${options.address!.replace(
         /^0x/,
         ""
@@ -90,8 +111,6 @@ program
         parseFloat(options.value!),
         options.wallet!
       );
-    } catch (error) {
-      console.error(chalk.red("Error during transfer:"), error);
     }
   });
 
