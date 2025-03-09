@@ -14,7 +14,7 @@ import { bridgeCommand } from "../src/commands/bridge.js";
 import { batchTransferCommand } from "../src/commands/batchTransfer.js";
 import { historyCommand } from "../src/commands/history.js";
 import { selectAddress } from "../src/commands/selectAddress.js";
-
+import { transferTokenCommand } from "../src/commands/erc20Transfer.js";
 interface CommandOptions {
   testnet?: boolean;
   address?: Address;
@@ -32,6 +32,7 @@ interface CommandOptions {
   number?: string;
   file?: string;
   interactive?: boolean;
+  token?: Address;
 }
 
 const orange = chalk.rgb(255, 165, 0);
@@ -72,6 +73,22 @@ program
     await balanceCommand(!!options.testnet, options.wallet!, options.address);
   });
 
+  program
+  .command("transfer-token")
+  .description("Transfer ERC20 tokens to the provided address")
+  .option("-t, --testnet", "Transfer on the testnet")
+  .requiredOption("--token <address>", "ERC20 token contract address")
+  .requiredOption("--address <address>", "Recipient address")
+  .requiredOption("--value <value>", "Amount to transfer")
+  .action(async (options: CommandOptions) => {
+    const value = parseFloat(options.value!);
+    if (isNaN(value) || value <= 0) {
+      console.error(chalk.red("Invalid value specified for transfer."));
+      return;
+    }
+    await transferTokenCommand(!!options.testnet, options.token!, options.address!, value);
+  });
+  
 program
   .command("transfer")
   .description("Transfer rBTC to the provided address")
