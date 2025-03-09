@@ -522,6 +522,61 @@ Output example:
 ⛽ Gas Used: 21000
 ```
 
+### ERC20 Token Transfer
+
+The `transfer-token` command allows you to transfer ERC20 tokens on the Rootstock blockchain. You can execute transfers on either mainnet or testnet.
+
+```bash
+rsk-cli transfer-token [options]
+```
+
+Options:
+- `-t, --testnet`: Execute the transfer on testnet (optional)
+- `--token <address>`: ERC20 token contract address
+- `--address <address>`: Recipient address
+- `--value <amount>`: Amount of tokens to transfer
+- `--wallet <name>`: Name of the wallet to use (optional)
+
+#### Example Usage
+
+```bash
+# Transfer 0.1 tokens on testnet
+rsk-cli transfer-token --testnet \
+  --token 0x32Cd6c5831531F96f57d1faf4DDdf0222c4Af8AB \
+  --address 0x8A0d290b2EE35eFde47810CA8fF057e109e4190B \
+  --value 0.1
+
+# Transfer using a specific wallet
+rsk-cli transfer-token --testnet \
+  --token 0x32Cd6c5831531F96f57d1faf4DDdf0222c4Af8AB \
+  --address 0x8A0d290b2EE35eFde47810CA8fF057e109e4190B \
+  --value 0.1 \
+  --wallet myWallet
+```
+
+Example output:
+```
+🔑 Wallet account: 0x6ad6b3926Fd18b0A8c9a20d659A25c9F6a69c8e0
+📄 Token Information:
+     Name: MyToken
+     Symbol: MTK
+     Contract: 0x32Cd6c5831531F96f57d1faf4DDdf0222c4Af8AB
+🎯 To Address: 0x8A0d290b2EE35eFde47810CA8fF057e109e4190B
+💵 Amount to Transfer: 0.1 MTK
+✔ ✅ Simulation successful, proceeding with transfer...
+🔄 Transaction initiated. TxHash: 0x680c4aa4f8b1ba0b7295a97d348a0ffa458a254d36af3cefc6048f8ae3f66b90
+✅ Transfer completed successfully!
+📦 Block Number: 6155122
+⛽ Gas Used: 35460
+🔗 View on Explorer: https://explorer.testnet.rootstock.io/tx/0x680c4aa4f8b1ba0b7295a97d348a0ffa458a254d36af3cefc6048f8ae3f66b90
+```
+
+> **Note**: Before transferring tokens, ensure you have:
+> 1. A wallet configured with sufficient token balance
+> 2. The correct ERC20 token contract address
+> 3. A valid recipient address
+> 4. Enough RBTC to cover gas fees
+
 ## Contributing
 
 We welcome contributions from the community. Please fork the repository and submit pull requests with your changes. Ensure your code adheres to the project's main objective.
@@ -532,12 +587,12 @@ For any questions or support, please open an issue on the repository or reach ou
 
 # Disclaimer
 
-The software provided in this GitHub repository is offered “as is,” without warranty of any kind, express or implied, including but not limited to the warranties of merchantability, fitness for a particular purpose, and non-infringement.
+The software provided in this GitHub repository is offered "as is," without warranty of any kind, express or implied, including but not limited to the warranties of merchantability, fitness for a particular purpose, and non-infringement.
 
 - **Testing:** The software has not undergone testing of any kind, and its functionality, accuracy, reliability, and suitability for any purpose are not guaranteed.
 - **Use at Your Own Risk:** The user assumes all risks associated with the use of this software. The author(s) of this software shall not be held liable for any damages, including but not limited to direct, indirect, incidental, special, consequential, or punitive damages arising out of the use of or inability to use this software, even if advised of the possibility of such damages.
 - **No Liability:** The author(s) of this software are not liable for any loss or damage, including without limitation, any loss of profits, business interruption, loss of information or data, or other pecuniary loss arising out of the use of or inability to use this software.
-- **Sole Responsibility:** The user acknowledges that they are solely responsible for the outcome of the use of this software, including any decisions made or actions taken based on the software’s output or functionality.
+- **Sole Responsibility:** The user acknowledges that they are solely responsible for the outcome of the use of this software, including any decisions made or actions taken based on the software's output or functionality.
 - **No Endorsement:** Mention of any specific product, service, or organization does not constitute or imply endorsement by the author(s) of this software.
 - **Modification and Distribution:** This software may be modified and distributed under the terms of the license provided with the software. By modifying or distributing this software, you agree to be bound by the terms of the license.
 - **Assumption of Risk:** By using this software, the user acknowledges and agrees that they have read, understood, and accepted the terms of this disclaimer and assumes all risks associated with the use of this software.
