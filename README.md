@@ -186,34 +186,24 @@ Use the `--wallet` flag to dynamically select the wallet.
 rsk-cli balance --wallet <name>
 ```
 
-### 3. Transfer rBTC
+### 3. Transfer (RBTC and ERC20)
 
-The `transfer` command allows you to transfer rBTC from your saved wallet to a specified address on the Rootstock blockchain. You can execute the transfer on either the mainnet or testnet using the appropriate flags.
+The `transfer` command allows you to transfer both RBTC and ERC20 tokens from your saved wallet to a specified address on the Rootstock blockchain. You can execute transfers on either mainnet or testnet using the appropriate flags.
 
-#### Mainnet
+#### For RBTC Transfer
 
 ```bash
+# Mainnet
 rsk-cli transfer --address 0xRecipientAddress --value 0.001
+
+# Testnet
+rsk-cli transfer --testnet --address 0x08C4E4BdAb2473E454B8B2a4400358792786d341 --value 0.001
+
+# Using specific wallet
+rsk-cli transfer --wallet <name> --address 0x08C4E4BdAb2473E454B8B2a4400358792786d341 --value 0.001
 ```
 
-#### Testnet
-
-Use the `-t` or `--testnet` flag to execute the transfer on the Rootstock testnet.
-
-```bash
-rsk-cli transfer --testnet --address 0x0x08C4E4BdAb2473E454B8B2a4400358792786d341 --value 0.001
-```
-
-#### Dynamic Wallet Selection
-
-Use the `--wallet` flag to dynamically select wallet
-
-```bash
-rsk-cli transfer --wallet <name> --address 0x0x08C4E4BdAb2473E454B8B2a4400358792786d341 --value 0.001
-```
-
-Output example:
-
+Output example for RBTC transfer:
 ```
 📄 Wallet Address: 0x08C4E4BdAb2473E454B8B2a4400358792786d341
 🎯 Recipient Address: 0x08C4E4BdAb2473E454B8B2a4400358792786d341
@@ -226,6 +216,44 @@ Output example:
 ⛽ Gas Used: 21000
 🔗 View on Explorer: https://rootstock-testnet.blockscout.com/tx/0x0d27447f00c7de5b891d235268fc1e0b350ab46626aa93f8fb41f2cf9acb6a84
 ```
+
+#### For ERC20 Token Transfer
+
+Add the `--token` flag with the token contract address to transfer ERC20 tokens:
+
+```bash
+# Mainnet
+rsk-cli transfer --token 0xTokenAddress --address 0xRecipientAddress --value 0.1
+
+# Testnet
+rsk-cli transfer --testnet --token 0x32Cd6c5831531F96f57d1faf4DDdf0222c4Af8AB --address 0x8A0d290b2EE35eFde47810CA8fF057e109e4190B --value 0.1
+
+# Using specific wallet
+rsk-cli transfer --wallet <name> --testnet --token 0x32Cd6c5831531F96f57d1faf4DDdf0222c4Af8AB --address 0x8A0d290b2EE35eFde47810CA8fF057e109e4190B --value 0.1
+```
+
+Output example for ERC20 transfer:
+```
+🔑 Wallet account: 0x6ad6b3926Fd18b0A8c9a20d659A25c9F6a69c8e0
+📄 Token Information:
+     Name: MyToken
+     Symbol: MTK
+     Contract: 0x32Cd6c5831531F96f57d1faf4DDdf0222c4Af8AB
+🎯 To Address: 0x8A0d290b2EE35eFde47810CA8fF057e109e4190B
+💵 Amount to Transfer: 0.1 MTK
+✔ ✅ Simulation successful, proceeding with transfer...
+🔄 Transaction initiated. TxHash: 0x680c4aa4f8b1ba0b7295a97d348a0ffa458a254d36af3cefc6048f8ae3f66b90
+✅ Transfer completed successfully!
+📦 Block Number: 6155122
+⛽ Gas Used: 35460
+🔗 View on Explorer: https://explorer.testnet.rootstock.io/tx/0x680c4aa4f8b1ba0b7295a97d348a0ffa458a254d36af3cefc6048f8ae3f66b90
+```
+
+> **Note**: Before making any transfer, ensure you have:
+> 1. A wallet configured with sufficient balance (RBTC or ERC20 tokens)
+> 2. The correct ERC20 token contract address (when transferring tokens)
+> 3. A valid recipient address
+> 4. Enough RBTC to cover gas fees
 
 ### 4. Check Transaction Status
 
@@ -521,61 +549,6 @@ Output example:
 📦 Block Number: 6021846
 ⛽ Gas Used: 21000
 ```
-
-### ERC20 Token Transfer
-
-The `transfer-token` command allows you to transfer ERC20 tokens on the Rootstock blockchain. You can execute transfers on either mainnet or testnet.
-
-```bash
-rsk-cli transfer-token [options]
-```
-
-Options:
-- `-t, --testnet`: Execute the transfer on testnet (optional)
-- `--token <address>`: ERC20 token contract address
-- `--address <address>`: Recipient address
-- `--value <amount>`: Amount of tokens to transfer
-- `--wallet <name>`: Name of the wallet to use (optional)
-
-#### Example Usage
-
-```bash
-# Transfer 0.1 tokens on testnet
-rsk-cli transfer-token --testnet \
-  --token 0x32Cd6c5831531F96f57d1faf4DDdf0222c4Af8AB \
-  --address 0x8A0d290b2EE35eFde47810CA8fF057e109e4190B \
-  --value 0.1
-
-# Transfer using a specific wallet
-rsk-cli transfer-token --testnet \
-  --token 0x32Cd6c5831531F96f57d1faf4DDdf0222c4Af8AB \
-  --address 0x8A0d290b2EE35eFde47810CA8fF057e109e4190B \
-  --value 0.1 \
-  --wallet myWallet
-```
-
-Example output:
-```
-🔑 Wallet account: 0x6ad6b3926Fd18b0A8c9a20d659A25c9F6a69c8e0
-📄 Token Information:
-     Name: MyToken
-     Symbol: MTK
-     Contract: 0x32Cd6c5831531F96f57d1faf4DDdf0222c4Af8AB
-🎯 To Address: 0x8A0d290b2EE35eFde47810CA8fF057e109e4190B
-💵 Amount to Transfer: 0.1 MTK
-✔ ✅ Simulation successful, proceeding with transfer...
-🔄 Transaction initiated. TxHash: 0x680c4aa4f8b1ba0b7295a97d348a0ffa458a254d36af3cefc6048f8ae3f66b90
-✅ Transfer completed successfully!
-📦 Block Number: 6155122
-⛽ Gas Used: 35460
-🔗 View on Explorer: https://explorer.testnet.rootstock.io/tx/0x680c4aa4f8b1ba0b7295a97d348a0ffa458a254d36af3cefc6048f8ae3f66b90
-```
-
-> **Note**: Before transferring tokens, ensure you have:
-> 1. A wallet configured with sufficient token balance
-> 2. The correct ERC20 token contract address
-> 3. A valid recipient address
-> 4. Enough RBTC to cover gas fees
 
 ## Contributing
 
