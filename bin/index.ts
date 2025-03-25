@@ -14,7 +14,7 @@ import { bridgeCommand } from "../src/commands/bridge.js";
 import { batchTransferCommand } from "../src/commands/batchTransfer.js";
 import { historyCommand } from "../src/commands/history.js";
 import { selectAddress } from "../src/commands/selectAddress.js";
-import { transferTokenCommand } from "../src/commands/erc20Transfer.js";
+
 interface CommandOptions {
   testnet?: boolean;
   address?: Address;
@@ -73,29 +73,14 @@ program
     await balanceCommand(!!options.testnet, options.wallet!, options.address);
   });
 
-  program
-  .command("transfer-token")
-  .description("Transfer ERC20 tokens to the provided address")
-  .option("-t, --testnet", "Transfer on the testnet")
-  .requiredOption("--token <address>", "ERC20 token contract address")
-  .requiredOption("--address <address>", "Recipient address")
-  .requiredOption("--value <value>", "Amount to transfer")
-  .action(async (options: CommandOptions) => {
-    const value = parseFloat(options.value!);
-    if (isNaN(value) || value <= 0) {
-      console.error(chalk.red("Invalid value specified for transfer."));
-      return;
-    }
-    await transferTokenCommand(!!options.testnet, options.token!, options.address!, value);
-  });
-  
 program
   .command("transfer")
-  .description("Transfer rBTC to the provided address")
+  .description("Transfer RBTC or ERC20 tokens to the provided address")
   .option("-t, --testnet", "Transfer on the testnet")
   .option("--wallet <wallet>", "Name of the wallet")
   .option("-a, --address <address>", "Recipient address")
-  .requiredOption("--value <value>", "Amount to transfer in rBTC")
+  .option("--token <address>", "ERC20 token contract address (optional, for token transfers)")
+  .requiredOption("--value <value>", "Amount to transfer")
   .action(async (options: CommandOptions) => {
     try {
       if (!options.value) {
@@ -112,21 +97,17 @@ program
         ? (`0x${options.address.replace(/^0x/, "")}` as `0x${string}`)
         : await selectAddress();
 
-      await transferCommand(!!options.testnet, address, value);
+      await transferCommand(
+        !!options.testnet,
+        address,
+        value,
+        options.wallet!,
+        options.token as `0x${string}` | undefined
+      );
     } catch (error: any) {
       console.error(
         chalk.red("Error during transfer:"),
         error.message || error
-      );
-      const address = `0x${options.address!.replace(
-        /^0x/,
-        ""
-      )}` as `0x${string}`;
-      await transferCommand(
-        !!options.testnet,
-        address,
-        parseFloat(options.value!),
-        options.wallet!
       );
     }
   });
