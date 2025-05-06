@@ -32,6 +32,7 @@ interface CommandOptions {
   number?: string;
   file?: string;
   interactive?: boolean;
+  token?: Address;
 }
 
 const orange = chalk.rgb(255, 165, 0);
@@ -74,11 +75,12 @@ program
 
 program
   .command("transfer")
-  .description("Transfer rBTC to the provided address")
+  .description("Transfer RBTC or ERC20 tokens to the provided address")
   .option("-t, --testnet", "Transfer on the testnet")
   .option("--wallet <wallet>", "Name of the wallet")
   .option("-a, --address <address>", "Recipient address")
-  .requiredOption("--value <value>", "Amount to transfer in rBTC")
+  .option("--token <address>", "ERC20 token contract address (optional, for token transfers)")
+  .requiredOption("--value <value>", "Amount to transfer")
   .action(async (options: CommandOptions) => {
     try {
       if (!options.value) {
@@ -95,21 +97,17 @@ program
         ? (`0x${options.address.replace(/^0x/, "")}` as `0x${string}`)
         : await selectAddress();
 
-      await transferCommand(!!options.testnet, address, value);
+      await transferCommand(
+        !!options.testnet,
+        address,
+        value,
+        options.wallet!,
+        options.token as `0x${string}` | undefined
+      );
     } catch (error: any) {
       console.error(
         chalk.red("Error during transfer:"),
         error.message || error
-      );
-      const address = `0x${options.address!.replace(
-        /^0x/,
-        ""
-      )}` as `0x${string}`;
-      await transferCommand(
-        !!options.testnet,
-        address,
-        parseFloat(options.value!),
-        options.wallet!
       );
     }
   });
