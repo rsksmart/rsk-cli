@@ -25,43 +25,55 @@ export async function balanceCommand(
   const spinner = ora();
 
   try {
-    const walletsData = JSON.parse(fs.readFileSync(walletFilePath, "utf8"));
+    let targetAddress: Address;
 
-    if (!walletsData.currentWallet || !walletsData.wallets) {
-      console.log(
-        chalk.red(
-          "⚠️ No valid wallet found. Please create or import a wallet first."
-        )
-      );
-      throw new Error();
-    }
-
-    const { currentWallet, wallets } = walletsData;
-    let wallet = wallets[currentWallet];
-
-    if (walletName) {
-      if (!wallets[walletName]) {
-        console.log(
-          chalk.red("⚠️ Wallet with the provided name does not exist.")
-        );
-
+    if (holderAddress) {
+      // Validate the provided address
+      const formattedAddress = validateAndFormatAddress(holderAddress);
+      if (!formattedAddress) {
+        console.log(chalk.red("⚠️ Invalid address provided."));
         return;
-      } else {
-        wallet = wallets[walletName];
       }
-    }
+      targetAddress = formattedAddress;
+    } else {
+      // Use wallet address logic
+      const walletsData = JSON.parse(fs.readFileSync(walletFilePath, "utf8"));
 
-    const { address } = wallet;
+      if (!walletsData.currentWallet || !walletsData.wallets) {
+        console.log(
+          chalk.red(
+            "⚠️ No valid wallet found. Please create or import a wallet first."
+          )
+        );
+        throw new Error();
+      }
 
-    if (!address) {
-      console.log(chalk.red("⚠️ No valid address found in the saved wallet."));
-      return;
-    }
+      const { currentWallet, wallets } = walletsData;
+      let wallet = wallets[currentWallet];
 
-    const targetAddress = getAddress(address);
+      if (walletName) {
+        if (!wallets[walletName]) {
+          console.log(
+            chalk.red("⚠️ Wallet with the provided name does not exist.")
+          );
+          return;
+        } else {
+          wallet = wallets[walletName];
+        }
+      }
 
-    if (!targetAddress) {
-      return;
+      const { address } = wallet;
+
+      if (!address) {
+        console.log(chalk.red("⚠️ No valid address found in the saved wallet."));
+        return;
+      }
+
+      const addressResult = getAddress(address);
+      if (!addressResult) {
+        return;
+      }
+      targetAddress = addressResult;
     }
 
     const provider = new ViemProvider(testnet);
@@ -82,7 +94,7 @@ export async function balanceCommand(
       spinner.succeed(chalk.green("Balance retrieved successfully"));
 
       console.log(
-        chalk.white(`📄 Wallet Address:`),
+        chalk.white(`📄 Address:`),
         chalk.green(targetAddress)
       );
       console.log(
