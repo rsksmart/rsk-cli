@@ -33,6 +33,7 @@ interface CommandOptions {
   file?: string;
   interactive?: boolean;
   token?: Address;
+  tokenId?: string;
 }
 
 const orange = chalk.rgb(255, 165, 0);
@@ -75,12 +76,13 @@ program
 
 program
   .command("transfer")
-  .description("Transfer RBTC or ERC20 tokens to the provided address")
+  .description("Transfer RBTC or ERC20/ERC721 tokens to the provided address")
   .option("-t, --testnet", "Transfer on the testnet")
   .option("--wallet <wallet>", "Name of the wallet")
   .option("-a, --address <address>", "Recipient address")
-  .option("--token <address>", "ERC20 token contract address (optional, for token transfers)")
-  .requiredOption("--value <value>", "Amount to transfer")
+  .option("--token <address>", "Token contract address (for ERC20/ERC721 transfers)")
+  .option("--tokenId <id>", "Token ID (required for ERC721 transfers)")
+  .requiredOption("--value <value>", "Amount to transfer (for RBTC/ERC20) or token ID (for ERC721)")
   .action(async (options: CommandOptions) => {
     try {
       if (!options.value) {
@@ -97,12 +99,15 @@ program
         ? (`0x${options.address.replace(/^0x/, "")}` as `0x${string}`)
         : await selectAddress();
 
+      const tokenId = options.tokenId ? BigInt(options.tokenId) : undefined;
+
       await transferCommand(
         !!options.testnet,
         address,
         value,
         options.wallet!,
-        options.token as `0x${string}` | undefined
+        options.token as `0x${string}` | undefined,
+        tokenId
       );
     } catch (error: any) {
       console.error(
