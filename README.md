@@ -459,7 +459,7 @@ Output example:
 
 ```
 ? 🔒 Enter Alchemy API key to fetch history: ********************************
-🔍 Fetching transaction history on Rootstack Testnet for 0x19661D036D4e590948b9c00eef3807b88fBfA8e1 ...
+🔍 Fetching transaction history on Rootstock Testnet for 0x19661D036D4e590948b9c00eef3807b88fBfA8e1 ...
 ✅ Transfer:
    From: 0x19661d036d4e590948b9c00eef3807b88fbfa8e1
    To: 0xb45805aead9407f5c7860ff8eccaedd4d0ab36a6
