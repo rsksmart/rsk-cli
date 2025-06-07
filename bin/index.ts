@@ -14,6 +14,8 @@ import { bridgeCommand } from "../src/commands/bridge.js";
 import { batchTransferCommand } from "../src/commands/batchTransfer.js";
 import { historyCommand } from "../src/commands/history.js";
 import { selectAddress } from "../src/commands/selectAddress.js";
+import { transactionCommand } from "../src/commands/transaction.js";
+import { parseEther } from "viem";
 
 interface CommandOptions {
   testnet?: boolean;
@@ -33,6 +35,10 @@ interface CommandOptions {
   file?: string;
   interactive?: boolean;
   token?: Address;
+  gasLimit?: string;
+  maxFee?: string;
+  priorityFee?: string;
+  data?: string;
 }
 
 const orange = chalk.rgb(255, 165, 0);
@@ -123,6 +129,47 @@ program
       : `0x${options.txid}`;
 
     await txCommand(!!options.testnet, formattedTxId as `0x${string}`);
+  });
+
+program
+  .command("tx-new")
+  .description("Create and send transactions with advanced options")
+  .option("-t, --testnet", "Execute on testnet")
+  .option("--wallet <wallet>", "Name of the wallet to use")
+  .option("-a, --address <address>", "Recipient address")
+  .option("--token <address>", "Token contract address for ERC20 transfers")
+  .option("--value <value>", "Amount to transfer")
+  .option("--gas-limit <limit>", "Custom gas limit")
+  .option("--max-fee <fee>", "Maximum fee per gas in RBTC")
+  .option("--priority-fee <fee>", "Maximum priority fee per gas in RBTC")
+  .option("--data <data>", "Custom transaction data (hex)")
+  .action(async (options: CommandOptions) => {
+    try {
+      const value = options.value ? parseFloat(options.value) : undefined;
+      const address = options.address as Address | undefined;
+      const tokenAddress = options.token as Address | undefined;
+      
+      const txOptions = {
+        ...(options.gasLimit && { gasLimit: BigInt(options.gasLimit) }),
+        ...(options.maxFee && { maxFeePerGas: parseEther(options.maxFee.toString()) }),
+        ...(options.priorityFee && { maxPriorityFeePerGas: parseEther(options.priorityFee.toString()) }),
+        ...(options.data && { data: options.data as `0x${string}` })
+      };
+
+      await transactionCommand(
+        !!options.testnet,
+        address,
+        value,
+        options.wallet,
+        tokenAddress,
+        Object.keys(txOptions).length > 0 ? txOptions : undefined
+      );
+    } catch (error: any) {
+      console.error(
+        chalk.red("Error during transaction:"),
+        error.message || error
+      );
+    }
   });
 
 program
