@@ -20,36 +20,7 @@ export async function detectTokenStandard(
   address: Address
 ): Promise<TokenStandard> {
   try {
-    // Check for ERC721
-    const erc721Checks = await Promise.all([
-      client
-        .call({
-          to: address,
-          data: encodeFunctionData({
-            abi: erc721Abi,
-            functionName: "ownerOf",
-            args: [BigInt(1)],
-          }),
-        })
-        .then(() => true)
-        .catch(() => false),
-      client
-        .call({
-          to: address,
-          data: encodeFunctionData({
-            abi: erc721Abi,
-            functionName: "name",
-          }),
-        })
-        .then(() => true)
-        .catch(() => false),
-    ]);
-
-    if (erc721Checks.some(check => check)) {
-      return TokenStandard.ERC721;
-    }
-
-    // Check for ERC20
+    // First check for ERC20
     const erc20Checks = await Promise.all([
       client
         .call({
@@ -71,10 +42,50 @@ export async function detectTokenStandard(
         })
         .then(() => true)
         .catch(() => false),
+      client
+        .call({
+          to: address,
+          data: encodeFunctionData({
+            abi: erc20Abi,
+            functionName: "balanceOf",
+            args: [address],
+          }),
+        })
+        .then(() => true)
+        .catch(() => false),
     ]);
 
     if (erc20Checks.every(check => check)) {
       return TokenStandard.ERC20;
+    }
+
+    // Then check for ERC721
+    const erc721Checks = await Promise.all([
+      client
+        .call({
+          to: address,
+          data: encodeFunctionData({
+            abi: erc721Abi,
+            functionName: "balanceOf",
+            args: [address],
+          }),
+        })
+        .then(() => true)
+        .catch(() => false),
+      client
+        .call({
+          to: address,
+          data: encodeFunctionData({
+            abi: erc721Abi,
+            functionName: "name",
+          }),
+        })
+        .then(() => true)
+        .catch(() => false),
+    ]);
+
+    if (erc721Checks.every(check => check)) {
+      return TokenStandard.ERC721;
     }
 
     return TokenStandard.UNKNOWN;
@@ -165,32 +176,44 @@ export async function transferToken(
   tokenId?: bigint,
   fromAddress?: Address
 ): Promise<{ request: any }> {
-  const standard = await detectTokenStandard(client, tokenAddress);
+  try {
+    const standard = await detectTokenStandard(client, tokenAddress);
 
-  switch (standard) {
-    case TokenStandard.ERC20:
-      return client.simulateContract({
-        address: tokenAddress,
-        abi: erc20Abi,
-        functionName: "transfer",
-        args: [toAddress, value],
-      });
+    switch (standard) {
+      case TokenStandard.ERC20:
+        // Create the contract call directly without simulation
+        return {
+          request: {
+            address: tokenAddress,
+            abi: erc20Abi,
+            functionName: "transfer",
+            args: [toAddress, value],
+          }
+        };
 
-    case TokenStandard.ERC721:
-      if (!tokenId) {
-        throw new Error("Token ID is required for ERC721 transfers");
-      }
-      if (!fromAddress) {
-        throw new Error("From address is required for ERC721 transfers");
-      }
-      return client.simulateContract({
-        address: tokenAddress,
-        abi: erc721Abi,
-        functionName: "transferFrom",
-        args: [fromAddress, toAddress, tokenId],
-      });
+      case TokenStandard.ERC721:
+        if (!tokenId) {
+          throw new Error("Token ID is required for ERC721 transfers");
+        }
+        if (!fromAddress) {
+          throw new Error("From address is required for ERC721 transfers");
+        }
+        return {
+          request: {
+            address: tokenAddress,
+            abi: erc721Abi,
+            functionName: "transferFrom",
+            args: [fromAddress, toAddress, tokenId],
+          }
+        };
 
-    default:
-      throw new Error("Unsupported token standard for transfer");
+      default:
+        throw new Error("Unsupported token standard for transfer");
+    }
+  } catch (error: any) {
+    if (error.message.includes("transaction reverted")) {
+      throw new Error("Transaction would revert. Please check your balance and try again.");
+    }
+    throw error;
   }
 } 
