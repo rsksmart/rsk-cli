@@ -86,9 +86,19 @@ program
   .option("--wallet <wallet>", "Name of the wallet")
   .option("-a, --address <address>", "Recipient address")
   .option("--token <address>", "ERC20 token contract address (optional, for token transfers)")
-  .requiredOption("--value <value>", "Amount to transfer")
+  .option("--value <value>", "Amount to transfer")
+  .option("-i, --interactive", "Execute interactively and input transactions")
+  .option("--gas-limit <limit>", "Custom gas limit")
+  .option("--max-fee <fee>", "Maximum fee per gas in RBTC")
+  .option("--priority-fee <fee>", "Maximum priority fee per gas in RBTC")
+  .option("--data <data>", "Custom transaction data (hex)")
   .action(async (options: CommandOptions) => {
     try {
+      if (options.interactive) {
+        await batchTransferCommand(undefined, !!options.testnet, true);
+        return;
+      }
+
       if (!options.value) {
         throw new Error("Value is required for the transfer.");
       }
@@ -103,12 +113,20 @@ program
         ? (`0x${options.address.replace(/^0x/, "")}` as `0x${string}`)
         : await selectAddress();
 
+      const txOptions = {
+        ...(options.gasLimit && { gasLimit: BigInt(options.gasLimit) }),
+        ...(options.maxFee && { maxFeePerGas: parseEther(options.maxFee.toString()) }),
+        ...(options.priorityFee && { maxPriorityFeePerGas: parseEther(options.priorityFee.toString()) }),
+        ...(options.data && { data: options.data as `0x${string}` })
+      };
+
       await transferCommand(
         !!options.testnet,
         address,
         value,
         options.wallet!,
-        options.token as `0x${string}` | undefined
+        options.token as `0x${string}` | undefined,
+        Object.keys(txOptions).length > 0 ? txOptions : undefined
       );
     } catch (error: any) {
       console.error(
@@ -129,47 +147,6 @@ program
       : `0x${options.txid}`;
 
     await txCommand(!!options.testnet, formattedTxId as `0x${string}`);
-  });
-
-program
-  .command("tx-new")
-  .description("Create and send transactions with advanced options")
-  .option("-t, --testnet", "Execute on testnet")
-  .option("--wallet <wallet>", "Name of the wallet to use")
-  .option("-a, --address <address>", "Recipient address")
-  .option("--token <address>", "Token contract address for ERC20 transfers")
-  .option("--value <value>", "Amount to transfer")
-  .option("--gas-limit <limit>", "Custom gas limit")
-  .option("--max-fee <fee>", "Maximum fee per gas in RBTC")
-  .option("--priority-fee <fee>", "Maximum priority fee per gas in RBTC")
-  .option("--data <data>", "Custom transaction data (hex)")
-  .action(async (options: CommandOptions) => {
-    try {
-      const value = options.value ? parseFloat(options.value) : undefined;
-      const address = options.address as Address | undefined;
-      const tokenAddress = options.token as Address | undefined;
-      
-      const txOptions = {
-        ...(options.gasLimit && { gasLimit: BigInt(options.gasLimit) }),
-        ...(options.maxFee && { maxFeePerGas: parseEther(options.maxFee.toString()) }),
-        ...(options.priorityFee && { maxPriorityFeePerGas: parseEther(options.priorityFee.toString()) }),
-        ...(options.data && { data: options.data as `0x${string}` })
-      };
-
-      await transactionCommand(
-        !!options.testnet,
-        address,
-        value,
-        options.wallet,
-        tokenAddress,
-        Object.keys(txOptions).length > 0 ? txOptions : undefined
-      );
-    } catch (error: any) {
-      console.error(
-        chalk.red("Error during transaction:"),
-        error.message || error
-      );
-    }
   });
 
 program

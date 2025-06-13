@@ -11,7 +11,13 @@ export async function transferCommand(
   toAddress: Address,
   value: number,
   name?: string,
-  tokenAddress?: Address
+  tokenAddress?: Address,
+  options?: {
+    gasLimit?: bigint;
+    maxFeePerGas?: bigint;
+    maxPriorityFeePerGas?: bigint;
+    data?: `0x${string}`;
+  }
 ) {
   try {
     if (!fs.existsSync(walletFilePath)) {
@@ -133,7 +139,8 @@ export async function transferCommand(
           outputs: [{ type: "bool" }]
         }],
         functionName: "transfer",
-        args: [toAddress, BigInt(value * (10 ** 18))]
+        args: [toAddress, BigInt(value * (10 ** 18))],
+        ...options
       });
 
       spinner.succeed("✅ Simulation successful, proceeding with transfer...");
@@ -185,6 +192,7 @@ export async function transferCommand(
         chain: provider.chain,
         to: toAddress,
         value: BigInt(value * 10 ** 18),
+        ...options
       });
 
       console.log(
