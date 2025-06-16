@@ -50,7 +50,7 @@ export async function historyCommand(
 
     console.log(
       chalk.blue(
-        `🔍 Fetching transaction history on Rootstack ${
+        `🔍 Fetching transaction history on Rootstock ${
           testnet ? "Testnet" : "Mainnet"
         } for ${walletAddress} ... `
       )
