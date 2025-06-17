@@ -14,6 +14,9 @@ import { bridgeCommand } from "../src/commands/bridge.js";
 import { batchTransferCommand } from "../src/commands/batchTransfer.js";
 import { historyCommand } from "../src/commands/history.js";
 import { selectAddress } from "../src/commands/selectAddress.js";
+import { walletBackupCommand } from "../src/commands/wallet-backup.js";
+import { walletRestoreCommand } from "../src/commands/wallet-restore.js";
+import { walletInfoCommand } from "../src/commands/wallet-info.js";
 
 interface CommandOptions {
   testnet?: boolean;
@@ -33,6 +36,10 @@ interface CommandOptions {
   file?: string;
   interactive?: boolean;
   token?: Address;
+  path?: string;
+  encrypt?: boolean;
+  force?: boolean;
+  format?: string;
 }
 
 const orange = chalk.rgb(255, 165, 0);
@@ -223,6 +230,44 @@ program
         chalk.yellow(error.message || "Unknown error")
       );
     }
+  });
+
+program
+  .command("wallet-backup")
+  .description("Create a backup of wallet configuration")
+  .option("-p, --path <path>", "Path where to save the backup")
+  .option("-e, --encrypt", "Encrypt the backup file")
+  .action(async (options: CommandOptions) => {
+    await walletBackupCommand({
+      path: options.path,
+      encrypt: options.encrypt,
+    });
+  });
+
+program
+  .command("wallet-restore")
+  .description("Restore wallet from backup")
+  .option("-p, --path <path>", "Path to the backup file")
+  .option("-f, --force", "Force restore without confirmation")
+  .action(async (options: CommandOptions) => {
+    await walletRestoreCommand({
+      path: options.path,
+      force: options.force,
+    });
+  });
+
+program
+  .command("wallet-info")
+  .description("Display detailed wallet information")
+  .option("-w, --wallet <wallet>", "Name of the wallet to display info for")
+  .option("-t, --testnet", "Show information for testnet")
+  .option("--format <format>", "Output format (json or text)", "text")
+  .action(async (options: CommandOptions) => {
+    await walletInfoCommand({
+      wallet: options.wallet,
+      testnet: options.testnet,
+      format: options.format as "json" | "text",
+    });
   });
 
 program.parse(process.argv);
