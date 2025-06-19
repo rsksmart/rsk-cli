@@ -14,6 +14,7 @@ import { bridgeCommand } from "../src/commands/bridge.js";
 import { batchTransferCommand } from "../src/commands/batchTransfer.js";
 import { historyCommand } from "../src/commands/history.js";
 import { selectAddress } from "../src/commands/selectAddress.js";
+import { monitorCommand, listMonitoringSessions, stopMonitoringSession } from "../src/commands/monitor.js";
 
 interface CommandOptions {
   testnet?: boolean;
@@ -33,6 +34,12 @@ interface CommandOptions {
   file?: string;
   interactive?: boolean;
   token?: Address;
+  tx?: string;
+  confirmations?: number;
+  balance?: boolean;
+  transactions?: boolean;
+  list?: boolean;
+  stop?: string;
 }
 
 const orange = chalk.rgb(255, 165, 0);
@@ -221,6 +228,55 @@ program
       console.error(
         chalk.red("🚨 Error during batch transfer:"),
         chalk.yellow(error.message || "Unknown error")
+      );
+    }
+  });
+
+program
+  .command("monitor")
+  .description("Monitor transactions and addresses with real-time updates")
+  .option("-t, --testnet", "Monitor on the testnet")
+  .option("--tx <hash>", "Transaction hash to monitor")
+  .option("-a, --address <address>", "Address to monitor")
+  .option("--confirmations <number>", "Required confirmations for transaction monitoring (default: 12)")
+  .option("--balance", "Monitor address balance changes")
+  .option("--transactions", "Monitor address transaction history")
+  .option("--list", "List active monitoring sessions")
+  .option("--stop <sessionId>", "Stop a specific monitoring session")
+  .action(async (options: CommandOptions) => {
+    try {
+      if (options.list) {
+        await listMonitoringSessions(!!options.testnet);
+        return;
+      }
+
+      if (options.stop) {
+        await stopMonitoringSession(options.stop, !!options.testnet);
+        return;
+      }
+
+      if (!options.tx && !options.address) {
+        console.log(chalk.yellow("📊 No monitoring target specified. Showing active sessions:"));
+        await listMonitoringSessions(!!options.testnet);
+        return;
+      }
+
+      const address = options.address 
+        ? (`0x${options.address.replace(/^0x/, "")}` as `0x${string}`)
+        : undefined;
+
+      await monitorCommand(
+        !!options.testnet,
+        options.tx,
+        address,
+        options.confirmations ? parseInt(options.confirmations.toString()) : undefined,
+        options.balance !== false,
+        !!options.transactions
+      );
+    } catch (error: any) {
+      console.error(
+        chalk.red("Error during monitoring:"),
+        error.message || error
       );
     }
   });
