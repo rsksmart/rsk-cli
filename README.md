@@ -469,7 +469,7 @@ Output example:
    Time: Tue Nov 12 2024 11:46:32 GMT+0700 (Indochina Time)
 ```
 
-### 9. Fetch Wallet History
+### 10. Batch Transfer
 
 The batch-transfer command allows you to send multiple transactions in one batch. This feature supports both interactive mode (manual input) and file-based batch processing, enabling you to transfer rBTC to multiple addresses in a single operation.
 
@@ -548,6 +548,151 @@ Output example:
 ✅ Transaction confirmed successfully!
 📦 Block Number: 6021846
 ⛽ Gas Used: 21000
+```
+
+### 11. Wallet Backup
+
+The `wallet-backup` command allows you to create encrypted backups of your wallet configurations. This feature enhances security by providing a secure way to backup your wallets with optional password protection and metadata.
+
+#### Basic Backup
+
+```bash
+rsk-cli wallet-backup --path /path/to/backup.json
+```
+
+#### Encrypted Backup
+
+```bash
+rsk-cli wallet-backup --path /path/to/backup.json --encrypt
+```
+
+#### Dynamic Wallet Selection
+
+```bash
+rsk-cli wallet-backup --wallet <name> --path /path/to/backup.json --encrypt
+```
+
+Output example:
+
+```
+🔑 Current wallet: myWallet
+📄 Creating backup at: /path/to/backup.json
+? 🔒 Enter password for backup encryption: ****
+✅ Backup created successfully!
+📦 Backup includes:
+   - Wallet configurations
+   - Metadata (timestamp, version)
+   - Encryption enabled
+💾 Backup saved at: /path/to/backup.json
+```
+
+### 12. Wallet Restore
+
+The `wallet-restore` command allows you to restore wallets from backup files. This feature handles encrypted backups with password protection and provides conflict resolution for existing wallets.
+
+#### Basic Restore
+
+```bash
+rsk-cli wallet-restore --path /path/to/backup.json
+```
+
+#### Force Restore
+
+```bash
+rsk-cli wallet-restore --path /path/to/backup.json --force
+```
+
+#### Restore with Conflict Resolution
+
+```bash
+rsk-cli wallet-restore --path /path/to/backup.json --resolve-conflicts
+```
+
+Output example:
+
+```
+📄 Reading backup from: /path/to/backup.json
+? 🔒 Enter backup password: ****
+✅ Backup validation successful!
+📦 Backup contains:
+   - 3 wallet configurations
+   - Created: 2024-01-15T10:30:00Z
+   - Version: 1.0.0
+? ⚠️ Wallet "myWallet" already exists. Overwrite? (y/n): y
+✅ Restore completed successfully!
+📄 Restored wallets:
+   - myWallet: 0x1234...5678
+   - backupWallet: 0xabcd...efgh
+   - testWallet: 0x9876...5432
+```
+
+### 13. Wallet Info
+
+The `wallet-info` command displays comprehensive information about your wallets, including balance, transaction count, and backup metadata when available.
+
+#### Basic Info
+
+```bash
+rsk-cli wallet-info
+```
+
+#### Specific Wallet
+
+```bash
+rsk-cli wallet-info --wallet <name>
+```
+
+#### Testnet Info
+
+```bash
+rsk-cli wallet-info --testnet
+```
+
+#### JSON Output Format
+
+```bash
+rsk-cli wallet-info --format json
+```
+
+#### Complete Example
+
+```bash
+rsk-cli wallet-info --wallet myWallet --testnet --format json
+```
+
+Output example:
+
+```
+🔑 Wallet Information for: myWallet
+📄 Address: 0x1234567890abcdef1234567890abcdef12345678
+💰 Balance: 0.5 RBTC
+📊 Transaction Count: 15
+🌐 Network: Rootstock Testnet
+📦 Backup Status: Available
+   - Last Backup: 2024-01-15T10:30:00Z
+   - Backup Location: /path/to/backup.json
+   - Encryption: Enabled
+🔗 View on Explorer: https://explorer.testnet.rootstock.io/address/0x1234567890abcdef1234567890abcdef12345678
+```
+
+JSON output example:
+
+```json
+{
+  "wallet": "myWallet",
+  "address": "0x1234567890abcdef1234567890abcdef12345678",
+  "balance": "0.5",
+  "balanceUnit": "RBTC",
+  "transactionCount": 15,
+  "network": "testnet",
+  "backup": {
+    "available": true,
+    "lastBackup": "2024-01-15T10:30:00Z",
+    "location": "/path/to/backup.json",
+    "encrypted": true
+  },
+  "explorerUrl": "https://explorer.testnet.rootstock.io/address/0x1234567890abcdef1234567890abcdef12345678"
+}
 ```
 
 ## Contributing
