@@ -36,8 +36,7 @@ interface CommandOptions {
   interactive?: boolean;
   token?: Address;
   gasLimit?: string;
-  maxFee?: string;
-  priorityFee?: string;
+  gasPrice?: string;
   data?: string;
 }
 
@@ -89,8 +88,7 @@ program
   .option("--value <value>", "Amount to transfer")
   .option("-i, --interactive", "Execute interactively and input transactions")
   .option("--gas-limit <limit>", "Custom gas limit")
-  .option("--max-fee <fee>", "Maximum fee per gas in RBTC")
-  .option("--priority-fee <fee>", "Maximum priority fee per gas in RBTC")
+  .option("--gas-price <price>", "Custom gas price in RBTC")
   .option("--data <data>", "Custom transaction data (hex)")
   .action(async (options: CommandOptions) => {
     try {
@@ -115,8 +113,7 @@ program
 
       const txOptions = {
         ...(options.gasLimit && { gasLimit: BigInt(options.gasLimit) }),
-        ...(options.maxFee && { maxFeePerGas: parseEther(options.maxFee.toString()) }),
-        ...(options.priorityFee && { maxPriorityFeePerGas: parseEther(options.priorityFee.toString()) }),
+        ...(options.gasPrice && { gasPrice: parseEther(options.gasPrice.toString()) }),
         ...(options.data && { data: options.data as `0x${string}` })
       };
 
