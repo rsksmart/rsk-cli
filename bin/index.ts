@@ -14,6 +14,8 @@ import { bridgeCommand } from "../src/commands/bridge.js";
 import { batchTransferCommand } from "../src/commands/batchTransfer.js";
 import { historyCommand } from "../src/commands/history.js";
 import { selectAddress } from "../src/commands/selectAddress.js";
+import { transactionCommand } from "../src/commands/transaction.js";
+import { parseEther } from "viem";
 
 interface CommandOptions {
   testnet?: boolean;
@@ -33,6 +35,9 @@ interface CommandOptions {
   file?: string;
   interactive?: boolean;
   token?: Address;
+  gasLimit?: string;
+  gasPrice?: string;
+  data?: string;
 }
 
 const orange = chalk.rgb(255, 165, 0);
@@ -80,9 +85,18 @@ program
   .option("--wallet <wallet>", "Name of the wallet")
   .option("-a, --address <address>", "Recipient address")
   .option("--token <address>", "ERC20 token contract address (optional, for token transfers)")
-  .requiredOption("--value <value>", "Amount to transfer")
+  .option("--value <value>", "Amount to transfer")
+  .option("-i, --interactive", "Execute interactively and input transactions")
+  .option("--gas-limit <limit>", "Custom gas limit")
+  .option("--gas-price <price>", "Custom gas price in RBTC")
+  .option("--data <data>", "Custom transaction data (hex)")
   .action(async (options: CommandOptions) => {
     try {
+      if (options.interactive) {
+        await batchTransferCommand(undefined, !!options.testnet, true);
+        return;
+      }
+
       if (!options.value) {
         throw new Error("Value is required for the transfer.");
       }
@@ -97,12 +111,19 @@ program
         ? (`0x${options.address.replace(/^0x/, "")}` as `0x${string}`)
         : await selectAddress();
 
+      const txOptions = {
+        ...(options.gasLimit && { gasLimit: BigInt(options.gasLimit) }),
+        ...(options.gasPrice && { gasPrice: parseEther(options.gasPrice.toString()) }),
+        ...(options.data && { data: options.data as `0x${string}` })
+      };
+
       await transferCommand(
         !!options.testnet,
         address,
         value,
         options.wallet!,
-        options.token as `0x${string}` | undefined
+        options.token as `0x${string}` | undefined,
+        Object.keys(txOptions).length > 0 ? txOptions : undefined
       );
     } catch (error: any) {
       console.error(
