@@ -100,13 +100,14 @@ program
         : await selectAddress();
 
       const tokenId = options.tokenId ? BigInt(options.tokenId) : undefined;
+      const token = options.token?.toLowerCase() as Address | undefined;
 
       await transferCommand(
         !!options.testnet,
         address,
         value,
         options.wallet!,
-        options.token as `0x${string}` | undefined,
+        token,
         tokenId
       );
     } catch (error: any) {
