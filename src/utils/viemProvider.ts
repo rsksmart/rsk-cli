@@ -15,26 +15,41 @@ import { walletFilePath } from "./constants.js";
 
 class ViemProvider {
   public chain: typeof rootstock | typeof rootstockTestnet;
+  private readonly TESTNET_RPC = "https://testnet.sovryn.app/rpc";
+  private readonly MAINNET_RPC = "https://mainnet.sovryn.app/rpc";
 
   constructor(testnet: boolean) {
     this.chain = testnet ? rootstockTestnet : rootstock;
   }
 
   public async getPublicClient(): Promise<PublicClient> {
+    const transport = http(this.testnet ? this.TESTNET_RPC : this.MAINNET_RPC, {
+      timeout: 30000, // 30 seconds timeout
+      retryCount: 3,  // Retry 3 times
+    });
+
     return createPublicClient({
       chain: this.chain,
-      transport: http(),
+      transport,
     });
   }
 
   public async getWalletClient(name?: string | null): Promise<WalletClient> {
     const { account } = await this.decryptPrivateKey(name ? name : undefined);
+    const transport = http(this.testnet ? this.TESTNET_RPC : this.MAINNET_RPC, {
+      timeout: 30000, // 30 seconds timeout
+      retryCount: 3,  // Retry 3 times
+    });
 
     return createWalletClient({
       chain: this.chain,
-      transport: http(),
+      transport,
       account: account,
     });
+  }
+
+  private get testnet(): boolean {
+    return this.chain.id === rootstockTestnet.id;
   }
 
   private async decryptPrivateKey(name: string | undefined): Promise<{

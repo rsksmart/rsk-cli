@@ -2,16 +2,18 @@ import ViemProvider from "../utils/viemProvider.js";
 import chalk from "chalk";
 import ora from "ora";
 import fs from "fs";
-import { Address } from "viem";
+import { Address, erc721Abi } from "viem";
 import { walletFilePath } from "../utils/constants.js";
-import { getTokenInfo, isERC20Contract } from "../utils/tokenHelper.js";
+import { TokenStandard, getTokenInfo, transferToken } from "../utils/tokenStandards.js";
+import inquirer from "inquirer";
 
 export async function transferCommand(
   testnet: boolean,
   toAddress: Address,
   value: number,
   name?: string,
-  tokenAddress?: Address
+  tokenAddress?: Address,
+  tokenId?: bigint
 ) {
   try {
     if (!fs.existsSync(walletFilePath)) {
@@ -41,7 +43,6 @@ export async function transferCommand(
         console.log(
           chalk.red("⚠️ Wallet with the provided name does not exist.")
         );
-
         throw new Error();
       } else {
         wallet = wallets[name];
@@ -69,72 +70,103 @@ export async function transferCommand(
     }
 
     if (tokenAddress) {
-      // Handle ERC20 token transfer
-      const isERC20 = await isERC20Contract(publicClient, tokenAddress);
-      if (!isERC20) {
-        console.log(chalk.red("🚫 The provided address is not a valid ERC20 token contract."));
-        return;
-      }
-
-      // Get token information
-      const tokenName = await publicClient.readContract({
-        address: tokenAddress,
-        abi: [{
-          name: "name",
-          type: "function",
-          stateMutability: "view",
-          inputs: [],
-          outputs: [{ type: "string" }]
-        }],
-        functionName: "name"
-      });
-
-      const tokenSymbol = await publicClient.readContract({
-        address: tokenAddress,
-        abi: [{
-          name: "symbol",
-          type: "function",
-          stateMutability: "view",
-          inputs: [],
-          outputs: [{ type: "string" }]
-        }],
-        functionName: "symbol"
-      });
-
-      // Display token and transfer information
+      // Get token information and standard
+      const tokenInfo = await getTokenInfo(publicClient, tokenAddress, walletAddress);
+      
+      // Display token information
       console.log(chalk.white(`📄 Token Information:`));
-      console.log(chalk.white(`     Name: ${tokenName}`));
-      console.log(chalk.white(`     Symbol: ${tokenSymbol}`));
+      console.log(chalk.white(`     Name: ${tokenInfo.name}`));
+      console.log(chalk.white(`     Symbol: ${tokenInfo.symbol}`));
+      console.log(chalk.white(`     Standard: ${tokenInfo.standard}`));
       console.log(chalk.white(`     Contract: ${tokenAddress}`));
       console.log(chalk.white(`🎯 To Address: ${toAddress}`));
-      console.log(chalk.white(`💵 Amount to Transfer: ${value} ${tokenSymbol}`));
 
-      // Check balance and proceed with transfer
-      const { balance } = await getTokenInfo(publicClient, tokenAddress, walletAddress);
-      const formattedBalance = Number(balance) / 10 ** 18;
+      if (tokenInfo.standard === TokenStandard.ERC721) {
+        if (!tokenId) {
+          // If no tokenId provided, ask user to select one
+          const ownedTokens = await publicClient.readContract({
+            address: tokenAddress,
+            abi: [{
+              name: "tokenOfOwnerByIndex",
+              type: "function",
+              stateMutability: "view",
+              inputs: [
+                { name: "owner", type: "address" },
+                { name: "index", type: "uint256" }
+              ],
+              outputs: [{ type: "uint256" }]
+            }],
+            functionName: "tokenOfOwnerByIndex",
+            args: [walletAddress, BigInt(0)]
+          });
 
-      if (formattedBalance < value) {
+          const { selectedTokenId } = await inquirer.prompt({
+            type: "input",
+            name: "selectedTokenId",
+            message: "Enter the token ID to transfer:",
+            validate: (input) => {
+              const id = BigInt(input);
+              return id > BigInt(0) ? true : "Please enter a valid token ID";
+            }
+          });
+
+          tokenId = BigInt(selectedTokenId);
+        }
+
+        const spinnerOwnership = ora("⏳ Verifying token ownership...").start();
+        try {
+          const ownerOfToken = await publicClient.readContract({
+            address: tokenAddress,
+            abi: erc721Abi,
+            functionName: "ownerOf",
+            args: [tokenId],
+          });
+
+          if (String(ownerOfToken).toLowerCase() !== walletAddress.toLowerCase()) {
+            spinnerOwnership.fail(
+              `You do not own the token with ID ${tokenId}.`
+            );
+            console.log(chalk.white(`   Current owner: ${ownerOfToken}`));
+            return;
+          }
+          spinnerOwnership.succeed("✅ Token ownership verified.");
+        } catch (error) {
+          spinnerOwnership.fail(
+            "Could not verify token ownership. The token may not exist or the contract is not a valid ERC-721."
+          );
+          return;
+        }
+
+        console.log(chalk.white(`🖼️ Token ID: ${tokenId}`));
+      } else {
+        console.log(chalk.white(`💵 Amount to Transfer: ${value} ${tokenInfo.symbol}`));
+      }
+
+      // Check balance
+      const formattedBalance = tokenInfo.standard === TokenStandard.ERC20
+        ? Number(tokenInfo.balance) / (10 ** (tokenInfo.decimals || 18))
+        : Number(tokenInfo.balance);
+
+      if (tokenInfo.standard === TokenStandard.ERC20 && formattedBalance < value) {
         console.log(chalk.red(`🚫 Insufficient balance to transfer ${value} tokens.`));
         return;
       }
 
       const spinner = ora("⏳ Simulating token transfer...").start();
-      const { request } = await publicClient.simulateContract({
-        account,
-        address: tokenAddress,
-        abi: [{
-          name: "transfer",
-          type: "function",
-          stateMutability: "nonpayable",
-          inputs: [
-            { name: "recipient", type: "address" },
-            { name: "amount", type: "uint256" }
-          ],
-          outputs: [{ type: "bool" }]
-        }],
-        functionName: "transfer",
-        args: [toAddress, BigInt(value * (10 ** 18))]
-      });
+
+      // Prepare transfer value
+      const transferValue = tokenInfo.standard === TokenStandard.ERC20
+        ? BigInt(value * (10 ** (tokenInfo.decimals || 18)))
+        : BigInt(0);
+
+      const { request } = await transferToken(
+        publicClient,
+        tokenAddress,
+        toAddress,
+        transferValue,
+        tokenId,
+        walletAddress
+      );
 
       spinner.succeed("✅ Simulation successful, proceeding with transfer...");
 
