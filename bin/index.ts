@@ -80,19 +80,32 @@ program
   .option("-t, --testnet", "Transfer on the testnet")
   .option("--wallet <wallet>", "Name of the wallet")
   .option("-a, --address <address>", "Recipient address")
-  .option("--token <address>", "Token contract address (for ERC20/ERC721 transfers)")
+  .option(
+    "--token <address>",
+    "Token contract address (for ERC20/ERC721 transfers)"
+  )
   .option("--tokenId <id>", "Token ID (required for ERC721 transfers)")
-  .requiredOption("--value <value>", "Amount to transfer (for RBTC/ERC20) or token ID (for ERC721)")
+  .option("--value <value>", "Amount to transfer (for RBTC/ERC20)")
   .action(async (options: CommandOptions) => {
     try {
-      if (!options.value) {
-        throw new Error("Value is required for the transfer.");
-      }
+      let value = 0;
 
-      const value = parseFloat(options.value);
-
-      if (isNaN(value) || value <= 0) {
-        throw new Error("Invalid value specified for transfer.");
+      if (!options.tokenId) {
+        if (!options.value) {
+          throw new Error(
+            "The --value option is required for RBTC or ERC20 transfers."
+          );
+        }
+        value = parseFloat(options.value);
+        if (isNaN(value) || value <= 0) {
+          throw new Error("A valid, positive --value is required.");
+        }
+      } else if (options.value) {
+        console.log(
+          chalk.yellow(
+            "Warning: --value is ignored for ERC-721 transfers; --tokenId is used instead."
+          )
+        );
       }
 
       const address = options.address

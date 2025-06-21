@@ -2,7 +2,7 @@ import ViemProvider from "../utils/viemProvider.js";
 import chalk from "chalk";
 import ora from "ora";
 import fs from "fs";
-import { Address } from "viem";
+import { Address, erc721Abi } from "viem";
 import { walletFilePath } from "../utils/constants.js";
 import { TokenStandard, getTokenInfo, transferToken } from "../utils/tokenStandards.js";
 import inquirer from "inquirer";
@@ -111,6 +111,30 @@ export async function transferCommand(
           });
 
           tokenId = BigInt(selectedTokenId);
+        }
+
+        const spinnerOwnership = ora("⏳ Verifying token ownership...").start();
+        try {
+          const ownerOfToken = await publicClient.readContract({
+            address: tokenAddress,
+            abi: erc721Abi,
+            functionName: "ownerOf",
+            args: [tokenId],
+          });
+
+          if (String(ownerOfToken).toLowerCase() !== walletAddress.toLowerCase()) {
+            spinnerOwnership.fail(
+              `You do not own the token with ID ${tokenId}.`
+            );
+            console.log(chalk.white(`   Current owner: ${ownerOfToken}`));
+            return;
+          }
+          spinnerOwnership.succeed("✅ Token ownership verified.");
+        } catch (error) {
+          spinnerOwnership.fail(
+            "Could not verify token ownership. The token may not exist or the contract is not a valid ERC-721."
+          );
+          return;
         }
 
         console.log(chalk.white(`🖼️ Token ID: ${tokenId}`));
