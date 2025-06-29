@@ -3,10 +3,7 @@ import { ThirdwebSDK } from '@thirdweb-dev/sdk';
 import inquirer from 'inquirer';
 import chalk from 'chalk';
 import ora from 'ora';
-import dotenv from 'dotenv';
-
-// Load environment variables from .env file
-dotenv.config();
+import { getThirdwebApiKey, getPrivateKey } from '../../utils/thirdwebHelper.js';
 
 export const mintTokens = new Command()
   .name('mint')
@@ -15,22 +12,16 @@ export const mintTokens = new Command()
   .option('-t, --to <address>', 'Recipient address')
   .option('-a, --amount <amount>', 'Amount of tokens to mint')
   .option('--testnet', 'Use testnet')
+  .option('--api-key <key>', 'Thirdweb API key')
+  .option('--private-key <key>', 'Private key')
   .action(async (options) => {
-    const spinner = ora('Minting tokens...').start();
-
     try {
-      // Check if private key is set
-      if (!process.env.PRIVATE_KEY) {
-        spinner.fail(chalk.red('Private key not found. Please set PRIVATE_KEY in your .env file'));
-        return;
-      }
+      // Get API key and private key using helper functions (no spinner during prompts)
+      const apiKey = await getThirdwebApiKey(options.apiKey);
+      const privateKey = await getPrivateKey(options.privateKey);
 
-      // Check if Thirdweb API key is set
-      if (!process.env.THIRDWEB_CLIENT_ID) {
-        spinner.fail(chalk.red('Thirdweb API key not found. Please set THIRDWEB_CLIENT_ID in your .env file'));
-        console.log(chalk.yellow('You can get an API key at https://thirdweb.com/create-api-key'));
-        return;
-      }
+      // Start spinner after credentials are obtained
+      const spinner = ora('Preparing mint operation...').start();
 
       // Get missing options through prompts if not provided
       const answers = await inquirer.prompt([
@@ -39,21 +30,46 @@ export const mintTokens = new Command()
           name: 'address',
           message: 'Enter token contract address:',
           when: !options.address,
-          validate: (input) => input.startsWith('0x') && input.length === 42
+          validate: (input) => {
+            if (!input || input.trim() === '') {
+              return 'Token contract address is required';
+            }
+            if (!input.startsWith('0x') || input.length !== 42) {
+              return 'Token contract address must be a valid Ethereum address';
+            }
+            return true;
+          }
         },
         {
           type: 'input',
           name: 'to',
           message: 'Enter recipient address:',
           when: !options.to,
-          validate: (input) => input.startsWith('0x') && input.length === 42
+          validate: (input) => {
+            if (!input || input.trim() === '') {
+              return 'Recipient address is required';
+            }
+            if (!input.startsWith('0x') || input.length !== 42) {
+              return 'Recipient address must be a valid Ethereum address';
+            }
+            return true;
+          }
         },
         {
           type: 'input',
           name: 'amount',
           message: 'Enter amount of tokens to mint:',
           when: !options.amount,
-          validate: (input) => !isNaN(Number(input)) && Number(input) > 0
+          validate: (input) => {
+            if (!input || input.trim() === '') {
+              return 'Amount is required';
+            }
+            const num = Number(input);
+            if (isNaN(num) || num <= 0) {
+              return 'Amount must be a positive number';
+            }
+            return true;
+          }
         }
       ]);
 
@@ -65,10 +81,10 @@ export const mintTokens = new Command()
 
       // Initialize Thirdweb SDK with Rootstock network
       const sdk = ThirdwebSDK.fromPrivateKey(
-        process.env.PRIVATE_KEY,
+        privateKey,
         options.testnet ? 'rootstock-testnet' : 'rootstock',
         {
-          clientId: process.env.THIRDWEB_CLIENT_ID,
+          clientId: apiKey,
           rpcBatchSettings: {
             sizeLimit: 10,
             timeLimit: 1000
@@ -93,7 +109,7 @@ export const mintTokens = new Command()
       console.log(chalk.blue('Network:'), options.testnet ? 'Rootstock Testnet' : 'Rootstock Mainnet');
 
     } catch (error: any) {
-      spinner.fail(chalk.red('Failed to mint tokens'));
+      console.error(chalk.red('Failed to mint tokens'));
       
       if (error.message?.includes('timeout')) {
         console.log(chalk.yellow('\nThe request timed out. This could be due to:'));
@@ -102,7 +118,7 @@ export const mintTokens = new Command()
         console.log(chalk.yellow('3. IPFS gateway being slow to respond'));
         console.log(chalk.yellow('\nPlease try again in a few minutes.'));
       } else {
-        console.error(error);
+        console.error(chalk.red('Error details:'), error.message || error);
       }
     }
   }); 

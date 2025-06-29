@@ -3,10 +3,7 @@ import { ThirdwebSDK } from '@thirdweb-dev/sdk';
 import inquirer from 'inquirer';
 import chalk from 'chalk';
 import ora from 'ora';
-import dotenv from 'dotenv';
-
-// Load environment variables from .env file
-dotenv.config();
+import { getThirdwebApiKey, getPrivateKey } from '../../utils/thirdwebHelper.js';
 
 export const deployERC20 = new Command()
   .name('erc20')
@@ -14,22 +11,16 @@ export const deployERC20 = new Command()
   .option('-n, --name <name>', 'Token name')
   .option('-s, --symbol <symbol>', 'Token symbol')
   .option('-t, --testnet', 'Deploy on testnet')
+  .option('--api-key <key>', 'Thirdweb API key')
+  .option('--private-key <key>', 'Private key')
   .action(async (options) => {
-    const spinner = ora('Deploying ERC20 token...').start();
-
     try {
-      // Check if private key is set
-      if (!process.env.PRIVATE_KEY) {
-        spinner.fail(chalk.red('Private key not found. Please set PRIVATE_KEY in your .env file'));
-        return;
-      }
+      // Get API key and private key using helper functions (no spinner during prompts)
+      const apiKey = await getThirdwebApiKey(options.apiKey);
+      const privateKey = await getPrivateKey(options.privateKey);
 
-      // Check if Thirdweb API key is set
-      if (!process.env.THIRDWEB_CLIENT_ID) {
-        spinner.fail(chalk.red('Thirdweb API key not found. Please set THIRDWEB_CLIENT_ID in your .env file'));
-        console.log(chalk.yellow('You can get an API key at https://thirdweb.com/create-api-key'));
-        return;
-      }
+      // Start spinner after credentials are obtained
+      const spinner = ora('Preparing deployment...').start();
 
       // Get missing options through prompts if not provided
       const answers = await inquirer.prompt([
@@ -37,13 +28,28 @@ export const deployERC20 = new Command()
           type: 'input',
           name: 'name',
           message: 'Enter token name:',
-          when: !options.name
+          when: !options.name,
+          validate: (input) => {
+            if (!input || input.trim() === '') {
+              return 'Token name is required';
+            }
+            return true;
+          }
         },
         {
           type: 'input',
           name: 'symbol',
           message: 'Enter token symbol:',
-          when: !options.symbol
+          when: !options.symbol,
+          validate: (input) => {
+            if (!input || input.trim() === '') {
+              return 'Token symbol is required';
+            }
+            if (input.length > 10) {
+              return 'Token symbol should be 10 characters or less';
+            }
+            return true;
+          }
         }
       ]);
 
@@ -54,16 +60,36 @@ export const deployERC20 = new Command()
 
       // Initialize Thirdweb SDK with Rootstock network
       const sdk = ThirdwebSDK.fromPrivateKey(
-        process.env.PRIVATE_KEY,
+        privateKey,
         options.testnet ? 'rootstock-testnet' : 'rootstock',
         {
-          clientId: process.env.THIRDWEB_CLIENT_ID,
+          clientId: apiKey,
           rpcBatchSettings: {
             sizeLimit: 10,
             timeLimit: 1000
           }
         }
       );
+
+      // Get wallet address and check balance
+      const walletAddress = await sdk.wallet.getAddress();
+      spinner.text = 'Checking wallet balance...';
+      
+      try {
+        const balance = await sdk.wallet.balance();
+        console.log(chalk.blue('Wallet Address:'), walletAddress);
+        console.log(chalk.blue('Wallet Balance:'), balance.displayValue, 'RBTC');
+        console.log(chalk.blue('Network:'), options.testnet ? 'Rootstock Testnet' : 'Rootstock Mainnet');
+        
+        if (balance.value.isZero()) {
+          spinner.fail(chalk.red('Wallet has no RBTC balance. Please fund your wallet first.'));
+          return;
+        }
+      } catch (balanceError) {
+        console.log(chalk.yellow('Could not check balance, proceeding with deployment...'));
+        console.log(chalk.blue('Wallet Address:'), walletAddress);
+        console.log(chalk.blue('Network:'), options.testnet ? 'Rootstock Testnet' : 'Rootstock Mainnet');
+      }
 
       spinner.text = 'Deploying ERC20 token...';
 
@@ -79,16 +105,22 @@ export const deployERC20 = new Command()
       console.log(chalk.yellow('Note: Mint tokens to this contract after deployment as needed.'));
 
     } catch (error: any) {
-      spinner.fail(chalk.red('Failed to deploy ERC20 token'));
+      console.error(chalk.red('Failed to deploy ERC20 token'));
       
-      if (error.message?.includes('timeout')) {
+      if (error.message?.includes('sender account doesn\'t exist')) {
+        console.log(chalk.yellow('\nThe sender account doesn\'t exist on this network. This could be due to:'));
+        console.log(chalk.yellow('1. The account has never been used on this network'));
+        console.log(chalk.yellow('2. The account has no RBTC balance'));
+        console.log(chalk.yellow('3. You\'re using the wrong network (mainnet vs testnet)'));
+        console.log(chalk.yellow('\nPlease ensure your wallet has some RBTC on the correct network.'));
+      } else if (error.message?.includes('timeout')) {
         console.log(chalk.yellow('\nThe request timed out. This could be due to:'));
         console.log(chalk.yellow('1. Network connectivity issues'));
         console.log(chalk.yellow('2. Thirdweb service being temporarily unavailable'));
         console.log(chalk.yellow('3. IPFS gateway being slow to respond'));
         console.log(chalk.yellow('\nPlease try again in a few minutes.'));
       } else {
-        console.error(error);
+        console.error(chalk.red('Error details:'), error.message || error);
       }
     }
   }); 

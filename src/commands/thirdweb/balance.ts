@@ -3,10 +3,7 @@ import { ThirdwebSDK } from '@thirdweb-dev/sdk';
 import inquirer from 'inquirer';
 import chalk from 'chalk';
 import ora from 'ora';
-import dotenv from 'dotenv';
-
-// Load environment variables from .env file
-dotenv.config();
+import { getThirdwebApiKey, getPrivateKey } from '../../utils/thirdwebHelper.js';
 
 export const checkBalance = new Command()
   .name('balance')
@@ -14,22 +11,16 @@ export const checkBalance = new Command()
   .option('-c, --address <address>', 'Token contract address')
   .option('-w, --wallet <address>', 'Wallet address to check balance for')
   .option('--testnet', 'Use testnet')
+  .option('--api-key <key>', 'Thirdweb API key')
+  .option('--private-key <key>', 'Private key')
   .action(async (options) => {
-    const spinner = ora('Checking balance...').start();
-
     try {
-      // Check if private key is set
-      if (!process.env.PRIVATE_KEY) {
-        spinner.fail(chalk.red('Private key not found. Please set PRIVATE_KEY in your .env file'));
-        return;
-      }
+      // Get API key and private key using helper functions (no spinner during prompts)
+      const apiKey = await getThirdwebApiKey(options.apiKey);
+      const privateKey = await getPrivateKey(options.privateKey);
 
-      // Check if Thirdweb API key is set
-      if (!process.env.THIRDWEB_CLIENT_ID) {
-        spinner.fail(chalk.red('Thirdweb API key not found. Please set THIRDWEB_CLIENT_ID in your .env file'));
-        console.log(chalk.yellow('You can get an API key at https://thirdweb.com/create-api-key'));
-        return;
-      }
+      // Start spinner after credentials are obtained
+      const spinner = ora('Preparing balance check...').start();
 
       // Get missing options through prompts if not provided
       const answers = await inquirer.prompt([
@@ -38,14 +29,30 @@ export const checkBalance = new Command()
           name: 'address',
           message: 'Enter token contract address:',
           when: !options.address,
-          validate: (input) => input.startsWith('0x') && input.length === 42
+          validate: (input) => {
+            if (!input || input.trim() === '') {
+              return 'Token contract address is required';
+            }
+            if (!input.startsWith('0x') || input.length !== 42) {
+              return 'Token contract address must be a valid Ethereum address';
+            }
+            return true;
+          }
         },
         {
           type: 'input',
           name: 'wallet',
           message: 'Enter wallet address to check balance for:',
           when: !options.wallet,
-          validate: (input) => input.startsWith('0x') && input.length === 42
+          validate: (input) => {
+            if (!input || input.trim() === '') {
+              return 'Wallet address is required';
+            }
+            if (!input.startsWith('0x') || input.length !== 42) {
+              return 'Wallet address must be a valid Ethereum address';
+            }
+            return true;
+          }
         }
       ]);
 
@@ -56,10 +63,10 @@ export const checkBalance = new Command()
 
       // Initialize Thirdweb SDK with Rootstock network
       const sdk = ThirdwebSDK.fromPrivateKey(
-        process.env.PRIVATE_KEY,
+        privateKey,
         options.testnet ? 'rootstock-testnet' : 'rootstock',
         {
-          clientId: process.env.THIRDWEB_CLIENT_ID,
+          clientId: apiKey,
           rpcBatchSettings: {
             sizeLimit: 10,
             timeLimit: 1000
@@ -84,7 +91,7 @@ export const checkBalance = new Command()
       console.log(chalk.blue('Network:'), options.testnet ? 'Rootstock Testnet' : 'Rootstock Mainnet');
 
     } catch (error: any) {
-      spinner.fail(chalk.red('Failed to check balance'));
+      console.error(chalk.red('Failed to check balance'));
       
       if (error.message?.includes('timeout')) {
         console.log(chalk.yellow('\nThe request timed out. This could be due to:'));
@@ -93,7 +100,7 @@ export const checkBalance = new Command()
         console.log(chalk.yellow('3. IPFS gateway being slow to respond'));
         console.log(chalk.yellow('\nPlease try again in a few minutes.'));
       } else {
-        console.error(error);
+        console.error(chalk.red('Error details:'), error.message || error);
       }
     }
   }); 

@@ -3,10 +3,7 @@ import { ThirdwebSDK } from '@thirdweb-dev/sdk';
 import inquirer from 'inquirer';
 import chalk from 'chalk';
 import ora from 'ora';
-import dotenv from 'dotenv';
-
-// Load environment variables from .env file
-dotenv.config();
+import { getThirdwebApiKey, getPrivateKey } from '../../utils/thirdwebHelper.js';
 
 export const deployERC721 = new Command()
   .name('erc721')
@@ -15,22 +12,16 @@ export const deployERC721 = new Command()
   .option('-s, --symbol <symbol>', 'Collection symbol')
   .option('-d, --description <description>', 'Collection description')
   .option('-t, --testnet', 'Deploy on testnet')
+  .option('--api-key <key>', 'Thirdweb API key')
+  .option('--private-key <key>', 'Private key')
   .action(async (options) => {
-    const spinner = ora('Deploying ERC721 collection...').start();
-
     try {
-      // Check if private key is set
-      if (!process.env.PRIVATE_KEY) {
-        spinner.fail(chalk.red('Private key not found. Please set PRIVATE_KEY in your .env file'));
-        return;
-      }
+      // Get API key and private key using helper functions (no spinner during prompts)
+      const apiKey = await getThirdwebApiKey(options.apiKey);
+      const privateKey = await getPrivateKey(options.privateKey);
 
-      // Check if Thirdweb API key is set
-      if (!process.env.THIRDWEB_CLIENT_ID) {
-        spinner.fail(chalk.red('Thirdweb API key not found. Please set THIRDWEB_CLIENT_ID in your .env file'));
-        console.log(chalk.yellow('You can get an API key at https://thirdweb.com/create-api-key'));
-        return;
-      }
+      // Start spinner after credentials are obtained
+      const spinner = ora('Preparing deployment...').start();
 
       // Get missing options through prompts if not provided
       const answers = await inquirer.prompt([
@@ -38,19 +29,40 @@ export const deployERC721 = new Command()
           type: 'input',
           name: 'name',
           message: 'Enter collection name:',
-          when: !options.name
+          when: !options.name,
+          validate: (input) => {
+            if (!input || input.trim() === '') {
+              return 'Collection name is required';
+            }
+            return true;
+          }
         },
         {
           type: 'input',
           name: 'symbol',
           message: 'Enter collection symbol:',
-          when: !options.symbol
+          when: !options.symbol,
+          validate: (input) => {
+            if (!input || input.trim() === '') {
+              return 'Collection symbol is required';
+            }
+            if (input.length > 10) {
+              return 'Collection symbol should be 10 characters or less';
+            }
+            return true;
+          }
         },
         {
           type: 'input',
           name: 'description',
           message: 'Enter collection description:',
-          when: !options.description
+          when: !options.description,
+          validate: (input) => {
+            if (!input || input.trim() === '') {
+              return 'Collection description is required';
+            }
+            return true;
+          }
         }
       ]);
 
@@ -58,14 +70,22 @@ export const deployERC721 = new Command()
       const collectionSymbol = options.symbol || answers.symbol;
       const description = options.description || answers.description;
 
+      spinner.text = 'Initializing Thirdweb SDK...';
+
       // Initialize Thirdweb SDK with Rootstock network
       const sdk = ThirdwebSDK.fromPrivateKey(
-        process.env.PRIVATE_KEY,
+        privateKey,
         options.testnet ? 'rootstock-testnet' : 'rootstock',
         {
-          clientId: process.env.THIRDWEB_CLIENT_ID
+          clientId: apiKey,
+          rpcBatchSettings: {
+            sizeLimit: 10,
+            timeLimit: 1000
+          }
         }
       );
+
+      spinner.text = 'Deploying ERC721 collection...';
 
       // Deploy ERC721 collection
       const collectionAddress = await sdk.deployer.deployNFTCollection({
@@ -78,8 +98,17 @@ export const deployERC721 = new Command()
       console.log(chalk.blue('Collection Address:'), collectionAddress);
       console.log(chalk.blue('Network:'), options.testnet ? 'Rootstock Testnet' : 'Rootstock Mainnet');
 
-    } catch (error) {
-      spinner.fail(chalk.red('Failed to deploy ERC721 collection'));
-      console.error(error);
+    } catch (error: any) {
+      console.error(chalk.red('Failed to deploy ERC721 collection'));
+      
+      if (error.message?.includes('timeout')) {
+        console.log(chalk.yellow('\nThe request timed out. This could be due to:'));
+        console.log(chalk.yellow('1. Network connectivity issues'));
+        console.log(chalk.yellow('2. Thirdweb service being temporarily unavailable'));
+        console.log(chalk.yellow('3. IPFS gateway being slow to respond'));
+        console.log(chalk.yellow('\nPlease try again in a few minutes.'));
+      } else {
+        console.error(chalk.red('Error details:'), error.message || error);
+      }
     }
   }); 
