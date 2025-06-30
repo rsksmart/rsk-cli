@@ -1,19 +1,20 @@
 #!/usr/bin/env node
-import { Command } from "commander";
-import { walletCommand } from "../src/commands/wallet.js";
-import { balanceCommand } from "../src/commands/balance.js";
-import { transferCommand } from "../src/commands/transfer.js";
-import { txCommand } from "../src/commands/tx.js";
-import figlet from "figlet";
-import chalk from "chalk";
-import { deployCommand } from "../src/commands/deploy.js";
-import { verifyCommand } from "../src/commands/verify.js";
-import { ReadContract } from "../src/commands/contract.js";
-import { Address } from "viem";
-import { bridgeCommand } from "../src/commands/bridge.js";
-import { batchTransferCommand } from "../src/commands/batchTransfer.js";
-import { historyCommand } from "../src/commands/history.js";
-import { selectAddress } from "../src/commands/selectAddress.js";
+import { Command } from 'commander';
+import { walletCommand } from '../src/commands/wallet.js';
+import { balanceCommand } from '../src/commands/balance.js';
+import { transferCommand } from '../src/commands/transfer.js';
+import { txCommand } from '../src/commands/tx.js';
+import figlet from 'figlet';
+import chalk from 'chalk';
+import { deployCommand } from '../src/commands/deploy.js';
+import { verifyCommand } from '../src/commands/verify.js';
+import { ReadContract } from '../src/commands/contract.js';
+import { Address } from 'viem';
+import { bridgeCommand } from '../src/commands/bridge.js';
+import { batchTransferCommand } from '../src/commands/batchTransfer.js';
+import { historyCommand } from '../src/commands/history.js';
+import { selectAddress } from '../src/commands/selectAddress.js';
+import { writeCommand } from '../src/commands/write.js';
 
 interface CommandOptions {
   testnet?: boolean;
@@ -39,10 +40,10 @@ const orange = chalk.rgb(255, 165, 0);
 
 console.log(
   orange(
-    figlet.textSync("Rootstock", {
-      font: "3D-ASCII",
-      horizontalLayout: "fitted",
-      verticalLayout: "fitted",
+    figlet.textSync('Rootstock', {
+      font: '3D-ASCII',
+      horizontalLayout: 'fitted',
+      verticalLayout: 'fitted',
     })
   )
 );
@@ -50,51 +51,54 @@ console.log(
 const program = new Command();
 
 program
-  .name("rsk-cli")
-  .description("CLI tool for interacting with Rootstock blockchain")
-  .version("1.1.0", "-v, --version", "Display the current version");
+  .name('rsk-cli')
+  .description('CLI tool for interacting with Rootstock blockchain')
+  .version('1.1.0', '-v, --version', 'Display the current version');
 
 program
-  .command("wallet")
+  .command('wallet')
   .description(
-    "Manage your wallet: create a new one, use an existing wallet, or import a custom wallet"
+    'Manage your wallet: create a new one, use an existing wallet, or import a custom wallet'
   )
   .action(async () => {
     await walletCommand();
   });
 
 program
-  .command("balance")
-  .description("Check the balance of the saved wallet")
-  .option("-t, --testnet", "Check the balance on the testnet")
-  .option("--wallet <wallet>", "Name of the wallet")
-  .option("-a ,--address <address>", "Token holder address")
+  .command('balance')
+  .description('Check the balance of the saved wallet')
+  .option('-t, --testnet', 'Check the balance on the testnet')
+  .option('--wallet <wallet>', 'Name of the wallet')
+  .option('-a ,--address <address>', 'Token holder address')
   .action(async (options: CommandOptions) => {
     await balanceCommand(!!options.testnet, options.wallet!, options.address);
   });
 
 program
-  .command("transfer")
-  .description("Transfer RBTC or ERC20 tokens to the provided address")
-  .option("-t, --testnet", "Transfer on the testnet")
-  .option("--wallet <wallet>", "Name of the wallet")
-  .option("-a, --address <address>", "Recipient address")
-  .option("--token <address>", "ERC20 token contract address (optional, for token transfers)")
-  .requiredOption("--value <value>", "Amount to transfer")
+  .command('transfer')
+  .description('Transfer RBTC or ERC20 tokens to the provided address')
+  .option('-t, --testnet', 'Transfer on the testnet')
+  .option('--wallet <wallet>', 'Name of the wallet')
+  .option('-a, --address <address>', 'Recipient address')
+  .option(
+    '--token <address>',
+    'ERC20 token contract address (optional, for token transfers)'
+  )
+  .requiredOption('--value <value>', 'Amount to transfer')
   .action(async (options: CommandOptions) => {
     try {
       if (!options.value) {
-        throw new Error("Value is required for the transfer.");
+        throw new Error('Value is required for the transfer.');
       }
 
       const value = parseFloat(options.value);
 
       if (isNaN(value) || value <= 0) {
-        throw new Error("Invalid value specified for transfer.");
+        throw new Error('Invalid value specified for transfer.');
       }
 
       const address = options.address
-        ? (`0x${options.address.replace(/^0x/, "")}` as `0x${string}`)
+        ? (`0x${options.address.replace(/^0x/, '')}` as `0x${string}`)
         : await selectAddress();
 
       await transferCommand(
@@ -106,19 +110,19 @@ program
       );
     } catch (error: any) {
       console.error(
-        chalk.red("Error during transfer:"),
+        chalk.red('Error during transfer:'),
         error.message || error
       );
     }
   });
 
 program
-  .command("tx")
-  .description("Check the status of a transaction")
-  .option("-t, --testnet", "Check the transaction status on the testnet")
-  .requiredOption("-i, --txid <txid>", "Transaction ID")
+  .command('tx')
+  .description('Check the status of a transaction')
+  .option('-t, --testnet', 'Check the transaction status on the testnet')
+  .requiredOption('-i, --txid <txid>', 'Transaction ID')
   .action(async (options: CommandOptions) => {
-    const formattedTxId = options.txid!.startsWith("0x")
+    const formattedTxId = options.txid!.startsWith('0x')
       ? options.txid
       : `0x${options.txid}`;
 
@@ -126,13 +130,13 @@ program
   });
 
 program
-  .command("deploy")
-  .description("Deploy a contract")
-  .requiredOption("--abi <path>", "Path to the ABI file")
-  .requiredOption("--bytecode <path>", "Path to the bytecode file")
-  .option("--wallet <wallet>", "Name of the wallet")
-  .option("--args <args...>", "Constructor arguments (space-separated)")
-  .option("-t, --testnet", "Deploy on the testnet")
+  .command('deploy')
+  .description('Deploy a contract')
+  .requiredOption('--abi <path>', 'Path to the ABI file')
+  .requiredOption('--bytecode <path>', 'Path to the bytecode file')
+  .option('--wallet <wallet>', 'Name of the wallet')
+  .option('--args <args...>', 'Constructor arguments (space-separated)')
+  .option('-t, --testnet', 'Deploy on the testnet')
   .action(async (options: CommandOptions) => {
     const args = options.args || [];
     await deployCommand(
@@ -145,15 +149,15 @@ program
   });
 
 program
-  .command("verify")
-  .description("Verify a contract")
-  .requiredOption("--json <path>", "Path to the JSON Standard Input")
-  .requiredOption("--name <name>", "Name of the contract")
-  .requiredOption("-a, --address <address>", "Address of the deployed contract")
-  .option("-t, --testnet", "Deploy on the testnet")
+  .command('verify')
+  .description('Verify a contract')
+  .requiredOption('--json <path>', 'Path to the JSON Standard Input')
+  .requiredOption('--name <name>', 'Name of the contract')
+  .requiredOption('-a, --address <address>', 'Address of the deployed contract')
+  .option('-t, --testnet', 'Deploy on the testnet')
   .option(
-    "--decodedArgs <args...>",
-    "Decoded Constructor arguments (space-separated)"
+    '--decodedArgs <args...>',
+    'Decoded Constructor arguments (space-separated)'
   )
   .action(async (options: CommandOptions) => {
     const args = options.decodedArgs || [];
@@ -168,39 +172,39 @@ program
   });
 
 program
-  .command("contract")
-  .description("Interact with a contract")
-  .requiredOption("-a, --address <address>", "Address of a verified contract")
-  .option("-t, --testnet", "Deploy on the testnet")
+  .command('contract')
+  .description('Interact with a contract')
+  .requiredOption('-a, --address <address>', 'Address of a verified contract')
+  .option('-t, --testnet', 'Deploy on the testnet')
   .action(async (options: CommandOptions) => {
     await ReadContract(options.address! as `0x${string}`, !!options.testnet);
   });
 
 program
-  .command("bridge")
-  .description("Interact with RSK bridge")
-  .option("-t, --testnet", "Deploy on the testnet")
-  .option("--wallet <wallet>", "Name of the wallet")
+  .command('bridge')
+  .description('Interact with RSK bridge')
+  .option('-t, --testnet', 'Deploy on the testnet')
+  .option('--wallet <wallet>', 'Name of the wallet')
   .action(async (options: CommandOptions) => {
     await bridgeCommand(!!options.testnet, options.wallet!);
   });
 
 program
-  .command("history")
-  .description("Fetch history for current wallet")
-  .option("--apiKey <apiKey", "Alchemy API key")
-  .option("--number <number>", "Number of transactions to fetch")
-  .option("-t, --testnet", "History of wallet on the testnet")
+  .command('history')
+  .description('Fetch history for current wallet')
+  .option('--apiKey <apiKey', 'Alchemy API key')
+  .option('--number <number>', 'Number of transactions to fetch')
+  .option('-t, --testnet', 'History of wallet on the testnet')
   .action(async (options: CommandOptions) => {
     await historyCommand(!!options.testnet, options.apiKey!, options.number!);
   });
 
 program
-  .command("batch-transfer")
-  .description("Execute batch transactions interactively or from stdin")
-  .option("-i, --interactive", "Execute interactively and input transactions")
-  .option("-t, --testnet", "Execute on the testnet")
-  .option("-f, --file <path>", "Execute transactions from a file")
+  .command('batch-transfer')
+  .description('Execute batch transactions interactively or from stdin')
+  .option('-i, --interactive', 'Execute interactively and input transactions')
+  .option('-t, --testnet', 'Execute on the testnet')
+  .option('-f, --file <path>', 'Execute transactions from a file')
   .action(async (options) => {
     try {
       const interactive = !!options.interactive;
@@ -210,7 +214,7 @@ program
       if (interactive && file) {
         console.error(
           chalk.red(
-            "🚨 Cannot use both interactive mode and file input simultaneously."
+            '🚨 Cannot use both interactive mode and file input simultaneously.'
           )
         );
         return;
@@ -219,10 +223,42 @@ program
       await batchTransferCommand(file, testnet, interactive);
     } catch (error: any) {
       console.error(
-        chalk.red("🚨 Error during batch transfer:"),
-        chalk.yellow(error.message || "Unknown error")
+        chalk.red('🚨 Error during batch transfer:'),
+        chalk.yellow(error.message || 'Unknown error')
       );
     }
+  });
+
+program
+  .command('write')
+  .description('Write to a smart contract function')
+  .requiredOption('-a, --address <address>', 'Contract address')
+  .requiredOption('-f, --function <name>', 'Function name to call')
+  .requiredOption('-p, --params <params...>', 'Function parameters')
+  .option('-t, --testnet', 'Write on the testnet')
+  .option('-g, --gas-limit <limit>', 'Gas limit for the transaction')
+  .option('--priority-fee <fee>', 'Priority fee in gwei')
+  .option(
+    '--rpc-url <url>',
+    'Custom RPC URL to use instead of the network default'
+  )
+  .option(
+    '--wallet <name>',
+    'Wallet name to use (from .wallets directory, will prompt for password)'
+  )
+
+  .action(async (options: any) => {
+    await writeCommand(
+      !!options.testnet,
+      options.wallet,
+      options.address,
+      options.function,
+      options.params,
+      options.gasLimit,
+      options.priorityFee,
+      options.rpcUrl,
+      options.abi
+    );
   });
 
 program.parse(process.argv);
