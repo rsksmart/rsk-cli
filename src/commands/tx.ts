@@ -1,12 +1,35 @@
 import ViemProvider from "../utils/viemProvider.js";
 import chalk from "chalk";
 import Table from "cli-table3";
+import { DataTx, TxResult } from "../utils/types.js";
 
-export async function txCommand(testnet: boolean, txid: string): Promise<void> {
+type TxCommandOptions = {
+  testnet: boolean;
+  txid: string;
+  isExternal?: boolean;
+};
+
+function logMessage(
+  params: TxCommandOptions,
+  message: string,
+  color: any = chalk.white
+) {
+  if (!params.isExternal) {
+    console.log(color(message));
+  }
+}
+
+function logError(params: TxCommandOptions, message: string) {
+  logMessage(params, `❌ ${message}`, chalk.red);
+}
+
+export async function txCommand(
+  params: TxCommandOptions
+): Promise<TxResult | void> {
   try {
-    const formattedTxId = txid.startsWith("0x") ? txid : `0x${txid}`;
+    const formattedTxId = params.txid.startsWith("0x") ? params.txid : `0x${params.txid}`;
     const txidWithCorrectType = formattedTxId as `0x${string}`;
-    const provider = new ViemProvider(testnet);
+    const provider = new ViemProvider(params.testnet);
     const client = await provider.getPublicClient();
 
     const txReceipt = await client.getTransactionReceipt({
@@ -14,34 +37,57 @@ export async function txCommand(testnet: boolean, txid: string): Promise<void> {
     });
 
     if (!txReceipt) {
-      console.log(
-        chalk.red(
-          "⚠️ Transaction not found. Please check the transaction ID and try again."
-        )
+      const errorMessage = "Transaction not found. Please check the transaction ID and try again.";
+      logError(params, errorMessage);
+      return {
+        error: errorMessage,
+        success: false,
+      };
+    }
+
+    const txData : DataTx = {
+      txId: txidWithCorrectType,
+      blockHash: txReceipt.blockHash,
+      blockNumber: txReceipt.blockNumber.toString(),
+      gasUsed: txReceipt.gasUsed.toString(),
+      status: txReceipt.status ? "Success" as const : "Failed" as const,
+      from: txReceipt.from,
+      to: txReceipt.to,
+      network: params.testnet ? "Rootstock Testnet" : "Rootstock Mainnet",
+    };
+
+    if (!params.isExternal) {
+      const table = new Table({
+        head: ["🔍", "Details"],
+        colWidths: [20, 68],
+      });
+
+      table.push(
+        { "🔑 Tx ID": txidWithCorrectType },
+        { "🔗 Block Hash": txReceipt.blockHash },
+        { "🧱 Block No.": txReceipt.blockNumber.toString() },
+        { "⛽ Gas Used": txReceipt.gasUsed.toString() },
+        { "✅ Status": txReceipt.status ? "Success" : "Failed" },
+        { "📤 From": txReceipt.from },
+        { "📥 To": txReceipt.to }
       );
-      return;
+      console.log(table.toString());
     }
 
-    const table = new Table({
-      head: ["🔍", "Details"],
-      colWidths: [20, 68],
-    });
-
-    table.push(
-      { "🔑 Tx ID": txidWithCorrectType },
-      { "🔗 Block Hash": txReceipt.blockHash },
-      { "🧱 Block No.": txReceipt.blockNumber.toString() },
-      { "⛽ Gas Used": txReceipt.gasUsed.toString() },
-      { "✅ Status": txReceipt.status ? "Success" : "Failed" },
-      { "📤 From": txReceipt.from },
-      { "📥 To": txReceipt.to }
-    );
-    console.log(table.toString());
+    return {
+      success: true,
+      data: txData,
+    };
   } catch (error) {
-    if (error instanceof Error) {
-      console.error(chalk.red('🚨 Error checking transaction status:'), chalk.yellow(`Error checking transaction status: Invalid transaction hash`));
-    } else {
-      console.error(chalk.red("🚨 An unknown error occurred."));
-    }
+    const errorMessage = error instanceof Error 
+      ? `Error checking transaction status: ${error.message}`
+      : "An unknown error occurred while checking transaction status.";
+    
+    logError(params, errorMessage);
+    
+    return {
+      error: errorMessage,
+      success: false,
+    };
   }
 }

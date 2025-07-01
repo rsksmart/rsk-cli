@@ -2,11 +2,72 @@ import chalk from "chalk";
 import ora from "ora";
 import inquirer from "inquirer";
 import ViemProvider from "../utils/viemProvider.js";
+import { ContractResult } from "../utils/types.js";
 
 type InquirerAnswers = {
   selectedFunction?: string;
   args?: string[];
 };
+
+type ContractCommandOptions = {
+  address: `0x${string}`;
+  testnet: boolean;
+  isExternal?: boolean;
+  functionName?: string;
+  args?: string[];
+};
+
+function logMessage(
+  params: ContractCommandOptions,
+  message: string,
+  color: any = chalk.white
+) {
+  if (!params.isExternal) {
+    console.log(color(message));
+  }
+}
+
+function logError(params: ContractCommandOptions, message: string) {
+  logMessage(params, `❌ ${message}`, chalk.red);
+}
+
+function logSuccess(params: ContractCommandOptions, message: string) {
+  logMessage(params, message, chalk.green);
+}
+
+function logInfo(params: ContractCommandOptions, message: string) {
+  logMessage(params, message, chalk.blue);
+}
+
+function logWarning(params: ContractCommandOptions, message: string) {
+  logMessage(params, message, chalk.yellow);
+}
+
+function startSpinner(
+  params: ContractCommandOptions,
+  spinner: any,
+  message: string
+) {
+  if (!params.isExternal) {
+    spinner.start(message);
+  }
+}
+
+function stopSpinner(params: ContractCommandOptions, spinner: any) {
+  if (!params.isExternal) {
+    spinner.stop();
+  }
+}
+
+function failSpinner(
+  params: ContractCommandOptions,
+  spinner: any,
+  message: string
+) {
+  if (!params.isExternal) {
+    spinner.fail(message);
+  }
+}
 
 function isValidAddress(address: string): boolean {
   const regex = /^0x[a-fA-F0-9]{40}$/;
@@ -14,33 +75,35 @@ function isValidAddress(address: string): boolean {
 }
 
 export async function ReadContract(
-  uppercaseAddress: `0x${string}`,
-  testnet: boolean
-): Promise<void> {
-  const address = uppercaseAddress.toLowerCase() as `0x${string}`;
+  params: ContractCommandOptions
+): Promise<ContractResult | void> {
+  const address = params.address.toLowerCase() as `0x${string}`;
 
   if (!isValidAddress(address)) {
-    console.log(
-      chalk.red("❌ Invalid address format. Please provide a valid address.")
-    );
-    return;
+    const errorMessage =
+      "Invalid address format. Please provide a valid address.";
+    logError(params, errorMessage);
+    return {
+      error: errorMessage,
+      success: false,
+    };
   }
 
-  console.log(
-    chalk.blue(
-      `🔧 Initializing interaction on ${testnet ? "testnet" : "mainnet"}...`
-    )
+  logInfo(
+    params,
+    `🔧 Initializing interaction on ${
+      params.testnet ? "testnet" : "mainnet"
+    }...`
   );
 
-  const baseUrl = testnet
+  const baseUrl = params.testnet
     ? "https://be.explorer.testnet.rootstock.io"
     : "https://be.explorer.rootstock.io";
 
-  console.log(
-    `🔎 Checking if contract ${chalk.green(`${address}`)} is verified...`
-  );
+  logInfo(params, `🔎 Checking if contract ${address} is verified...`);
 
-  const spinner = ora().start("Checking contract verification...");
+  const spinner = params.isExternal ? ora({ isEnabled: false }) : ora();
+  startSpinner(params, spinner, "⏳ Checking contract verification...");
 
   try {
     const response = await fetch(
@@ -48,15 +111,23 @@ export async function ReadContract(
     );
 
     if (!response.ok) {
-      spinner.fail("❌ Error during verification check.");
-      return;
+      const errorMessage = "Error during verification check.";
+      failSpinner(params, spinner, errorMessage);
+      return {
+        error: errorMessage,
+        success: false,
+      };
     }
 
     const resData = await response.json();
 
     if (!resData.data) {
-      spinner.fail("❌ Contract verification not found.");
-      return;
+      const errorMessage = "Contract verification not found.";
+      failSpinner(params, spinner, errorMessage);
+      return {
+        error: errorMessage,
+        success: false,
+      };
     }
 
     const { abi } = resData.data;
@@ -68,53 +139,89 @@ export async function ReadContract(
     );
 
     if (readFunctions.length === 0) {
-      spinner.stop();
-      console.log(chalk.yellow("⚠️ No read functions found in the contract."));
-      return;
+      const errorMessage = "No read functions found in the contract.";
+      stopSpinner(params, spinner);
+      logWarning(params, errorMessage);
+      return {
+        error: errorMessage,
+        success: false,
+      };
     }
 
-    spinner.stop();
+    stopSpinner(params, spinner);
 
-    const questions: any = [
-      {
-        type: "list",
-        name: "selectedFunction",
-        message: "Select a read function to call:",
-        choices: [...readFunctions.map((item: any) => item.name)],
-      },
-    ];
+    let selectedFunction: string;
+    let selectedAbiFunction: any;
 
-    const { selectedFunction } = await inquirer.prompt<InquirerAnswers>(
-      questions
-    );
+    if (params.isExternal) {
+      if (!params.functionName) {
+        return {
+          error: "Function name is required when using external mode.",
+          success: false,
+        };
+      }
 
-    console.log(
-      chalk.green(`📜 You selected: ${chalk.cyan(selectedFunction)}\n`)
-    );
+      selectedFunction = params.functionName;
+      selectedAbiFunction = readFunctions.find(
+        (item: any) => item.name === selectedFunction
+      );
 
-    const selectedAbiFunction = readFunctions.find(
-      (item: any) => item.name === selectedFunction
-    );
+      if (!selectedAbiFunction) {
+        return {
+          error: `Function '${selectedFunction}' not found in contract.`,
+          success: false,
+        };
+      }
+    } else {
+      const questions: any = [
+        {
+          type: "list",
+          name: "selectedFunction",
+          message: "Select a read function to call:",
+          choices: [...readFunctions.map((item: any) => item.name)],
+        },
+      ];
 
-    let args: any[] = [];
-    if (selectedAbiFunction.inputs && selectedAbiFunction.inputs.length > 0) {
-      const argQuestions = selectedAbiFunction.inputs.map((input: any) => ({
-        type: "input",
-        name: input.name,
-        message: `Enter the value for argument ${chalk.yellow(
-          input.name
-        )} (${chalk.yellow(input.type)}):`,
-      }));
+      const answers = await inquirer.prompt<InquirerAnswers>(questions);
+      selectedFunction = answers.selectedFunction!;
 
-      const answers = await inquirer.prompt(argQuestions);
-      args = selectedAbiFunction.inputs.map(
-        (input: any) => answers[input.name]
+      logSuccess(params, `📜 You selected: ${selectedFunction}`);
+
+      selectedAbiFunction = readFunctions.find(
+        (item: any) => item.name === selectedFunction
       );
     }
 
-    spinner.start("⏳ Calling read function...");
+    let args: any[] = [];
+    if (selectedAbiFunction.inputs && selectedAbiFunction.inputs.length > 0) {
+      if (params.isExternal) {
+        if (
+          !params.args ||
+          params.args.length !== selectedAbiFunction.inputs.length
+        ) {
+          return {
+            error: `Function '${selectedFunction}' requires ${selectedAbiFunction.inputs.length} arguments.`,
+            success: false,
+          };
+        }
+        args = params.args;
+      } else {
+        const argQuestions = selectedAbiFunction.inputs.map((input: any) => ({
+          type: "input",
+          name: input.name,
+          message: `Enter the value for argument ${input.name} (${input.type}):`,
+        }));
 
-    const provider = new ViemProvider(testnet);
+        const answers = await inquirer.prompt(argQuestions);
+        args = selectedAbiFunction.inputs.map(
+          (input: any) => answers[input.name]
+        );
+      }
+    }
+
+    startSpinner(params, spinner, "⏳ Calling read function...");
+
+    const provider = new ViemProvider(params.testnet);
     const publicClient = await provider.getPublicClient();
 
     try {
@@ -125,26 +232,42 @@ export async function ReadContract(
         args,
       });
 
-      spinner.stop();
-      console.log(
-        chalk.green(`✅ Function ${selectedFunction} called successfully!`)
+      const explorerUrl = params.testnet
+        ? `https://explorer.testnet.rootstock.io/address/${address}`
+        : `https://explorer.rootstock.io/address/${address}`;
+
+      stopSpinner(params, spinner);
+      logSuccess(
+        params,
+        `✅ Function ${selectedFunction} called successfully!`
       );
-      spinner.succeed(chalk.white(`🔧 Result:`) + " " + chalk.green(data));
+      logSuccess(params, `🔧 Result: ${data}`);
+      logInfo(params, `🔗 View on Explorer: ${explorerUrl}`);
+
+      return {
+        success: true,
+        data: {
+          contractAddress: address,
+          network: params.testnet ? "Rootstock Testnet" : "Rootstock Mainnet",
+          functionName: selectedFunction,
+          result: data,
+          explorerUrl: explorerUrl,
+        },
+      };
     } catch (error) {
-      spinner.fail(
-        `❌ Error while calling function ${chalk.cyan(selectedFunction)}.`
-      );
+      const errorMessage = `Error while calling function ${selectedFunction}.`;
+      failSpinner(params, spinner, errorMessage);
+      return {
+        error: errorMessage,
+        success: false,
+      };
     }
-
-    const explorerUrl = testnet
-      ? `https://explorer.testnet.rootstock.io/address/${address}`
-      : `https://explorer.rootstock.io/address/${address}`;
-
-    console.log(
-      chalk.white(`🔗 View on Explorer:`),
-      chalk.dim(`${explorerUrl}`)
-    );
   } catch (error) {
-    spinner.fail("❌ Error during contract interaction.");
+    const errorMessage = "Error during contract interaction.";
+    failSpinner(params, spinner, errorMessage);
+    return {
+      error: errorMessage,
+      success: false,
+    };
   }
 }
