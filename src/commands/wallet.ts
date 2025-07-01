@@ -20,10 +20,35 @@ type InquirerAnswers = {
   newWalletName?: string;
   backupPath?: string;
 };
+type WalletData = {
+  wallets: {
+    [key: string]: {
+      address: string;
+      encryptedPrivateKey: string;
+      iv: string;
+    };
+  };
+  currentWallet: string;
+}
 
-export async function walletCommand() {
+export const createWalletOptions = [
+  "🆕 Create a new wallet",
+  "🔑 Import existing wallet",
+  "🔍 List saved wallets",
+  "🔁 Switch wallet",
+  "📝 Update wallet name",
+  "📂 Backup wallet data",
+  "❌ Delete wallet",
+  "📖 Address Book",
+] as const;
+
+export async function walletCommand (
+  _action: string | undefined = undefined, 
+  _password: string | undefined = undefined,
+  _walletsData: WalletData | undefined = undefined
+) {
   try {
-    if (fs.existsSync(walletFilePath)) {
+    if (!_action && fs.existsSync(walletFilePath)) {
       console.log(chalk.grey("📁 Wallet data file found."));
 
       const walletsDataString = loadWallets();
@@ -38,63 +63,70 @@ export async function walletCommand() {
         }
       }
     }
+    if (_action && !_password) {
+      return {
+        error: "Password is required to import an existing wallet, when using in external mode.",
+        success: false,
+      };
+    }
+    //TODO: Add a way to add a new wallet from a file when MCP or external function is used
+    let runOption: string | undefined = _action;
+    if (!_action) {
+      const questions: any = [
+        {
+          type: "list",
+          name: "action",
+          message: "What would you like to do?",
+          choices: createWalletOptions,
+        },
+      ];
 
-    const questions: any = [
-      {
-        type: "list",
-        name: "action",
-        message: "What would you like to do?",
-        choices: [
-          "🆕 Create a new wallet",
-          "🔑 Import existing wallet",
-          "🔍 List saved wallets",
-          "🔁 Switch wallet",
-          "📝 Update wallet name",
-          "📂 Backup wallet data",
-          "❌ Delete wallet",
-          "📖 Address Book",
-        ],
-      },
-    ];
+      const { action } = await inquirer.prompt<InquirerAnswers>(questions);
+      runOption = action;
+    }
+    return await processOption(!!_action, runOption, _password, _walletsData);
+  } catch (error: any) {
+    console.error(
+      chalk.red("❌ Error creating or managing wallets:"),
+      chalk.yellow(error.message || error)
+    );
+  }
+}
 
-    const { action } = await inquirer.prompt<InquirerAnswers>(questions);
-
-    if (action === "🆕 Create a new wallet") {
+export async function processOption(
+  _isExternal: boolean,
+  _action: string | undefined, 
+  _password: string | undefined,
+  _walletsData: WalletData | undefined = undefined
+) {
+  switch (_action) {
+    case "🆕 Create a new wallet": {
       const privateKey: string = generatePrivateKey();
       const prefixedPrivateKey: `0x${string}` = `0x${privateKey.replace(
         /^0x/,
         ""
       )}` as `0x${string}`;
       const account = privateKeyToAccount(prefixedPrivateKey);
-      const walletsDataString = loadWallets();
 
-      const walletsData: any = JSON.parse(walletsDataString);
+      const walletsData: any = _walletsData ?? JSON.parse(loadWallets());
 
-      console.log(
-        chalk.rgb(255, 165, 0)(`🎉 Wallet created successfully on Rootstock!`)
-      );
+      const finalPassword = await createPassword(_isExternal, _password);
 
-      const passwordQuestion: any = [
-        {
-          type: "password",
-          name: "password",
-          message: "🔒 Enter a password to encrypt your wallet:",
-          mask: "*",
-        },
-      ];
-
-      const { password } = await inquirer.prompt<InquirerAnswers>(
-        passwordQuestion
-      );
+      if (!finalPassword) {
+        return {
+          error: "Error creating wallet, password required contains an error.",
+          success: false,
+        };
+      }
 
       const iv = crypto.randomBytes(16);
-      const key = crypto.scryptSync(password!, Uint8Array.from(iv), 32);
+      const key = crypto.scryptSync(finalPassword, Uint8Array.from(iv), 32);
       const cipher = crypto.createCipheriv(
         "aes-256-cbc",
         Uint8Array.from(key),
         Uint8Array.from(iv)
       );
-
+      //TODO handle the rest of the function SEBAS
       const walletNameQuestion: any = [
         {
           type: "input",
@@ -162,9 +194,9 @@ export async function walletCommand() {
       walletsData.wallets[walletName!] = walletData;
 
       writeWalletData(walletFilePath, walletsData);
+    break;
     }
-
-    if (action === "🔑 Import existing wallet") {
+    case "🔑 Import existing wallet": {
       const walletsDataString = loadWallets();
 
       const walletsData = JSON.parse(walletsDataString);
@@ -281,19 +313,19 @@ export async function walletCommand() {
       );
 
       writeWalletData(walletFilePath, walletsData);
+      break;
     }
-
-    if (action === "🔍 List saved wallets") {
+    case "🔍 List saved wallets": {
       const walletsDataString = loadWallets();
-
+  
       const walletsData = JSON.parse(walletsDataString);
       const walletCount = Object.keys(walletsData.wallets).length;
-
+  
       if (walletCount === 0) {
         console.log(chalk.red("❌ No wallets found."));
         return;
       }
-
+  
       console.log(chalk.green(`📜 Saved wallets (${walletCount}):`));
       Object.keys(walletsData.wallets).forEach((walletName) => {
         console.log(
@@ -302,29 +334,29 @@ export async function walletCommand() {
           )
         );
       });
-
+  
       if (walletsData.currentWallet) {
         console.log(
           chalk.yellow(`\n🔑 Current wallet: ${walletsData.currentWallet}`)
         );
       }
+      break;
     }
-
-    if (action === "🔁 Switch wallet") {
+    case "🔁 Switch wallet": {
       const walletsDataString = loadWallets();
-
+  
       const walletsData = JSON.parse(walletsDataString);
       const walletNames = Object.keys(walletsData.wallets);
-
+  
       const otherWallets = walletNames.filter(
         (walletName) => walletName !== walletsData.currentWallet
       );
-
+  
       if (otherWallets.length === 0) {
         console.log(chalk.red("❌ No other wallets available to switch to."));
         return;
       }
-
+  
       const walletSwitchQuestion: any = [
         {
           type: "list",
@@ -333,13 +365,13 @@ export async function walletCommand() {
           choices: otherWallets,
         },
       ];
-
+  
       const { walletName } = await inquirer.prompt<InquirerAnswers>(
         walletSwitchQuestion
       );
-
+  
       walletsData.currentWallet = walletName;
-
+  
       console.log(
         chalk.green(`✅ Successfully switched to wallet: ${walletName}`)
       );
@@ -347,25 +379,25 @@ export async function walletCommand() {
         chalk.white(`📄 Address:`),
         chalk.green(`${chalk.bold(walletsData.wallets[walletName!].address)}`)
       );
-
+  
       writeWalletData(walletFilePath, walletsData);
+      break;
     }
-
-    if (action === "❌ Delete wallet") {
+    case "❌ Delete wallet": {
       const walletsDataString = loadWallets();
-
+  
       const walletsData = JSON.parse(walletsDataString);
       const walletNames = Object.keys(walletsData.wallets);
-
+  
       const otherWallets = walletNames.filter(
         (walletName) => walletName !== walletsData.currentWallet
       );
-
+  
       if (otherWallets.length === 0) {
         console.log(chalk.red("❌ No other wallets available to delete."));
         return;
       }
-
+  
       console.log(chalk.green("📜 Other available wallets:"));
       otherWallets.forEach((walletName) => {
         console.log(
@@ -374,7 +406,7 @@ export async function walletCommand() {
           )
         );
       });
-
+  
       const deleteWalletQuestion: any = [
         {
           type: "list",
@@ -383,11 +415,11 @@ export async function walletCommand() {
           choices: otherWallets,
         },
       ];
-
+  
       const { walletName } = await inquirer.prompt<InquirerAnswers>(
         deleteWalletQuestion
       );
-
+  
       const confirmDeleteQuestion: any = [
         {
           type: "confirm",
@@ -396,33 +428,33 @@ export async function walletCommand() {
           default: false,
         },
       ];
-
+  
       const { confirmDelete } = await inquirer.prompt<InquirerAnswers>(
         confirmDeleteQuestion
       );
-
+  
       if (!confirmDelete) {
         console.log(chalk.yellow("🚫 Wallet deletion cancelled."));
         return;
       }
-
+  
       delete walletsData.wallets[walletName!];
       console.log(chalk.red(`🗑️ Wallet "${walletName}" has been deleted.`));
-
+  
       writeWalletData(walletFilePath, walletsData);
+      break;
     }
-
-    if (action === "📝 Update wallet name") {
+    case "📝 Update wallet name": {
       const walletsDataString = loadWallets();
-
+  
       const walletsData = JSON.parse(walletsDataString);
       const walletNames = Object.keys(walletsData.wallets);
-
+  
       if (walletNames.length === 0) {
         console.log(chalk.red("❌ No wallets available to update."));
         return;
       }
-
+  
       // List all wallets
       console.log(chalk.green("📜 Available wallets:"));
       walletNames.forEach((walletName) => {
@@ -436,7 +468,7 @@ export async function walletCommand() {
           )
         );
       });
-
+  
       const selectWalletQuestion: any = [
         {
           type: "list",
@@ -445,11 +477,11 @@ export async function walletCommand() {
           choices: walletNames,
         },
       ];
-
+  
       const { walletName } = await inquirer.prompt<InquirerAnswers>(
         selectWalletQuestion
       );
-
+  
       const updateNameQuestion: any = [
         {
           type: "input",
@@ -457,11 +489,11 @@ export async function walletCommand() {
           message: `🖋️ Enter the new name for the wallet "${walletName}":`,
         },
       ];
-
+  
       const { newWalletName } = await inquirer.prompt<InquirerAnswers>(
         updateNameQuestion
       );
-
+  
       if (walletsData.wallets[newWalletName!]) {
         console.log(
           chalk.red(
@@ -470,24 +502,24 @@ export async function walletCommand() {
         );
         return;
       }
-
+  
       walletsData.wallets[newWalletName!] = walletsData.wallets[walletName!];
       delete walletsData.wallets[walletName!];
-
+  
       if (walletsData.currentWallet === walletName) {
         walletsData.currentWallet = newWalletName;
       }
-
+  
       console.log(
         chalk.green(
           `✅ Wallet name updated from "${walletName}" to "${newWalletName}".`
         )
       );
-
+  
       writeWalletData(walletFilePath, walletsData);
+      break;
     }
-
-    if (action === "📂 Backup wallet data") {
+    case "📂 Backup wallet data": {
       const backupPathQuestion: any = [
         {
           type: "input",
@@ -495,27 +527,26 @@ export async function walletCommand() {
           message: "💾 Enter the path where you want to save the backup:",
         },
       ];
-
+  
       const { backupPath } = await inquirer.prompt<InquirerAnswers>(
         backupPathQuestion
       );
-
+  
       if (!backupPath) {
         console.log(chalk.red("⚠️ Backup path is required!"));
         return;
       }
-
       await backupCommand(backupPath);
+      break;
     }
-
-    if (action === "📖 Address Book") {
-      await addressBookCommand();
+    case "📖 Address Book": {
+      await addressBookCommand(); 
+      break;
     }
-  } catch (error: any) {
-    console.error(
-      chalk.red("❌ Error creating or managing wallets:"),
-      chalk.yellow(error.message || error)
-    );
+    default: {
+      console.log(chalk.red("❌ Invalid option selected."));
+      break;
+    }
   }
 }
 
@@ -569,4 +600,30 @@ async function backupCommand(backupPath: string) {
       chalk.yellow(error.message)
     );
   }
+}
+
+async function createPassword(
+  _isExternal: boolean,
+  _password: string | undefined
+): Promise<string | undefined> {
+  let finalPassword: string | undefined = _password;
+  if (!_isExternal) {
+    console.log(
+      chalk.rgb(255, 165, 0)(`🎉 Wallet created successfully on Rootstock!`)
+    );
+
+    const passwordQuestion: any = [
+      {
+        type: "password",
+        name: "password",
+        message: "🔒 Enter a password to encrypt your wallet:",
+        mask: "*",
+      },
+    ];
+    const { password } = await inquirer.prompt<InquirerAnswers>(
+      passwordQuestion
+    );
+    finalPassword = password;
+  }
+  return finalPassword;
 }
