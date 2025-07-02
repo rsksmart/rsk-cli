@@ -186,9 +186,31 @@ Use the `--wallet` flag to dynamically select the wallet.
 rsk-cli balance --wallet <name>
 ```
 
-### 3. Transfer (RBTC and ERC20)
+### 3. Transfer (RBTC, ERC20, and ERC721)
 
-The `transfer` command allows you to transfer both RBTC and ERC20 tokens from your saved wallet to a specified address on the Rootstock blockchain. You can execute transfers on either mainnet or testnet using the appropriate flags.
+The `transfer` command allows you to transfer:
+- **RBTC** (native coin)
+- **ERC20 tokens** (fungible tokens)
+- **ERC721 tokens** (NFTs)
+
+from your saved wallet to a specified address on the Rootstock blockchain.
+You can execute transfers on either mainnet or testnet using the appropriate flags.
+
+**Recent improvements:**
+- Full support for both ERC20 and ERC721 (NFT) transfers in a single command.
+- For ERC721, the `--value` flag is not required; use `--tokenId` to specify the NFT.
+- The CLI checks NFT ownership before attempting a transfer and provides a clear error if you do not own the token.
+- Token addresses are automatically lowercased to prevent checksum errors.
+- Improved error messages and user experience for all transfer types.
+
+**Usage summary:**
+
+- **RBTC:**  
+  `rsk-cli transfer --address <recipient> --value <amount>`
+- **ERC20:**  
+  `rsk-cli transfer --token <erc20-address> --address <recipient> --value <amount>`
+- **ERC721:**  
+  `rsk-cli transfer --token <erc721-address> --address <recipient> --tokenId <id>`
 
 #### For RBTC Transfer
 
@@ -247,6 +269,46 @@ Output example for ERC20 transfer:
 📦 Block Number: 6155122
 ⛽ Gas Used: 35460
 🔗 View on Explorer: https://explorer.testnet.rootstock.io/tx/0x680c4aa4f8b1ba0b7295a97d348a0ffa458a254d36af3cefc6048f8ae3f66b90
+```
+
+#### For ERC721 (NFT) Token Transfer
+
+You can transfer ERC721 tokens (NFTs) using the `transfer` command. The `--value` flag is not required for ERC721 transfers; use `--tokenId` to specify the NFT.
+
+```bash
+# Mainnet
+rsk-cli transfer --token 0xTokenAddress --address 0xRecipientAddress --tokenId 123
+
+# Testnet
+rsk-cli transfer --testnet --token 0x65C955e31F8BD0964127a0a2f4bc84ab298c71BE --address 0xcafecafecafecafecafecafecafecafecafecafe --tokenId 9
+```
+
+**Behavior:**
+- The `--value` flag is ignored for ERC721 transfers.
+- The `--tokenId` flag is required to specify which NFT to transfer.
+- If you try to transfer an NFT you do not own, the CLI will show a clear error message and will not attempt the transaction.
+- The token address is automatically lowercased to prevent checksum errors.
+
+**Example output:**
+```
+📄 Token Information:
+     Name: NonFungibleRootstock
+     Symbol: NRSK
+     Standard: ERC721
+     Contract: 0x65c955e31f8bd0964127a0a2f4bc84ab298c71be
+🎯 To Address: 0xcafecafecafecafecafecafecafecafecafecafe
+🖼️ Token ID: 9
+⏳ Verifying token ownership...
+✅ Token ownership verified.
+✔ ✅ Simulation successful, proceeding with transfer...
+🔄 Transaction initiated. TxHash: 0x...
+✅ Transfer completed successfully!
+```
+
+**If you do not own the NFT:**
+```
+✖ You do not own the token with ID 1.
+   Current owner: 0x08C4E4BdAb2473E454B8B2a4400358792786d341
 ```
 
 > **Note**: Before making any transfer, ensure you have:
