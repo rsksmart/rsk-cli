@@ -2,7 +2,6 @@ import ViemProvider from "../utils/viemProvider.js";
 import chalk from "chalk";
 import inquirer from "inquirer";
 import {
-  getTokenInfo,
   isERC20Contract,
   resolveTokenAddress,
 } from "../utils/tokenHelper.js";
@@ -16,6 +15,7 @@ import { Address, formatUnits } from "viem";
 import { TOKENS } from "../constants/tokenAdress.js";
 import fs from "fs";
 import { walletFilePath } from "../utils/constants.js";
+import { TokenStandard, getTokenInfo as getTokenInfoStandard, getERC721TokenIds, detectTokenStandard } from "../utils/tokenStandards.js";
 
 export async function balanceCommand(
   testnet: boolean,
@@ -132,8 +132,9 @@ export async function balanceCommand(
             if (!(await isValidContract(client, formattedContractAddress))) {
               return "🚫 Invalid contract address or contract not found";
             }
-            if (!(await isERC20Contract(client, formattedContractAddress))) {
-              return "🚫 Invalid contract address, only ERC20 tokens are supported";
+            const standard = await detectTokenStandard(client, formattedContractAddress);
+            if (standard !== TokenStandard.ERC20 && standard !== TokenStandard.ERC721) {
+              return "🚫 Invalid contract address, only ERC20 or ERC721 tokens are supported";
             }
             return true;
           } catch {
@@ -148,41 +149,28 @@ export async function balanceCommand(
 
     spinner.start(chalk.white("🔍 Checking balance..."));
 
-    const { balance, decimals, name, symbol } = await getTokenInfo(
+    const { balance, decimals, name, symbol, standard } = await getTokenInfoStandard(
       client,
       tokenAddress,
       targetAddress
     );
-    const formattedBalance = formatUnits(balance, decimals);
+    const formattedBalance = formatUnits(balance, decimals ?? 18);
+
+    if (standard === TokenStandard.ERC721) {
+      const tokenIds = await getERC721TokenIds(client, tokenAddress, targetAddress);
+      spinner.succeed(chalk.green("NFTs retrieved successfully"));
+      console.log(
+        chalk.white(`📄 Token Information:\n     Name: ${chalk.green(name)}\n     Contract: ${chalk.green(tokenAddress)}\n  👤 Holder Address: ${chalk.green(targetAddress)}\n  🖼️ Owned Token IDs: ${chalk.green(tokenIds.length > 0 ? tokenIds.join(", ") : "None")}\n  🌐 Network: ${chalk.green(testnet ? "Rootstock Testnet" : "Rootstock Mainnet")}`)
+      );
+      return;
+    }
 
     spinner.succeed(chalk.green("Balance retrieved successfully"));
 
     console.log(
-      chalk.white(`📄 Token Information:
-     Name: ${chalk.green(name)}
-     Contract: ${chalk.green(tokenAddress)}
-  👤 Holder Address: ${chalk.green(targetAddress)}
-  💰 Balance: ${chalk.green(`${formattedBalance} ${symbol}`)}
-  🌐 Network: ${chalk.green(
-    testnet ? "Rootstock Testnet" : "Rootstock Mainnet"
-  )}`)
-    );
-
-    console.log(
-      chalk.blue(
-        `🔗 Ensure that transactions are being conducted on the correct network.`
-      )
+      chalk.white(`📄 Token Information:\n     Name: ${chalk.green(name)}\n     Contract: ${chalk.green(tokenAddress)}\n  👤 Holder Address: ${chalk.green(targetAddress)}\n  💰 Current Balance: ${chalk.green(formattedBalance)} ${symbol}\n  🌐 Network: ${chalk.green(testnet ? "Rootstock Testnet" : "Rootstock Mainnet")}`)
     );
   } catch (error) {
-    if (error instanceof Error) {
-      console.error(
-        chalk.red("🚨 Error checking balance:"),
-        chalk.yellow(error.message)
-      );
-    } else {
-      console.error(chalk.red("🚨 An unknown error occurred."));
-    }
-  } finally {
-    spinner.stop();
+    console.error(chalk.red("An error occurred: "), error);
   }
 }

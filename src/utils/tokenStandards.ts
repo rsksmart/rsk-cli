@@ -216,4 +216,41 @@ export async function transferToken(
     }
     throw error;
   }
+}
+
+const erc721EnumerableFragment = [
+  {
+    name: "tokenOfOwnerByIndex",
+    type: "function",
+    stateMutability: "view",
+    inputs: [
+      { name: "owner", type: "address" },
+      { name: "index", type: "uint256" }
+    ],
+    outputs: [{ type: "uint256" }]
+  }
+];
+
+export async function getERC721TokenIds(
+  client: PublicClient,
+  tokenAddress: Address,
+  ownerAddress: Address
+): Promise<bigint[]> {
+  const balance: bigint = await client.readContract({
+    address: tokenAddress,
+    abi: erc721Abi,
+    functionName: "balanceOf",
+    args: [ownerAddress],
+  });
+  const tokenIds: bigint[] = [];
+  for (let i = 0n; i < balance; i++) {
+    const tokenId = await client.readContract({
+      address: tokenAddress,
+      abi: erc721EnumerableFragment,
+      functionName: "tokenOfOwnerByIndex",
+      args: [ownerAddress, i],
+    }) as bigint;
+    tokenIds.push(tokenId);
+  }
+  return tokenIds;
 } 

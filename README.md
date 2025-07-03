@@ -134,56 +134,53 @@ This command will guide you through the process of wallet management, offering o
 
 ### 2. Check Balance
 
-The `balance` command allows you to check the balance of any token on the Rootstock blockchain for any of the saved wallets. You can check the balance on either the mainnet or testnet using the appropriate flags.
+The `balance` command allows you to check the balance of any token (ERC20 or ERC721) on the Rootstock blockchain for any address or saved wallet. You can check the balance on either the mainnet or testnet using the appropriate flags.
 
-#### Mainnet
+- You can check the balance for any address using the `--address` flag.
+- You can check the balance for any saved wallet using the `--wallet` flag.
+- You can check both ERC20 and ERC721 (NFT) tokens.
+- For ERC721 tokens, the CLI will list all owned NFT token IDs for the selected address.
+- Use the 'Custom Token' option to check balances for any ERC20 or ERC721 contract address.
 
-```bash
-rsk-cli balance
-```
-
-Output example:
-
-```
-? Select token to check balance: RIF
-✔ Balance retrieved successfully
-📄 Token Information:
-     Name: RIF Token
-     Contract: 0x19f64674d8a5b4e652319f5e239efd3bc969a1fe
-  👤 Holder Address: 0x28eb8d29e4713e211d1ddab19df3de16086bb8fa
-  💰 Balance: 0.02 RIF
-  🌐 Network: Rootstock Mainnet
-🔗 Ensure that transactions are being conducted on the correct network.
-```
-
-#### Testnet
-
-Use the `-t` or `--testnet` flag to check the balance on the Rootstock testnet.
-
-```bash
-rsk-cli balance -t
-```
-
-Output example:
-
-```
-? Select token to check balance: RIF
-✔ Balance retrieved successfully
-📄 Token Information:
-     Name: tRIF Token
-     Contract: 0x19f64674d8a5b4e652319f5e239efd3bc969a1fe
-  👤 Holder Address: 0x28eb8d29e4713e211d1ddab19df3de16086bb8fa
-  💰 Balance: 0.02 tRIF
-  🌐 Network: Rootstock Testnet
-🔗 Ensure that transactions are being conducted on the correct network.
-```
-
-#### Dynamic Wallet Selection
-
-Use the `--wallet` flag to dynamically select the wallet.
+#### Mainnet (ERC20 example)
 
 ```bash
 rsk-cli balance --wallet <name>
+```
+
+#### Testnet (ERC20 example)
+
+```bash
+rsk-cli balance --testnet --wallet <name>
+```
+
+#### Check balance for any address (ERC20 or ERC721)
+
+```bash
+rsk-cli balance --address 0xYourAddressHere
+```
+
+#### Check balance for a custom ERC20 or ERC721 contract
+
+```bash
+rsk-cli balance --wallet <name>
+# When prompted, select 'Custom Token' and enter the contract address
+```
+
+#### ERC721 (NFT) Example Output
+
+```
+📄 Token Information:
+     Name: RSKNFTToken
+     Contract: 0x2e027a3a05f3de6777b23397a50a60ecd04fe34c
+  👤 Holder Address: 0x81407e34049b60f5ecafe5425f0914149587d893
+  🖼️ Owned Token IDs: 1, 2, 3
+  🌐 Network: Rootstock Testnet
+```
+
+If you do not own any NFTs from the contract:
+```
+🖼️ Owned Token IDs: None
 ```
 
 ### 3. Transfer (RBTC, ERC20, and ERC721)
