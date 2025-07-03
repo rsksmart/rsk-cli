@@ -7,6 +7,7 @@ import { loadWallets } from "../utils/index.js";
 import { walletFilePath } from "../utils/constants.js";
 import path from "path";
 import { addressBookCommand } from "./addressbook.js";
+import { WalletData, WalletItem } from "../utils/types.js";
 
 type InquirerAnswers = {
   action?: string;
@@ -20,16 +21,7 @@ type InquirerAnswers = {
   newWalletName?: string;
   backupPath?: string;
 };
-type WalletData = {
-  wallets: {
-    [key: string]: {
-      address: string;
-      encryptedPrivateKey: string;
-      iv: string;
-    };
-  };
-  currentWallet: string;
-}
+
 
 export const createWalletOptions = [
   "🆕 Create a new wallet",
@@ -45,7 +37,9 @@ export const createWalletOptions = [
 export async function walletCommand (
   _action: string | undefined = undefined, 
   _password: string | undefined = undefined,
-  _walletsData: WalletData | undefined = undefined
+  _walletsData: WalletData | undefined = undefined,
+  _newWalletName: string | undefined = undefined,
+  _replaceCurrentWallet: boolean = false
 ) {
   try {
     if (!_action && fs.existsSync(walletFilePath)) {
@@ -69,7 +63,6 @@ export async function walletCommand (
         success: false,
       };
     }
-    //TODO: Add a way to add a new wallet from a file when MCP or external function is used
     let runOption: string | undefined = _action;
     if (!_action) {
       const questions: any = [
@@ -84,7 +77,14 @@ export async function walletCommand (
       const { action } = await inquirer.prompt<InquirerAnswers>(questions);
       runOption = action;
     }
-    return await processOption(!!_action, runOption, _password, _walletsData);
+    return await processOption(
+      !!_action,
+      runOption,
+      _password,
+      _walletsData,
+      _newWalletName,
+      _replaceCurrentWallet
+    );
   } catch (error: any) {
     console.error(
       chalk.red("❌ Error creating or managing wallets:"),
@@ -97,7 +97,9 @@ export async function processOption(
   _isExternal: boolean,
   _action: string | undefined, 
   _password: string | undefined,
-  _walletsData: WalletData | undefined = undefined
+  _walletsData: WalletData | undefined = undefined,
+  _newWalletName: string | undefined = undefined,
+  _replaceCurrentWallet: boolean = false
 ) {
   switch (_action) {
     case "🆕 Create a new wallet": {
@@ -108,7 +110,7 @@ export async function processOption(
       )}` as `0x${string}`;
       const account = privateKeyToAccount(prefixedPrivateKey);
 
-      const walletsData: any = _walletsData ?? JSON.parse(loadWallets());
+      const existingWalletsData: any = _walletsData && _isExternal ? _walletsData : JSON.parse(loadWallets());
 
       const finalPassword = await createPassword(_isExternal, _password);
 
@@ -126,22 +128,44 @@ export async function processOption(
         Uint8Array.from(key),
         Uint8Array.from(iv)
       );
-      //TODO handle the rest of the function SEBAS
-      const walletNameQuestion: any = [
-        {
-          type: "input",
-          name: "walletName",
-          message: "🖋️ Enter a name for your wallet:",
-        },
-      ];
 
-      const { walletName } = await inquirer.prompt<InquirerAnswers>(
-        walletNameQuestion
-      );
+      let finalWalletName = _newWalletName;
+      if (!finalWalletName) {
+        const walletNameQuestion: any = [
+          {
+            type: "input",
+            name: "walletName",
+            message: "🖋️ Enter a name for your wallet:",
+          },
+        ];
 
-      if (walletsData.wallets[walletName!]) {
-        console.log(chalk.red(`❌ Wallet named ${walletName} already exists.`));
-        return;
+        const { walletName } = await inquirer.prompt<InquirerAnswers>(
+          walletNameQuestion
+        );
+        
+        if (existingWalletsData.wallets[walletName!]) {
+          console.log(chalk.red(`❌ Wallet named ${walletName} already exists.`));
+          return {
+            error: "Wallet named ${walletName} already exists.",
+            success: false,
+          }
+        }
+        finalWalletName = walletName;
+      }
+
+      if(!finalWalletName) {
+        if (_isExternal) {
+          return {
+            error: "No wallet name provided.",
+            success: false,
+          }
+        } else {
+          console.log(chalk.red("❌ No wallet name provided."));
+          return {
+            error: "No wallet name provided.",
+            success: false,
+          }
+        }
       }
 
       let encryptedPrivateKey = cipher.update(
@@ -157,43 +181,14 @@ export async function processOption(
         iv: iv.toString("hex"),
       };
 
-      if (walletsData?.currentWallet) {
-        const setCurrentWalletQuestion: any = [
-          {
-            type: "confirm",
-            name: "setCurrentWallet",
-            message: "🔍 Would you like to set this as the current wallet?",
-            default: true,
-          },
-        ];
-
-        const { setCurrentWallet } = await inquirer.prompt<InquirerAnswers>(
-          setCurrentWalletQuestion
-        );
-
-        if (setCurrentWallet) {
-          walletsData.currentWallet = walletName;
-          console.log(chalk.green("✅ Wallet set as current!"));
-        }
-      } else {
-        walletsData.currentWallet = walletName;
-      }
-
-      console.log(
-        chalk.white(`📄 Address:`),
-        chalk.green(`${chalk.bold(account.address)}`)
+      return await saveWalletData(
+        existingWalletsData,
+        _isExternal,
+        _replaceCurrentWallet,
+        finalWalletName,
+        walletData,
+        prefixedPrivateKey
       );
-      console.log(
-        chalk.white(`🔑 Private Key:`),
-        chalk.green(`${chalk.bold(prefixedPrivateKey)}`)
-      );
-      console.log(
-        chalk.gray("🔒 Please save the private key in a secure location.")
-      );
-
-      walletsData.wallets[walletName!] = walletData;
-
-      writeWalletData(walletFilePath, walletsData);
     break;
     }
     case "🔑 Import existing wallet": {
@@ -228,7 +223,10 @@ export async function processOption(
         console.log(
           chalk.red(`❌ Wallet with address ${account.address} already saved.`)
         );
-        return;
+        return {
+          error: "Wallet with address ${account.address} already saved.",
+          success: false,
+        }
       }
 
       const walletNameQuestion: any = [
@@ -245,7 +243,10 @@ export async function processOption(
 
       if (walletsData.wallets[walletName!]) {
         console.log(chalk.red(`❌ Wallet named ${walletName} already exists.`));
-        return;
+        return {
+          error: `Wallet named ${walletName} already exists.`,
+          success: false,
+        }
       }
 
       const passwordQuestion: any = [
@@ -626,4 +627,64 @@ async function createPassword(
     finalPassword = password;
   }
   return finalPassword;
+}
+
+async function saveWalletData(
+  existingWalletsData: WalletData,
+  isExternal: boolean,
+  replaceCurrentWallet: boolean,
+  finalWalletName: string,
+  walletData: WalletItem,
+  prefixedPrivateKey: string
+) {
+  if (existingWalletsData?.currentWallet) {
+    if (isExternal) {
+      existingWalletsData.currentWallet = replaceCurrentWallet
+        ? finalWalletName
+        : existingWalletsData.currentWallet;
+    } else {
+      const setCurrentWalletQuestion: any = [
+        {
+          type: "confirm",
+          name: "setCurrentWallet",
+          message: "🔍 Would you like to set this as the current wallet?",
+          default: true,
+        },
+      ];
+
+      const { setCurrentWallet } = await inquirer.prompt<InquirerAnswers>(
+        setCurrentWalletQuestion
+      );
+
+      if (setCurrentWallet) {
+        existingWalletsData.currentWallet = finalWalletName;
+        console.log(chalk.green("✅ Wallet set as current!"));
+      }
+    }
+  } else {
+    existingWalletsData.currentWallet = finalWalletName;
+  }
+
+  existingWalletsData.wallets[finalWalletName] = walletData;
+
+  if(!isExternal) {
+    console.log(
+      chalk.white(`📄 Address:`),
+      chalk.green(`${chalk.bold(walletData.address)}`)
+    );
+    console.log(
+      chalk.white(`🔑 Private Key:`),
+      chalk.green(`${chalk.bold(prefixedPrivateKey)}`)
+    );
+    console.log(
+      chalk.gray("🔒 Please save the private key in a secure location.")
+    );
+    writeWalletData(walletFilePath, existingWalletsData);
+    return;
+  }
+  return {
+    success: true,
+    message: "Wallet saved successfully",
+    walletsData: existingWalletsData,
+  };
 }

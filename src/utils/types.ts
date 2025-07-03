@@ -1,11 +1,13 @@
 import { Address } from "viem";
 
-export type WalletsFile = {
-  currentWallet?: string;
-  wallets: { [key: string]: WalletData };
-};
-
 export type WalletData = {
+  wallets: {
+    [key: string]: WalletItem;
+  };
+  currentWallet: string;
+}
+
+export type WalletItem = {
   address: string;
   encryptedPrivateKey: string;
   iv: string;
