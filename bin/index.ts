@@ -14,6 +14,7 @@ import { bridgeCommand } from "../src/commands/bridge.js";
 import { batchTransferCommand } from "../src/commands/batchTransfer.js";
 import { historyCommand } from "../src/commands/history.js";
 import { selectAddress } from "../src/commands/selectAddress.js";
+import { configCommand } from "../src/commands/config.js";
 
 interface CommandOptions {
   testnet?: boolean;
@@ -223,6 +224,13 @@ program
         chalk.yellow(error.message || "Unknown error")
       );
     }
+  });
+
+program
+  .command("config")
+  .description("Manage CLI configuration settings")
+  .action(async () => {
+    await configCommand();
   });
 
 program.parse(process.argv);
