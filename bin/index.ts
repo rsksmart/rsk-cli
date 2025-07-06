@@ -40,6 +40,7 @@ interface CommandOptions {
   transactions?: boolean;
   list?: boolean;
   stop?: string;
+  monitor?: boolean;
 }
 
 const orange = chalk.rgb(255, 165, 0);
@@ -124,12 +125,19 @@ program
   .description("Check the status of a transaction")
   .option("-t, --testnet", "Check the transaction status on the testnet")
   .requiredOption("-i, --txid <txid>", "Transaction ID")
+  .option("--monitor", "Keep monitoring the transaction until confirmation")
+  .option("--confirmations <number>", "Required confirmations for monitoring (default: 12)")
   .action(async (options: CommandOptions) => {
     const formattedTxId = options.txid!.startsWith("0x")
       ? options.txid
       : `0x${options.txid}`;
 
-    await txCommand(!!options.testnet, formattedTxId as `0x${string}`);
+    await txCommand(
+      !!options.testnet, 
+      formattedTxId as `0x${string}`,
+      !!options.monitor,
+      options.confirmations ? parseInt(options.confirmations.toString()) : undefined
+    );
   });
 
 program
@@ -234,11 +242,9 @@ program
 
 program
   .command("monitor")
-  .description("Monitor transactions and addresses with real-time updates")
+  .description("Monitor addresses with real-time updates")
   .option("-t, --testnet", "Monitor on the testnet")
-  .option("--tx <hash>", "Transaction hash to monitor")
   .option("-a, --address <address>", "Address to monitor")
-  .option("--confirmations <number>", "Required confirmations for transaction monitoring (default: 12)")
   .option("--balance", "Monitor address balance changes")
   .option("--transactions", "Monitor address transaction history")
   .option("--list", "List active monitoring sessions")
@@ -255,7 +261,7 @@ program
         return;
       }
 
-      if (!options.tx && !options.address) {
+      if (!options.address) {
         console.log(chalk.yellow("📊 No monitoring target specified. Showing active sessions:"));
         await listMonitoringSessions(!!options.testnet);
         return;
@@ -267,9 +273,7 @@ program
 
       await monitorCommand(
         !!options.testnet,
-        options.tx,
-        address,
-        options.confirmations ? parseInt(options.confirmations.toString()) : undefined,
+        address as Address,
         options.balance !== false,
         !!options.transactions
       );

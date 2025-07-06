@@ -10,7 +10,7 @@ import {
 import fs from 'fs';
 import path from 'path';
 import chalk from 'chalk';
-import { v4 as uuidv4 } from 'uuid';
+import { v4 } from 'uuid';
 
 export class MonitorManager {
   private sessions: Map<string, MonitoringSession> = new Map();
@@ -57,7 +57,7 @@ export class MonitorManager {
       testnet
     };
 
-    const sessionId = uuidv4();
+    const sessionId = v4();
     const session: MonitoringSession = {
       id: sessionId,
       config,
@@ -98,7 +98,7 @@ export class MonitorManager {
       testnet
     };
 
-    const sessionId = uuidv4();
+    const sessionId = v4();
     const session: MonitoringSession = {
       id: sessionId,
       config,
