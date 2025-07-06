@@ -14,6 +14,7 @@ import { bridgeCommand } from "../src/commands/bridge.js";
 import { batchTransferCommand } from "../src/commands/batchTransfer.js";
 import { historyCommand } from "../src/commands/history.js";
 import { selectAddress } from "../src/commands/selectAddress.js";
+import { monitorCommand, listMonitoringSessions, stopMonitoringSession } from "../src/commands/monitor.js";
 
 interface CommandOptions {
   testnet?: boolean;
@@ -33,6 +34,13 @@ interface CommandOptions {
   file?: string;
   interactive?: boolean;
   token?: Address;
+  tx?: string;
+  confirmations?: number;
+  balance?: boolean;
+  transactions?: boolean;
+  list?: boolean;
+  stop?: string;
+  monitor?: boolean;
 }
 
 const orange = chalk.rgb(255, 165, 0);
@@ -117,12 +125,19 @@ program
   .description("Check the status of a transaction")
   .option("-t, --testnet", "Check the transaction status on the testnet")
   .requiredOption("-i, --txid <txid>", "Transaction ID")
+  .option("--monitor", "Keep monitoring the transaction until confirmation")
+  .option("--confirmations <number>", "Required confirmations for monitoring (default: 12)")
   .action(async (options: CommandOptions) => {
     const formattedTxId = options.txid!.startsWith("0x")
       ? options.txid
       : `0x${options.txid}`;
 
-    await txCommand(!!options.testnet, formattedTxId as `0x${string}`);
+    await txCommand(
+      !!options.testnet, 
+      formattedTxId as `0x${string}`,
+      !!options.monitor,
+      options.confirmations ? parseInt(options.confirmations.toString()) : undefined
+    );
   });
 
 program
@@ -221,6 +236,51 @@ program
       console.error(
         chalk.red("🚨 Error during batch transfer:"),
         chalk.yellow(error.message || "Unknown error")
+      );
+    }
+  });
+
+program
+  .command("monitor")
+  .description("Monitor addresses with real-time updates")
+  .option("-t, --testnet", "Monitor on the testnet")
+  .option("-a, --address <address>", "Address to monitor")
+  .option("--balance", "Monitor address balance changes")
+  .option("--transactions", "Monitor address transaction history")
+  .option("--list", "List active monitoring sessions")
+  .option("--stop <sessionId>", "Stop a specific monitoring session")
+  .action(async (options: CommandOptions) => {
+    try {
+      if (options.list) {
+        await listMonitoringSessions(!!options.testnet);
+        return;
+      }
+
+      if (options.stop) {
+        await stopMonitoringSession(options.stop, !!options.testnet);
+        return;
+      }
+
+      if (!options.address) {
+        console.log(chalk.yellow("📊 No monitoring target specified. Showing active sessions:"));
+        await listMonitoringSessions(!!options.testnet);
+        return;
+      }
+
+      const address = options.address 
+        ? (`0x${options.address.replace(/^0x/, "")}` as `0x${string}`)
+        : undefined;
+
+      await monitorCommand(
+        !!options.testnet,
+        address as Address,
+        options.balance !== false,
+        !!options.transactions
+      );
+    } catch (error: any) {
+      console.error(
+        chalk.red("Error during monitoring:"),
+        error.message || error
       );
     }
   });
