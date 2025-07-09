@@ -66,35 +66,54 @@ export async function ReadContract(
         item.type === "function" &&
         (item.stateMutability === "view" || item.stateMutability === "pure")
     );
+    const writeFunctions = abi.filter(
+      (item: any) =>
+        item.type === "function" &&
+        (item.stateMutability === "nonpayable" || item.stateMutability === "payable")
+    );
 
-    if (readFunctions.length === 0) {
+    if (readFunctions.length === 0 && writeFunctions.length === 0) {
       spinner.stop();
-      console.log(chalk.yellow("⚠️ No read functions found in the contract."));
+      console.log(chalk.yellow("⚠️ No read or write functions found in the contract."));
       return;
     }
 
     spinner.stop();
 
-    const questions: any = [
+    const choices = [];
+    if (readFunctions.length > 0) {
+      choices.push(new inquirer.Separator("🔎 Read Functions"));
+      choices.push(...readFunctions.map((item: any) => ({
+        name: item.name,
+        value: { type: "read", name: item.name }
+      })));
+    }
+    if (writeFunctions.length > 0) {
+      choices.push(new inquirer.Separator("✍️ Write Functions"));
+      choices.push(...writeFunctions.map((item: any) => ({
+        name: item.name,
+        value: { type: "write", name: item.name }
+      })));
+    }
+
+    const { selectedFunction } = await inquirer.prompt([
       {
         type: "list",
         name: "selectedFunction",
-        message: "Select a read function to call:",
-        choices: [...readFunctions.map((item: any) => item.name)],
-      },
-    ];
-
-    const { selectedFunction } = await inquirer.prompt<InquirerAnswers>(
-      questions
-    );
+        message: "Select a contract function to call or modify:",
+        choices
+      }
+    ]);
 
     console.log(
-      chalk.green(`📜 You selected: ${chalk.cyan(selectedFunction)}\n`)
+      chalk.green(`📜 You selected: ${chalk.cyan(selectedFunction.name)}\n`)
     );
 
-    const selectedAbiFunction = readFunctions.find(
-      (item: any) => item.name === selectedFunction
-    );
+    const selectedAbiFunction =
+      (selectedFunction.type === "read"
+        ? readFunctions
+        : writeFunctions
+      ).find((item: any) => item.name === selectedFunction.name);
 
     let args: any[] = [];
     if (selectedAbiFunction.inputs && selectedAbiFunction.inputs.length > 0) {
@@ -112,28 +131,53 @@ export async function ReadContract(
       );
     }
 
-    spinner.start("⏳ Calling read function...");
+    if (selectedFunction.type === "read") {
+      spinner.start("⏳ Calling read function...");
+      const provider = new ViemProvider(testnet);
+      const publicClient = await provider.getPublicClient();
+      try {
+        const data = await publicClient.readContract({
+          address,
+          abi,
+          functionName: selectedFunction.name,
+          args,
+        });
+        spinner.stop();
+        console.log(
+          chalk.green(`✅ Function ${selectedFunction.name} called successfully!`)
+        );
+        spinner.succeed(chalk.white(`🔧 Result:`) + " " + chalk.green(data));
+      } catch (error) {
+        spinner.fail(
+          `❌ Error while calling function ${chalk.cyan(selectedFunction.name)}.`
+        );
+      }
+    } else {
+      const provider = new ViemProvider(testnet);
+      const walletClient = await provider.getWalletClient();
 
-    const provider = new ViemProvider(testnet);
-    const publicClient = await provider.getPublicClient();
+      if (!walletClient.account) {
+        throw new Error("No account found in wallet client. Please check your wallet setup.");
+      }
 
-    try {
-      const data = await publicClient.readContract({
-        address,
-        abi,
-        functionName: selectedFunction,
-        args,
-      });
-
-      spinner.stop();
-      console.log(
-        chalk.green(`✅ Function ${selectedFunction} called successfully!`)
-      );
-      spinner.succeed(chalk.white(`🔧 Result:`) + " " + chalk.green(data));
-    } catch (error) {
-      spinner.fail(
-        `❌ Error while calling function ${chalk.cyan(selectedFunction)}.`
-      );
+      try {
+        spinner.start("⏳ Sending transaction (write function)...");
+        const txHash = await walletClient.writeContract({
+          address,
+          abi,
+          functionName: selectedFunction.name,
+          args,
+          account: walletClient.account,
+          chain: provider.chain,
+        });
+        spinner.succeed(chalk.green(`✅ Transaction sent! Hash: ${txHash}`));
+        const explorerUrl = testnet
+          ? `https://explorer.testnet.rootstock.io/tx/${txHash}`
+          : `https://explorer.rootstock.io/tx/${txHash}`;
+        console.log(chalk.white(`🔗 View transaction on Explorer:`), chalk.dim(explorerUrl));
+      } catch (error: any) {
+        spinner.fail(`❌ Error while sending transaction: ${error}`);
+      }
     }
 
     const explorerUrl = testnet
