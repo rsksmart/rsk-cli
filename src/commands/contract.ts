@@ -2,6 +2,7 @@ import chalk from "chalk";
 import ora from "ora";
 import inquirer from "inquirer";
 import ViemProvider from "../utils/viemProvider.js";
+import { parseEther } from "viem/utils";
 
 type InquirerAnswers = {
   selectedFunction?: string;
@@ -116,19 +117,57 @@ export async function ReadContract(
       ).find((item: any) => item.name === selectedFunction.name);
 
     let args: any[] = [];
-    if (selectedAbiFunction.inputs && selectedAbiFunction.inputs.length > 0) {
-      const argQuestions = selectedAbiFunction.inputs.map((input: any) => ({
-        type: "input",
-        name: input.name,
-        message: `Enter the value for argument ${chalk.yellow(
-          input.name
-        )} (${chalk.yellow(input.type)}):`,
-      }));
+    try {
+      if (selectedAbiFunction.inputs && selectedAbiFunction.inputs.length > 0) {
+        const argQuestions = selectedAbiFunction.inputs.map((input: any) => ({
+          type: "input",
+          name: input.name,
+          message: `Enter the value for argument ${chalk.yellow(
+            input.name
+          )} (${chalk.yellow(input.type)}):`,
+        }));
 
-      const answers = await inquirer.prompt(argQuestions);
-      args = selectedAbiFunction.inputs.map(
-        (input: any) => answers[input.name]
-      );
+        const answers = await inquirer.prompt(argQuestions);
+        args = selectedAbiFunction.inputs.map((input: any) => {
+          let val = answers[input.name];
+          if (input.type === "bool") {
+            if (typeof val === "string") {
+              if (val.toLowerCase() === "true" || val === "1" || val.toLowerCase() === "yes") return true;
+              if (val.toLowerCase() === "false" || val === "0" || val.toLowerCase() === "no") return false;
+            } else if (typeof val === "boolean") {
+              return val;
+            }
+            throw new Error("Invalid boolean value. Please enter true or false.");
+          }
+          if (input.type === "string") {
+            val = val.trim();
+            if (val.length === 0) {
+              throw new Error("String argument cannot be empty.");
+            }
+            return val;
+          }
+          if (input.type.endsWith("[]")) {
+            return val.split(",").map((v: string) => v.trim()).filter((v: string) => v.length > 0);
+          }
+          return val;
+        });
+      }
+    } catch (err: any) {
+      console.log(chalk.red(`❌ ${err.message}`));
+      return;
+    }
+
+    let value;
+    if (selectedAbiFunction.stateMutability === "payable") {
+      const { valueInput } = await inquirer.prompt([
+        {
+          type: "input",
+          name: "valueInput",
+          message: "Enter the value to send (in RBTC, e.g. 0.01):",
+        },
+      ]);
+  
+      value = parseEther(valueInput); // Converts RBTC string to wei (BigInt)
     }
 
     if (selectedFunction.type === "read") {
@@ -169,6 +208,7 @@ export async function ReadContract(
           args,
           account: walletClient.account,
           chain: provider.chain,
+          ...(value !== undefined ? { value } : {}),
         });
         spinner.succeed(chalk.green(`✅ Transaction sent! Hash: ${txHash}`));
         const explorerUrl = testnet
