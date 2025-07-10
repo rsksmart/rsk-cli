@@ -17,3 +17,20 @@ export type FileTx = {
   to: Address;
   value: bigint;
 };
+
+export type TxResult = {
+  success: boolean;
+  data?: DataTx;
+  error?: string;
+};
+
+export type DataTx = {
+  txId: string;
+  blockHash: string;
+  blockNumber: string;
+  gasUsed: string;
+  status: "Success" | "Failed";
+  from: string;
+  to: string | null;
+  network: string;
+};
