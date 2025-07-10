@@ -34,3 +34,30 @@ export type DataTx = {
   to: string | null;
   network: string;
 };
+
+export type ContractResult = {
+  success: boolean;
+  data?: ContractData;
+  error?: string;
+};
+
+export type ContractData = {
+  contractAddress: string;
+  network: string;
+  functionName: string;
+  result: any;
+  explorerUrl: string;
+};
+
+export type DeployResult = {
+  success: boolean;
+  data?: DeployData;
+  error?: string;
+};
+
+export type DeployData = {
+  contractAddress: string;
+  transactionHash: string;
+  network: string;
+  explorerUrl: string;
+};
