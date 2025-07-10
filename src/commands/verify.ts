@@ -2,19 +2,23 @@ import chalk from "chalk";
 import fs from "fs";
 import ora from "ora";
 import { wait } from "../utils/index.js";
+import { VerifyResult } from "../utils/types.js";
 
 export async function verifyCommand(
   jsonPath: string,
   address: string,
   name: string,
   testnet: boolean,
-  args: any[] = []
-): Promise<void> {
-  console.log(
-    chalk.blue(
-      `🔧 Initializing verification on ${testnet ? "testnet" : "mainnet"}...`
-    )
-  );
+  args: any[] = [],
+  _isExternal?: boolean
+): Promise<VerifyResult | void> {
+  if (!_isExternal) {
+    console.log(
+      chalk.blue(
+        `🔧 Initializing verification on ${testnet ? "testnet" : "mainnet"}...`
+      )
+    );
+  }
 
   const baseUrl = testnet
     ? "https://be.explorer.testnet.rootstock.io"
@@ -27,44 +31,81 @@ export async function verifyCommand(
   const resData = await response.json();
 
   if (resData.data !== null) {
-    console.log(
-      chalk.green(
-        `✅ Contract ${chalk.green(`${address}`)} is already verified.`
-      )
-    );
-    return;
+    const explorerUrl = testnet
+      ? `https://explorer.testnet.rootstock.io/address/${address}`
+      : `https://explorer.rootstock.io/address/${address}`;
+
+    if (_isExternal) {
+      return {
+        success: true,
+        data: {
+          contractAddress: address,
+          contractName: name,
+          network: testnet ? "Rootstock Testnet" : "Rootstock Mainnet",
+          explorerUrl: explorerUrl,
+          verified: true,
+          alreadyVerified: true,
+        },
+      };
+    } else {
+      console.log(
+        chalk.green(
+          `✅ Contract ${chalk.green(`${address}`)} is already verified.`
+        )
+      );
+      return;
+    }
   }
 
-  console.log(chalk.blue(`📄 Reading JSON Standard Input from ${jsonPath}...`));
   let parsedJson;
 
-  try {
-    const json = fs.readFileSync(jsonPath, "utf8");
-    parsedJson = JSON.parse(json);
-  } catch (error) {
-    console.error(
-      chalk.red("⚠️ Please check your JSON Standard Input file and try again.")
-    );
-    return;
+  if (_isExternal) {
+    try {
+      parsedJson = JSON.parse(jsonPath);
+    } catch (error) {
+      return {
+        error: "Error parsing JSON Standard Input content",
+        success: false,
+      };
+    }
+  } else {
+    console.log(chalk.blue(`📄 Reading JSON Standard Input from ${jsonPath}...`));
+    try {
+      const json = fs.readFileSync(jsonPath, "utf8");
+      parsedJson = JSON.parse(json);
+    } catch (error) {
+      console.error(
+        chalk.red("⚠️ Please check your JSON Standard Input file and try again.")
+      );
+      return;
+    }
   }
 
-  console.log(
-    `🔎 Verifying contract ${chalk.green(`${name}`)} deployed at ${chalk.green(
-      `${address}`
-    )}..`
-  );
+  if (!_isExternal) {
+    console.log(
+      `🔎 Verifying contract ${chalk.green(`${name}`)} deployed at ${chalk.green(
+        `${address}`
+      )}..`
+    );
+  }
 
-  const spinner = ora().start();
+  const spinner = _isExternal ? ora({isEnabled: false}) : ora().start();
 
   try {
     if (
       !parsedJson.hasOwnProperty("solcLongVersion") ||
       !parsedJson.hasOwnProperty("input")
     ) {
-      spinner.fail(
-        "❌ Please check your JSON Standard Input file and try again."
-      );
-      return;
+      const errorMessage = "Please check your JSON Standard Input file and try again.";
+      if (_isExternal) {
+        return {
+          error: errorMessage,
+          success: false,
+        };
+      } else {
+        spinner.fail(`❌ ${errorMessage}`);
+        return;
+      }
     }
 
     const solidityVersion = parsedJson.solcLongVersion;
@@ -88,11 +129,13 @@ export async function verifyCommand(
     };
 
     if (args.length > 0) {
-      spinner.stop();
-      console.log(
-        chalk.blue(`📄 Using constructor arguments: ${args.join(", ")}`)
-      );
-      spinner.start();
+      if (!_isExternal) {
+        spinner.stop();
+        console.log(
+          chalk.blue(`📄 Using constructor arguments: ${args.join(", ")}`)
+        );
+        spinner.start();
+      }
       // @ts-ignore
       requestBody.params.request.constructorArguments = args;
     }
@@ -106,15 +149,25 @@ export async function verifyCommand(
     });
 
     if (!response.ok) {
-      spinner.fail("❌ Error during contract verification.");
-      return;
+      const errorMessage = "Error during contract verification.";
+      if (_isExternal) {
+        return {
+          error: errorMessage,
+          success: false,
+        };
+      } else {
+        spinner.fail(`❌ ${errorMessage}`);
+        return;
+      }
     }
 
     const resData = await response.json();
     const { _id } = resData.data;
 
-    spinner.succeed("🎉 Contract verification request sent!");
-    spinner.start("⏳ Waiting for verification confirmation...");
+    if (!_isExternal) {
+      spinner.succeed("🎉 Contract verification request sent!");
+      spinner.start("⏳ Waiting for verification confirmation...");
+    }
 
     const maxRetries = 10;
     const retryDelay = 4000;
@@ -123,27 +176,57 @@ export async function verifyCommand(
       baseUrl,
       _id,
       maxRetries,
-      retryDelay
+      retryDelay,
+      _isExternal
     );
 
     if (!match) {
-      spinner.fail("❌ JSON Standard Input verification don't match.");
-      return;
+      const errorMessage = "JSON Standard Input verification don't match.";
+      if (_isExternal) {
+        return {
+          error: errorMessage,
+          success: false,
+        };
+      } else {
+        spinner.fail(`❌ ${errorMessage}`);
+        return;
+      }
     }
-
-    spinner.succeed("📜 Contract verified successfully!");
 
     const explorerUrl = testnet
       ? `https://explorer.testnet.rootstock.io/address/${address}`
       : `https://explorer.rootstock.io/address/${address}`;
 
-    console.log(
-      chalk.white(`🔗 View on Explorer:`),
-      chalk.dim(`${explorerUrl}`)
-    );
+    if (_isExternal) {
+      return {
+        success: true,
+        data: {
+          contractAddress: address,
+          contractName: name,
+          network: testnet ? "Rootstock Testnet" : "Rootstock Mainnet",
+          explorerUrl: explorerUrl,
+          verified: true,
+        },
+      };
+    } else {
+      spinner.succeed("📜 Contract verified successfully!");
+
+      console.log(
+        chalk.white(`🔗 View on Explorer:`),
+        chalk.dim(`${explorerUrl}`)
+      );
+    }
   } catch (error) {
-    spinner.fail("❌ Error during contract verification.");
-    return;
+    const errorMessage = "Error during contract verification.";
+    if (_isExternal) {
+      return {
+        error: `${errorMessage}${error instanceof Error ? ': ' + error.message : ''}`,
+        success: false,
+      };
+    } else {
+      spinner.fail(`❌ ${errorMessage}`);
+      return;
+    }
   }
 }
 
@@ -151,7 +234,8 @@ async function pollVerificationResult(
   baseUrl: string,
   verificationId: string,
   maxRetries: number,
-  retryDelay: number
+  retryDelay: number,
+  _isExternal?: boolean
 ): Promise<boolean> {
   for (let attempt = 0; attempt < maxRetries; attempt++) {
     const confirmation = await fetch(
@@ -159,9 +243,11 @@ async function pollVerificationResult(
     );
 
     if (!confirmation.ok) {
-      console.log(
-        chalk.yellow("⚠️ Error fetching verification status, retrying...")
-      );
+      if (!_isExternal) {
+        console.log(
+          chalk.yellow("⚠️ Error fetching verification status, retrying...")
+        );
+      }
     } else {
       const confirmationData = await confirmation.json();
       const { match } = confirmationData.data;
@@ -174,10 +260,12 @@ async function pollVerificationResult(
     await wait(retryDelay);
   }
 
-  console.log(
-    chalk.red(
-      "⚠️ Maximum retries reached, verification status could not be confirmed."
-    )
-  );
+  if (!_isExternal) {
+    console.log(
+      chalk.red(
+        "⚠️ Maximum retries reached, verification status could not be confirmed."
+      )
+    );
+  }
   return false;
 }

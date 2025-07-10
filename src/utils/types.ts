@@ -61,3 +61,18 @@ export type DeployData = {
   network: string;
   explorerUrl: string;
 };
+
+export type VerifyResult = {
+  success: boolean;
+  data?: VerifyData;
+  error?: string;
+};
+
+export type VerifyData = {
+  contractAddress: string;
+  contractName: string;
+  network: string;
+  explorerUrl: string;
+  verified: boolean;
+  alreadyVerified?: boolean;
+};
