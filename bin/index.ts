@@ -14,6 +14,7 @@ import { bridgeCommand } from "../src/commands/bridge.js";
 import { batchTransferCommand } from "../src/commands/batchTransfer.js";
 import { historyCommand } from "../src/commands/history.js";
 import { selectAddress } from "../src/commands/selectAddress.js";
+import { thirdwebCommand } from "../src/commands/thirdweb/index.js";
 
 interface CommandOptions {
   testnet?: boolean;
@@ -224,5 +225,8 @@ program
       );
     }
   });
+
+// Add Thirdweb commands
+program.addCommand(thirdwebCommand);
 
 program.parse(process.argv);
