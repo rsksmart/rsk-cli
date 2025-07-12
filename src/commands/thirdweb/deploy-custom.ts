@@ -3,13 +3,15 @@ import { ThirdwebSDK } from '@thirdweb-dev/sdk';
 import inquirer from 'inquirer';
 import chalk from 'chalk';
 import ora from 'ora';
+import fs from 'fs';
 import { getThirdwebApiKey, getPrivateKey } from '../../utils/thirdwebHelper.js';
 
-export const deployERC20 = new Command()
-  .name('erc20')
-  .description('Deploy an ERC20 token using Thirdweb')
-  .option('-n, --name <name>', 'Token name')
-  .option('-s, --symbol <symbol>', 'Token symbol')
+export const deployCustomContract = new Command()
+  .name('deploy-custom')
+  .description('Deploy arbitrary contracts using Thirdweb')
+  .option('-a, --abi <path>', 'Path to ABI file')
+  .option('-b, --bytecode <path>', 'Path to bytecode file')
+  .option('-c, --constructor-args <args...>', 'Constructor arguments')
   .option('-t, --testnet', 'Deploy on testnet')
   .option('--api-key <key>', 'Thirdweb API key')
   .option('--private-key <key>', 'Private key')
@@ -23,38 +25,76 @@ export const deployERC20 = new Command()
       const answers = await inquirer.prompt([
         {
           type: 'input',
-          name: 'name',
-          message: 'Enter token name:',
-          when: !options.name,
+          name: 'abiPath',
+          message: '📄 Enter path to ABI file:',
+          when: !options.abi,
           validate: (input) => {
             if (!input || input.trim() === '') {
-              return 'Token name is required';
+              return 'ABI file path is required';
+            }
+            if (!fs.existsSync(input)) {
+              return 'ABI file not found';
             }
             return true;
           }
         },
         {
           type: 'input',
-          name: 'symbol',
-          message: 'Enter token symbol:',
-          when: !options.symbol,
+          name: 'bytecodePath',
+          message: '📄 Enter path to bytecode file:',
+          when: !options.bytecode,
           validate: (input) => {
             if (!input || input.trim() === '') {
-              return 'Token symbol is required';
+              return 'Bytecode file path is required';
             }
-            if (input.length > 10) {
-              return 'Token symbol should be 10 characters or less';
+            if (!fs.existsSync(input)) {
+              return 'Bytecode file not found';
             }
             return true;
+          }
+        },
+        {
+          type: 'input',
+          name: 'constructorArgs',
+          message: '🔧 Enter constructor arguments (comma-separated):',
+          when: !options.constructorArgs || options.constructorArgs.length === 0,
+          filter: (input) => {
+            if (!input || input.trim() === '') return [];
+            return input.split(',').map((arg: string) => arg.trim());
           }
         }
       ]);
 
-      const tokenName = options.name || answers.name;
-      const tokenSymbol = options.symbol || answers.symbol;
+      const abiPath = options.abi || answers.abiPath;
+      const bytecodePath = options.bytecode || answers.bytecodePath;
+      const constructorArgs = options.constructorArgs || answers.constructorArgs || [];
 
       // Start spinner after all prompts are complete
-      const spinner = ora('🔧 Initializing Thirdweb SDK...').start();
+      const spinner = ora('📄 Reading ABI file...').start();
+
+      // Read and parse ABI
+      const abiContent = fs.readFileSync(abiPath, 'utf8');
+      const abi = JSON.parse(abiContent);
+
+      if (!Array.isArray(abi)) {
+        spinner.fail(chalk.red('❌ Invalid ABI file. Must be a JSON array.'));
+        return;
+      }
+
+      spinner.text = '📄 Reading bytecode file...';
+
+      // Read bytecode
+      let bytecode = fs.readFileSync(bytecodePath, 'utf8').trim();
+      if (!bytecode.startsWith('0x')) {
+        bytecode = `0x${bytecode}`;
+      }
+
+      if (!bytecode) {
+        spinner.fail(chalk.red('❌ Invalid bytecode file.'));
+        return;
+      }
+
+      spinner.text = '🔧 Initializing Thirdweb SDK...';
 
       // Initialize Thirdweb SDK with Rootstock network
       const sdk = ThirdwebSDK.fromPrivateKey(
@@ -89,21 +129,27 @@ export const deployERC20 = new Command()
         console.log(chalk.blue('🌐 Network:'), options.testnet ? 'Rootstock Testnet' : 'Rootstock Mainnet');
       }
 
-      spinner.text = '⏳ Deploying ERC20 token...';
+      spinner.text = '⏳ Deploying contract...';
 
-      // Deploy ERC20 token
-      const tokenAddress = await sdk.deployer.deployToken({
-        name: tokenName,
-        symbol: tokenSymbol
-      });
+      // Deploy custom contract
+      const contractAddress = await sdk.deployer.deployContractWithAbi(
+        abi,
+        bytecode,
+        constructorArgs
+      );
 
-      spinner.succeed(chalk.green('✅ ERC20 token deployed successfully!'));
-      console.log(chalk.blue('📍 Token Address:'), tokenAddress);
+      spinner.succeed(chalk.green('✅ Contract deployed successfully!'));
+      console.log(chalk.blue('📍 Contract Address:'), contractAddress);
       console.log(chalk.blue('🌐 Network:'), options.testnet ? 'Rootstock Testnet' : 'Rootstock Mainnet');
-      console.log(chalk.yellow('📝 Note: Mint tokens to this contract after deployment as needed.'));
+
+      // Get explorer URL
+      const explorerUrl = options.testnet
+        ? `https://explorer.testnet.rootstock.io/address/${contractAddress}`
+        : `https://explorer.rootstock.io/address/${contractAddress}`;
+      console.log(chalk.blue('🔗 View on Explorer:'), chalk.dim(explorerUrl));
 
     } catch (error: any) {
-      console.error(chalk.red('❌ Failed to deploy ERC20 token'));
+      console.error(chalk.red('❌ Failed to deploy contract'));
       
       if (error.message?.includes('sender account doesn\'t exist')) {
         console.log(chalk.yellow('\n⚠️ The sender account doesn\'t exist on this network. This could be due to:'));

@@ -1,6 +1,7 @@
 import { Command } from 'commander';
 import { deployERC20 } from './erc20.js';
 import { deployERC721 } from './erc721.js';
+import { deployCustomContract } from './deploy-custom.js';
 import { ipfsStorage } from './ipfs.js';
 import { mintTokens } from './mint.js';
 import { checkBalance } from './balance.js';
@@ -14,6 +15,7 @@ export const thirdwebCommand = new Command()
   .description('Thirdweb commands for deploying and managing tokens')
   .addCommand(deployERC20)
   .addCommand(deployERC721)
+  .addCommand(deployCustomContract)
   .addCommand(ipfsStorage)
   .addCommand(mintTokens)
   .addCommand(checkBalance)

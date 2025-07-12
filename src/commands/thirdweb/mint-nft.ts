@@ -22,9 +22,6 @@ export const mintNFT = new Command()
       const apiKey = await getThirdwebApiKey(options.apiKey);
       const privateKey = await getPrivateKey(options.privateKey);
 
-      // Start spinner after credentials are obtained
-      const spinner = ora('Preparing NFT mint...').start();
-
       // Get missing options through prompts if not provided
       const answers = await inquirer.prompt([
         {
@@ -106,7 +103,8 @@ export const mintNFT = new Command()
       const nftDescription = options.description || answers.description;
       const nftImage = options.image || answers.image;
 
-      spinner.text = 'Initializing Thirdweb SDK...';
+      // Start spinner after all prompts are complete
+      const spinner = ora('🔧 Initializing Thirdweb SDK...').start();
 
       // Initialize Thirdweb SDK with Rootstock network
       const sdk = ThirdwebSDK.fromPrivateKey(
@@ -121,12 +119,12 @@ export const mintNFT = new Command()
         }
       );
 
-      spinner.text = 'Getting NFT contract...';
+      spinner.text = '🔍 Getting NFT contract...';
 
       // Get the NFT contract
       const contract = await sdk.getContract(nftAddress);
 
-      spinner.text = 'Preparing NFT metadata...';
+      spinner.text = '📄 Preparing NFT metadata...';
 
       // Create NFT metadata
       const metadata = {
@@ -135,34 +133,34 @@ export const mintNFT = new Command()
         image: nftImage
       };
 
-      spinner.text = 'Minting NFT...';
+      spinner.text = '⏳ Minting NFT...';
 
       // Mint NFT
       const tx = await contract.erc721.mintTo(recipientAddress, metadata);
 
-      spinner.succeed(chalk.green('NFT minted successfully!'));
-      console.log(chalk.blue('Transaction Hash:'), tx.receipt.transactionHash);
-      console.log(chalk.blue('Recipient:'), recipientAddress);
-      console.log(chalk.blue('NFT Name:'), nftName);
-      console.log(chalk.blue('Network:'), options.testnet ? 'Rootstock Testnet' : 'Rootstock Mainnet');
+      spinner.succeed(chalk.green('✅ NFT minted successfully!'));
+      console.log(chalk.blue('🔑 Transaction Hash:'), tx.receipt.transactionHash);
+      console.log(chalk.blue('👤 Recipient:'), recipientAddress);
+      console.log(chalk.blue('📄 NFT Name:'), nftName);
+      console.log(chalk.blue('🌐 Network:'), options.testnet ? 'Rootstock Testnet' : 'Rootstock Mainnet');
 
       // Get the explorer URL
       const explorerUrl = options.testnet
         ? `https://explorer.testnet.rootstock.io/tx/${tx.receipt.transactionHash}`
         : `https://explorer.rootstock.io/tx/${tx.receipt.transactionHash}`;
-      console.log(chalk.blue('View on Explorer:'), chalk.dim(explorerUrl));
+      console.log(chalk.blue('🔗 View on Explorer:'), chalk.dim(explorerUrl));
 
     } catch (error: any) {
-      console.error(chalk.red('Failed to mint NFT'));
+      console.error(chalk.red('❌ Failed to mint NFT'));
       
       if (error.message?.includes('timeout')) {
-        console.log(chalk.yellow('\nThe request timed out. This could be due to:'));
+        console.log(chalk.yellow('\n⚠️ The request timed out. This could be due to:'));
         console.log(chalk.yellow('1. Network connectivity issues'));
         console.log(chalk.yellow('2. Thirdweb service being temporarily unavailable'));
         console.log(chalk.yellow('3. IPFS gateway being slow to respond'));
         console.log(chalk.yellow('\nPlease try again in a few minutes.'));
       } else {
-        console.error(chalk.red('Error details:'), error.message || error);
+        console.error(chalk.red('❌ Error details:'), error.message || error);
       }
     }
   }); 

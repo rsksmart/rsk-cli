@@ -20,9 +20,6 @@ export const transferTokens = new Command()
       const apiKey = await getThirdwebApiKey(options.apiKey);
       const privateKey = await getPrivateKey(options.privateKey);
 
-      // Start spinner after credentials are obtained
-      const spinner = ora('Preparing transfer...').start();
-
       // Get missing options through prompts if not provided
       const answers = await inquirer.prompt([
         {
@@ -77,7 +74,8 @@ export const transferTokens = new Command()
       const recipientAddress = options.to || answers.to;
       const amount = options.amount || answers.amount;
 
-      spinner.text = 'Initializing Thirdweb SDK...';
+      // Start spinner after all prompts are complete
+      const spinner = ora('🔧 Initializing Thirdweb SDK...').start();
 
       // Initialize Thirdweb SDK with Rootstock network
       const sdk = ThirdwebSDK.fromPrivateKey(
@@ -92,12 +90,12 @@ export const transferTokens = new Command()
         }
       );
 
-      spinner.text = 'Getting token contract...';
+      spinner.text = '🔍 Getting token contract...';
 
       // Get the token contract
       const contract = await sdk.getContract(tokenAddress);
 
-      spinner.text = 'Getting token details...';
+      spinner.text = '📄 Getting token details...';
 
       // Get token details
       const [name, symbol, decimals] = await Promise.all([
@@ -106,36 +104,36 @@ export const transferTokens = new Command()
         contract.erc20.get()
       ]);
 
-      spinner.text = 'Transferring tokens...';
+      spinner.text = '🔄 Transferring tokens...';
 
       // Transfer tokens
       const tx = await contract.erc20.transfer(recipientAddress, amount);
 
-      spinner.succeed(chalk.green('Tokens transferred successfully!'));
-      console.log(chalk.blue('Transaction Hash:'), tx.receipt.transactionHash);
-      console.log(chalk.blue('From:'), await sdk.wallet.getAddress());
-      console.log(chalk.blue('To:'), recipientAddress);
-      console.log(chalk.blue('Amount:'), amount, symbol);
-      console.log(chalk.blue('Token:'), name);
-      console.log(chalk.blue('Network:'), options.testnet ? 'Rootstock Testnet' : 'Rootstock Mainnet');
+      spinner.succeed(chalk.green('✅ Tokens transferred successfully!'));
+      console.log(chalk.blue('🔑 Transaction Hash:'), tx.receipt.transactionHash);
+      console.log(chalk.blue('👤 From:'), await sdk.wallet.getAddress());
+      console.log(chalk.blue('👤 To:'), recipientAddress);
+      console.log(chalk.blue('💰 Amount:'), amount, symbol);
+      console.log(chalk.blue('📄 Token:'), name);
+      console.log(chalk.blue('🌐 Network:'), options.testnet ? 'Rootstock Testnet' : 'Rootstock Mainnet');
 
       // Get the explorer URL
       const explorerUrl = options.testnet
         ? `https://explorer.testnet.rootstock.io/tx/${tx.receipt.transactionHash}`
         : `https://explorer.rootstock.io/tx/${tx.receipt.transactionHash}`;
-      console.log(chalk.blue('View on Explorer:'), chalk.dim(explorerUrl));
+      console.log(chalk.blue('🔗 View on Explorer:'), chalk.dim(explorerUrl));
 
     } catch (error: any) {
-      console.error(chalk.red('Failed to transfer tokens'));
+      console.error(chalk.red('❌ Failed to transfer tokens'));
       
       if (error.message?.includes('timeout')) {
-        console.log(chalk.yellow('\nThe request timed out. This could be due to:'));
+        console.log(chalk.yellow('\n⚠️ The request timed out. This could be due to:'));
         console.log(chalk.yellow('1. Network connectivity issues'));
         console.log(chalk.yellow('2. Thirdweb service being temporarily unavailable'));
         console.log(chalk.yellow('3. IPFS gateway being slow to respond'));
         console.log(chalk.yellow('\nPlease try again in a few minutes.'));
       } else {
-        console.error(chalk.red('Error details:'), error.message || error);
+        console.error(chalk.red('❌ Error details:'), error.message || error);
       }
     }
   }); 

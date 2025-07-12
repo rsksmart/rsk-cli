@@ -20,9 +20,6 @@ export const deployERC721 = new Command()
       const apiKey = await getThirdwebApiKey(options.apiKey);
       const privateKey = await getPrivateKey(options.privateKey);
 
-      // Start spinner after credentials are obtained
-      const spinner = ora('Preparing deployment...').start();
-
       // Get missing options through prompts if not provided
       const answers = await inquirer.prompt([
         {
@@ -70,7 +67,8 @@ export const deployERC721 = new Command()
       const collectionSymbol = options.symbol || answers.symbol;
       const description = options.description || answers.description;
 
-      spinner.text = 'Initializing Thirdweb SDK...';
+      // Start spinner after all prompts are complete
+      const spinner = ora('🔧 Initializing Thirdweb SDK...').start();
 
       // Initialize Thirdweb SDK with Rootstock network
       const sdk = ThirdwebSDK.fromPrivateKey(
@@ -85,7 +83,7 @@ export const deployERC721 = new Command()
         }
       );
 
-      spinner.text = 'Deploying ERC721 collection...';
+      spinner.text = '⏳ Deploying ERC721 collection...';
 
       // Deploy ERC721 collection
       const collectionAddress = await sdk.deployer.deployNFTCollection({
@@ -94,21 +92,21 @@ export const deployERC721 = new Command()
         description: description
       });
 
-      spinner.succeed(chalk.green('ERC721 collection deployed successfully!'));
-      console.log(chalk.blue('Collection Address:'), collectionAddress);
-      console.log(chalk.blue('Network:'), options.testnet ? 'Rootstock Testnet' : 'Rootstock Mainnet');
+      spinner.succeed(chalk.green('✅ ERC721 collection deployed successfully!'));
+      console.log(chalk.blue('📍 Collection Address:'), collectionAddress);
+      console.log(chalk.blue('🌐 Network:'), options.testnet ? 'Rootstock Testnet' : 'Rootstock Mainnet');
 
     } catch (error: any) {
-      console.error(chalk.red('Failed to deploy ERC721 collection'));
+      console.error(chalk.red('❌ Failed to deploy ERC721 collection'));
       
       if (error.message?.includes('timeout')) {
-        console.log(chalk.yellow('\nThe request timed out. This could be due to:'));
+        console.log(chalk.yellow('\n⚠️ The request timed out. This could be due to:'));
         console.log(chalk.yellow('1. Network connectivity issues'));
         console.log(chalk.yellow('2. Thirdweb service being temporarily unavailable'));
         console.log(chalk.yellow('3. IPFS gateway being slow to respond'));
         console.log(chalk.yellow('\nPlease try again in a few minutes.'));
       } else {
-        console.error(chalk.red('Error details:'), error.message || error);
+        console.error(chalk.red('❌ Error details:'), error.message || error);
       }
     }
   }); 

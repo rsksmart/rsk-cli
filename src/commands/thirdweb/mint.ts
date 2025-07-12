@@ -20,9 +20,6 @@ export const mintTokens = new Command()
       const apiKey = await getThirdwebApiKey(options.apiKey);
       const privateKey = await getPrivateKey(options.privateKey);
 
-      // Start spinner after credentials are obtained
-      const spinner = ora('Preparing mint operation...').start();
-
       // Get missing options through prompts if not provided
       const answers = await inquirer.prompt([
         {
@@ -77,7 +74,8 @@ export const mintTokens = new Command()
       const recipientAddress = options.to || answers.to;
       const amount = options.amount || answers.amount;
 
-      spinner.text = 'Initializing Thirdweb SDK...';
+      // Start spinner after all prompts are complete
+      const spinner = ora('🔧 Initializing Thirdweb SDK...').start();
 
       // Initialize Thirdweb SDK with Rootstock network
       const sdk = ThirdwebSDK.fromPrivateKey(
@@ -92,33 +90,33 @@ export const mintTokens = new Command()
         }
       );
 
-      spinner.text = 'Getting token contract...';
+      spinner.text = '🔍 Getting token contract...';
 
       // Get the token contract
       const contract = await sdk.getContract(tokenAddress);
 
-      spinner.text = 'Minting tokens...';
+      spinner.text = '⏳ Minting tokens...';
 
       // Mint tokens
       const tx = await contract.erc20.mintTo(recipientAddress, amount);
 
-      spinner.succeed(chalk.green('Tokens minted successfully!'));
-      console.log(chalk.blue('Transaction Hash:'), tx.receipt.transactionHash);
-      console.log(chalk.blue('Recipient:'), recipientAddress);
-      console.log(chalk.blue('Amount:'), amount);
-      console.log(chalk.blue('Network:'), options.testnet ? 'Rootstock Testnet' : 'Rootstock Mainnet');
+      spinner.succeed(chalk.green('✅ Tokens minted successfully!'));
+      console.log(chalk.blue('🔑 Transaction Hash:'), tx.receipt.transactionHash);
+      console.log(chalk.blue('👤 Recipient:'), recipientAddress);
+      console.log(chalk.blue('💰 Amount:'), amount);
+      console.log(chalk.blue('🌐 Network:'), options.testnet ? 'Rootstock Testnet' : 'Rootstock Mainnet');
 
     } catch (error: any) {
-      console.error(chalk.red('Failed to mint tokens'));
+      console.error(chalk.red('❌ Failed to mint tokens'));
       
       if (error.message?.includes('timeout')) {
-        console.log(chalk.yellow('\nThe request timed out. This could be due to:'));
+        console.log(chalk.yellow('\n⚠️ The request timed out. This could be due to:'));
         console.log(chalk.yellow('1. Network connectivity issues'));
         console.log(chalk.yellow('2. Thirdweb service being temporarily unavailable'));
         console.log(chalk.yellow('3. IPFS gateway being slow to respond'));
         console.log(chalk.yellow('\nPlease try again in a few minutes.'));
       } else {
-        console.error(chalk.red('Error details:'), error.message || error);
+        console.error(chalk.red('❌ Error details:'), error.message || error);
       }
     }
   }); 

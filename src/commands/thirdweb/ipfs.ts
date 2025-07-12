@@ -90,10 +90,8 @@ export const ipfsStorage = new Command()
       const apiKey = await getThirdwebApiKey(options.apiKey);
       const privateKey = await getPrivateKey(options.privateKey);
 
-      // Start spinner after credentials are obtained
-      const spinner = ora('Initializing IPFS...').start();
-
-      spinner.text = 'Initializing Thirdweb SDK...';
+      // Start spinner after all prompts are complete
+      const spinner = ora('🔧 Initializing Thirdweb SDK...').start();
 
       // Initialize Thirdweb SDK with Rootstock network
       const sdk = ThirdwebSDK.fromPrivateKey(
@@ -110,7 +108,7 @@ export const ipfsStorage = new Command()
 
       if (options.upload) {
         // Upload file to IPFS
-        spinner.text = 'Uploading file to IPFS...';
+        spinner.text = '📤 Uploading file to IPFS...';
         const filePath = options.upload;
         if (!fs.existsSync(filePath)) {
           throw new Error(`File not found: ${filePath}`);
@@ -125,14 +123,14 @@ export const ipfsStorage = new Command()
           cleanHash = cleanHash.replace('ipfs://', '');
         }
 
-        spinner.succeed(chalk.green('File uploaded to IPFS successfully!'));
-        console.log(chalk.blue('IPFS Hash:'), cleanHash);
-        console.log(chalk.blue('IPFS URL:'), `ipfs://${cleanHash}`);
-        console.log(chalk.blue('Gateway URL:'), `https://ipfs.io/ipfs/${cleanHash}`);
+        spinner.succeed(chalk.green('✅ File uploaded to IPFS successfully!'));
+        console.log(chalk.blue('🔗 IPFS Hash:'), cleanHash);
+        console.log(chalk.blue('🔗 IPFS URL:'), `ipfs://${cleanHash}`);
+        console.log(chalk.blue('🌐 Gateway URL:'), `https://ipfs.io/ipfs/${cleanHash}`);
 
       } else if (options.download) {
         // Download file from IPFS
-        spinner.text = 'Downloading file from IPFS...';
+        spinner.text = '📥 Downloading file from IPFS...';
         let hash = options.download;
         
         // Clean up the hash - remove any ipfs:// prefix if present, but DO NOT strip /0 or path
@@ -198,10 +196,10 @@ export const ipfsStorage = new Command()
         const outputPath = `ipfs-download-${Date.now()}${extension}`;
         await fs.writeFile(outputPath, new Uint8Array(arrayBuffer));
 
-        spinner.succeed(chalk.green('File downloaded from IPFS successfully!'));
-        console.log(chalk.blue('Saved to:'), outputPath);
-        console.log(chalk.blue('File size:'), `${(arrayBuffer.byteLength / 1024).toFixed(2)} KB`);
-        console.log(chalk.blue('File type:'), extension.substring(1).toUpperCase());
+        spinner.succeed(chalk.green('✅ File downloaded from IPFS successfully!'));
+        console.log(chalk.blue('💾 Saved to:'), outputPath);
+        console.log(chalk.blue('📏 File size:'), `${(arrayBuffer.byteLength / 1024).toFixed(2)} KB`);
+        console.log(chalk.blue('📄 File type:'), extension.substring(1).toUpperCase());
         
         // If it's an HTML file, warn the user
         if (extension === '.html') {
@@ -239,7 +237,7 @@ export const ipfsStorage = new Command()
             }
           ]);
 
-          spinner.text = 'Uploading file to IPFS...';
+          spinner.text = '📤 Uploading file to IPFS...';
           const fileContent = await fs.readFile(filePath);
           const upload = await sdk.storage.upload(fileContent);
 
@@ -249,10 +247,10 @@ export const ipfsStorage = new Command()
             cleanHash = cleanHash.replace('ipfs://', '');
           }
 
-          spinner.succeed(chalk.green('File uploaded to IPFS successfully!'));
-          console.log(chalk.blue('IPFS Hash:'), cleanHash);
-          console.log(chalk.blue('IPFS URL:'), `ipfs://${cleanHash}`);
-          console.log(chalk.blue('Gateway URL:'), `https://ipfs.io/ipfs/${cleanHash}`);
+          spinner.succeed(chalk.green('✅ File uploaded to IPFS successfully!'));
+          console.log(chalk.blue('🔗 IPFS Hash:'), cleanHash);
+          console.log(chalk.blue('🔗 IPFS URL:'), `ipfs://${cleanHash}`);
+          console.log(chalk.blue('🌐 Gateway URL:'), `https://ipfs.io/ipfs/${cleanHash}`);
 
         } else {
           const { hash } = await inquirer.prompt([
@@ -269,7 +267,7 @@ export const ipfsStorage = new Command()
             }
           ]);
 
-          spinner.text = 'Downloading file from IPFS...';
+          spinner.text = '📥 Downloading file from IPFS...';
           
           // Clean up the hash - remove any ipfs:// prefix if present, but DO NOT strip /0 or path
           let cleanHash = hash;
@@ -335,10 +333,10 @@ export const ipfsStorage = new Command()
           const outputPath = `ipfs-download-${Date.now()}${extension}`;
           await fs.writeFile(outputPath, new Uint8Array(arrayBuffer));
 
-          spinner.succeed(chalk.green('File downloaded from IPFS successfully!'));
-          console.log(chalk.blue('Saved to:'), outputPath);
-          console.log(chalk.blue('File size:'), `${(arrayBuffer.byteLength / 1024).toFixed(2)} KB`);
-          console.log(chalk.blue('File type:'), extension.substring(1).toUpperCase());
+          spinner.succeed(chalk.green('✅ File downloaded from IPFS successfully!'));
+          console.log(chalk.blue('💾 Saved to:'), outputPath);
+          console.log(chalk.blue('📏 File size:'), `${(arrayBuffer.byteLength / 1024).toFixed(2)} KB`);
+          console.log(chalk.blue('📄 File type:'), extension.substring(1).toUpperCase());
           
           // If it's an HTML file, warn the user
           if (extension === '.html') {
@@ -350,16 +348,16 @@ export const ipfsStorage = new Command()
       }
 
     } catch (error: any) {
-      console.error(chalk.red('IPFS operation failed'));
+      console.error(chalk.red('❌ IPFS operation failed'));
       
       if (error.message?.includes('timeout')) {
-        console.log(chalk.yellow('\nThe request timed out. This could be due to:'));
+        console.log(chalk.yellow('\n⚠️ The request timed out. This could be due to:'));
         console.log(chalk.yellow('1. Network connectivity issues'));
         console.log(chalk.yellow('2. Thirdweb service being temporarily unavailable'));
         console.log(chalk.yellow('3. IPFS gateway being slow to respond'));
         console.log(chalk.yellow('\nPlease try again in a few minutes.'));
       } else {
-        console.error(chalk.red('Error details:'), error.message || error);
+        console.error(chalk.red('❌ Error details:'), error.message || error);
       }
     }
   }); 

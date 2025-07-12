@@ -20,9 +20,6 @@ export const transferNFT = new Command()
       const apiKey = await getThirdwebApiKey(options.apiKey);
       const privateKey = await getPrivateKey(options.privateKey);
 
-      // Start spinner after credentials are obtained
-      const spinner = ora('Preparing NFT transfer...').start();
-
       // Get missing options through prompts if not provided
       const answers = await inquirer.prompt([
         {
@@ -77,7 +74,8 @@ export const transferNFT = new Command()
       const recipientAddress = options.to || answers.to;
       const tokenId = options.tokenId || answers.tokenId;
 
-      spinner.text = 'Initializing Thirdweb SDK...';
+      // Start spinner after all prompts are complete
+      const spinner = ora('🔧 Initializing Thirdweb SDK...').start();
 
       // Initialize Thirdweb SDK with Rootstock network
       const sdk = ThirdwebSDK.fromPrivateKey(
@@ -92,40 +90,40 @@ export const transferNFT = new Command()
         }
       );
 
-      spinner.text = 'Getting NFT contract...';
+      spinner.text = '🔍 Getting NFT contract...';
 
       // Get the NFT contract
       const contract = await sdk.getContract(nftAddress);
 
-      spinner.text = 'Transferring NFT...';
+      spinner.text = '🔄 Transferring NFT...';
 
       // Transfer NFT
       const tx = await contract.erc721.transfer(recipientAddress, tokenId);
 
-      spinner.succeed(chalk.green('NFT transferred successfully!'));
-      console.log(chalk.blue('Transaction Hash:'), tx.receipt.transactionHash);
-      console.log(chalk.blue('From:'), await sdk.wallet.getAddress());
-      console.log(chalk.blue('To:'), recipientAddress);
-      console.log(chalk.blue('Token ID:'), tokenId);
-      console.log(chalk.blue('Network:'), options.testnet ? 'Rootstock Testnet' : 'Rootstock Mainnet');
+      spinner.succeed(chalk.green('✅ NFT transferred successfully!'));
+      console.log(chalk.blue('🔑 Transaction Hash:'), tx.receipt.transactionHash);
+      console.log(chalk.blue('👤 From:'), await sdk.wallet.getAddress());
+      console.log(chalk.blue('👤 To:'), recipientAddress);
+      console.log(chalk.blue('🆔 Token ID:'), tokenId);
+      console.log(chalk.blue('🌐 Network:'), options.testnet ? 'Rootstock Testnet' : 'Rootstock Mainnet');
 
       // Get the explorer URL
       const explorerUrl = options.testnet
         ? `https://explorer.testnet.rootstock.io/tx/${tx.receipt.transactionHash}`
         : `https://explorer.rootstock.io/tx/${tx.receipt.transactionHash}`;
-      console.log(chalk.blue('View on Explorer:'), chalk.dim(explorerUrl));
+      console.log(chalk.blue('🔗 View on Explorer:'), chalk.dim(explorerUrl));
 
     } catch (error: any) {
-      console.error(chalk.red('Failed to transfer NFT'));
+      console.error(chalk.red('❌ Failed to transfer NFT'));
       
       if (error.message?.includes('timeout')) {
-        console.log(chalk.yellow('\nThe request timed out. This could be due to:'));
+        console.log(chalk.yellow('\n⚠️ The request timed out. This could be due to:'));
         console.log(chalk.yellow('1. Network connectivity issues'));
         console.log(chalk.yellow('2. Thirdweb service being temporarily unavailable'));
         console.log(chalk.yellow('3. IPFS gateway being slow to respond'));
         console.log(chalk.yellow('\nPlease try again in a few minutes.'));
       } else {
-        console.error(chalk.red('Error details:'), error.message || error);
+        console.error(chalk.red('❌ Error details:'), error.message || error);
       }
     }
   }); 

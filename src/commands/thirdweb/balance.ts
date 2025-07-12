@@ -19,9 +19,6 @@ export const checkBalance = new Command()
       const apiKey = await getThirdwebApiKey(options.apiKey);
       const privateKey = await getPrivateKey(options.privateKey);
 
-      // Start spinner after credentials are obtained
-      const spinner = ora('Preparing balance check...').start();
-
       // Get missing options through prompts if not provided
       const answers = await inquirer.prompt([
         {
@@ -59,7 +56,8 @@ export const checkBalance = new Command()
       const tokenAddress = options.address || answers.address;
       const walletAddress = options.wallet || answers.wallet;
 
-      spinner.text = 'Initializing Thirdweb SDK...';
+      // Start spinner after all prompts are complete
+      const spinner = ora('🔧 Initializing Thirdweb SDK...').start();
 
       // Initialize Thirdweb SDK with Rootstock network
       const sdk = ThirdwebSDK.fromPrivateKey(
@@ -74,33 +72,33 @@ export const checkBalance = new Command()
         }
       );
 
-      spinner.text = 'Getting token contract...';
+      spinner.text = '🔍 Getting token contract...';
 
       // Get the token contract
       const contract = await sdk.getContract(tokenAddress);
 
-      spinner.text = 'Fetching token information...';
+      spinner.text = '💰 Fetching token information...';
 
       // Get token information
       const balance = await contract.erc20.balanceOf(walletAddress);
 
-      spinner.succeed(chalk.green('Balance retrieved successfully!'));
-      console.log(chalk.blue('Token Address:'), tokenAddress);
-      console.log(chalk.blue('Wallet Address:'), walletAddress);
-      console.log(chalk.blue('Balance:'), balance.displayValue);
-      console.log(chalk.blue('Network:'), options.testnet ? 'Rootstock Testnet' : 'Rootstock Mainnet');
+      spinner.succeed(chalk.green('✅ Balance retrieved successfully!'));
+      console.log(chalk.blue('📍 Token Address:'), tokenAddress);
+      console.log(chalk.blue('👤 Wallet Address:'), walletAddress);
+      console.log(chalk.blue('💰 Balance:'), balance.displayValue);
+      console.log(chalk.blue('🌐 Network:'), options.testnet ? 'Rootstock Testnet' : 'Rootstock Mainnet');
 
     } catch (error: any) {
-      console.error(chalk.red('Failed to check balance'));
+      console.error(chalk.red('❌ Failed to check balance'));
       
       if (error.message?.includes('timeout')) {
-        console.log(chalk.yellow('\nThe request timed out. This could be due to:'));
+        console.log(chalk.yellow('\n⚠️ The request timed out. This could be due to:'));
         console.log(chalk.yellow('1. Network connectivity issues'));
         console.log(chalk.yellow('2. Thirdweb service being temporarily unavailable'));
         console.log(chalk.yellow('3. IPFS gateway being slow to respond'));
         console.log(chalk.yellow('\nPlease try again in a few minutes.'));
       } else {
-        console.error(chalk.red('Error details:'), error.message || error);
+        console.error(chalk.red('❌ Error details:'), error.message || error);
       }
     }
   }); 

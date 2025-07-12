@@ -612,6 +612,30 @@ Collection Address: 0x1234567890123456789012345678901234567890
 Network: Rootstock Mainnet
 ```
 
+##### Deploy Arbitrary Contracts
+
+Deploy any custom smart contract using ABI and bytecode files.
+
+```bash
+# Deploy on mainnet
+rsk-cli thirdweb deploy-custom --abi path/to/abi.json --bytecode path/to/bytecode.bin --constructor-args "arg1" "arg2"
+
+# Deploy on testnet
+rsk-cli thirdweb deploy-custom --testnet --abi path/to/abi.json --bytecode path/to/bytecode.bin --constructor-args "arg1" "arg2"
+
+# Interactive mode (will prompt for missing parameters)
+rsk-cli thirdweb deploy-custom
+```
+
+Output example:
+
+```
+✅ Contract deployed successfully!
+📍 Contract Address: 0x1234567890123456789012345678901234567890
+🌐 Network: Rootstock Mainnet
+🔗 View on Explorer: https://explorer.rootstock.io/address/0x1234567890123456789012345678901234567890
+```
+
 ##### Check ERC20 Token Balance
 
 Check the balance of ERC20 tokens for any address.
