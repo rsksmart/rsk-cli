@@ -75,4 +75,14 @@ export type VerifyData = {
   explorerUrl: string;
   verified: boolean;
   alreadyVerified?: boolean;
+  verificationData?: any;
+};
+
+export type VerificationRequest = {
+  address: string;
+  name: string;
+  version: string;
+  sources: string;
+  settings: any;
+  constructorArguments?: any[];
 };

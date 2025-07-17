@@ -1,8 +1,7 @@
 import chalk from "chalk";
 import fs from "fs";
 import ora from "ora";
-import { wait } from "../utils/index.js";
-import { VerifyResult } from "../utils/types.js";
+import { VerifyResult, VerificationRequest } from "../utils/types.js";
 
 export async function verifyCommand(
   jsonPath: string,
@@ -25,7 +24,7 @@ export async function verifyCommand(
     : "https://be.explorer.rootstock.io";
 
   const response = await fetch(
-    `${baseUrl}/api?module=verificationResults&action=getVerification&address=${address.toLowerCase()}`
+    `${baseUrl}/api/v3/addresses/verification/${address.toLowerCase()}`
   );
 
   const resData = await response.json();
@@ -80,7 +79,7 @@ export async function verifyCommand(
       return;
     }
   }
-
+  
   if (!_isExternal) {
     console.log(
       `🔎 Verifying contract ${chalk.green(`${name}`)} deployed at ${chalk.green(
@@ -108,24 +107,23 @@ export async function verifyCommand(
       }
     }
 
-    const solidityVersion = parsedJson.solcLongVersion;
+    const solidityVersion = parsedJson.solcLongVersion.split('+')[0];
+    const { sources, settings } = parsedJson.input;
+    
+    const transformedSettings = {
+      optimizer: settings.optimizer || { enabled: false, runs: 200 },
+      evmVersion: settings.evmVersion || 'london',
+    };
+    
+    parsedJson.sources = sources;
+    parsedJson.settings = settings;
 
-    const { language, sources, settings } = parsedJson.input;
-
-    const requestBody = {
-      module: "contractVerifier",
-      action: "verify",
-      getDelayed: true,
-      params: {
-        request: {
-          address: address.toLowerCase(),
-          name,
-          version: solidityVersion,
-          language,
-          sources,
-          settings,
-        },
-      },
+    const verificationData: VerificationRequest = {
+      address: address.toLowerCase(),
+      name,
+      version: solidityVersion,
+      sources: JSON.stringify(sources),
+      settings: transformedSettings,
     };
 
     if (args.length > 0) {
@@ -136,20 +134,38 @@ export async function verifyCommand(
         );
         spinner.start();
       }
-      // @ts-ignore
-      requestBody.params.request.constructorArguments = args;
+      verificationData.constructorArguments = args;
     }
 
-    const response = await fetch(`${baseUrl}/api`, {
-      method: "POST",
-      body: JSON.stringify(requestBody),
-      headers: {
-        "Content-Type": "application/json",
-      },
-    });
+    const formData = new FormData();
+    formData.append('data', JSON.stringify(verificationData));
+    
+    const jsonBlob = new Blob([JSON.stringify(parsedJson)], { type: 'application/json' });
+    formData.append('file', jsonBlob, 'standard-input.json');
 
+    let response;
+    try {
+      response = await fetch(`${baseUrl}/api/v3/verifications/verify`, {
+        method: "POST",
+        body: formData,
+      });
+    } catch (fetchError) {
+      const errorMsg = fetchError instanceof Error ? fetchError.message : String(fetchError);
+      const errorMessage = `Network error during contract verification: ${errorMsg}`;
+      if (_isExternal) {
+        return {
+          error: errorMessage,
+          success: false,
+        };
+      } else {
+        spinner.fail(`❌ ${errorMessage}`);
+        return;
+      }
+    }
+    
     if (!response.ok) {
-      const errorMessage = "Error during contract verification.";
+      const errorText = await response.text();
+      const errorMessage = `Error during contract verification: ${errorText}`;
       if (_isExternal) {
         return {
           error: errorMessage,
@@ -162,26 +178,8 @@ export async function verifyCommand(
     }
 
     const resData = await response.json();
-    const { _id } = resData.data;
-
-    if (!_isExternal) {
-      spinner.succeed("🎉 Contract verification request sent!");
-      spinner.start("⏳ Waiting for verification confirmation...");
-    }
-
-    const maxRetries = 10;
-    const retryDelay = 4000;
-
-    const match = await pollVerificationResult(
-      baseUrl,
-      _id,
-      maxRetries,
-      retryDelay,
-      _isExternal
-    );
-
-    if (!match) {
-      const errorMessage = "JSON Standard Input verification don't match.";
+    if (!resData.success) {
+      const errorMessage = resData.message || "Contract verification failed";
       if (_isExternal) {
         return {
           error: errorMessage,
@@ -206,11 +204,11 @@ export async function verifyCommand(
           network: testnet ? "Rootstock Testnet" : "Rootstock Mainnet",
           explorerUrl: explorerUrl,
           verified: true,
+          verificationData: resData.data,
         },
       };
     } else {
       spinner.succeed("📜 Contract verified successfully!");
-
       console.log(
         chalk.white(`🔗 View on Explorer:`),
         chalk.dim(`${explorerUrl}`)
@@ -228,44 +226,4 @@ export async function verifyCommand(
       return;
     }
   }
-}
-
-async function pollVerificationResult(
-  baseUrl: string,
-  verificationId: string,
-  maxRetries: number,
-  retryDelay: number,
-  _isExternal?: boolean
-): Promise<boolean> {
-  for (let attempt = 0; attempt < maxRetries; attempt++) {
-    const confirmation = await fetch(
-      `${baseUrl}/api?module=contractVerifier&action=getVerificationResult&id=${verificationId}`
-    );
-
-    if (!confirmation.ok) {
-      if (!_isExternal) {
-        console.log(
-          chalk.yellow("⚠️ Error fetching verification status, retrying...")
-        );
-      }
-    } else {
-      const confirmationData = await confirmation.json();
-      const { match } = confirmationData.data;
-
-      if (match !== undefined) {
-        return match;
-      }
-    }
-
-    await wait(retryDelay);
-  }
-
-  if (!_isExternal) {
-    console.log(
-      chalk.red(
-        "⚠️ Maximum retries reached, verification status could not be confirmed."
-      )
-    );
-  }
-  return false;
 }
