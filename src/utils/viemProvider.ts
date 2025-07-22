@@ -15,8 +15,8 @@ import { walletFilePath } from "./constants.js";
 
 class ViemProvider {
   public chain: typeof rootstock | typeof rootstockTestnet;
-  private readonly TESTNET_RPC = "https://public-node.testnet.rsk.co";
-  private readonly MAINNET_RPC = "https://public-node.rsk.co";
+  private readonly TESTNET_RPC = rootstockTestnet.rpcUrls.default.http[0];
+  private readonly MAINNET_RPC = rootstock.rpcUrls.default.http[0];
 
   constructor(testnet: boolean) {
     this.chain = testnet ? rootstockTestnet : rootstock;

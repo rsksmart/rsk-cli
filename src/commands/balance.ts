@@ -159,9 +159,12 @@ export async function balanceCommand(
     if (standard === TokenStandard.ERC721) {
       const tokenIds = await getERC721TokenIds(client, tokenAddress, targetAddress);
       spinner.succeed(chalk.green("NFTs retrieved successfully"));
-      console.log(
-        chalk.white(`📄 Token Information:\n     Name: ${chalk.green(name)}\n     Contract: ${chalk.green(tokenAddress)}\n  👤 Holder Address: ${chalk.green(targetAddress)}\n  🖼️ Owned Token IDs: ${chalk.green(tokenIds.length > 0 ? tokenIds.join(", ") : "None")}\n  🌐 Network: ${chalk.green(testnet ? "Rootstock Testnet" : "Rootstock Mainnet")}`)
-      );
+      console.log(chalk.white(`📄 Token Information:`));
+      console.log(chalk.white(`     Name: ${chalk.green(name)}`));
+      console.log(chalk.white(`     Contract: ${chalk.green(tokenAddress)}`));
+      console.log(chalk.white(`  👤 Holder Address: ${chalk.green(targetAddress)}`));
+      console.log(chalk.white(`  🖼️ Owned Token IDs: ${chalk.green(tokenIds.length > 0 ? tokenIds.join(", ") : "None")}`));
+      console.log(chalk.white(`  🌐 Network: ${chalk.green(testnet ? "Rootstock Testnet" : "Rootstock Mainnet")}`));
       return;
     }
 
