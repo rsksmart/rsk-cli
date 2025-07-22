@@ -582,6 +582,67 @@ Output example:
 ⛽ Gas Used: 21000
 ```
 
+### 11. RNS Resolve
+
+The `resolve` command allows you to interact with the RIF Name Service (RNS) on the Rootstock blockchain. You can perform both forward resolution (domain to address) and reverse resolution (address to domain name).
+
+#### Forward Resolution (Domain to Address)
+
+Convert an RNS domain name to its associated address:
+
+##### Mainnet
+
+```bash
+rsk-cli resolve alice.rsk
+```
+
+##### Testnet
+
+```bash
+rsk-cli resolve alice.rsk --testnet
+```
+
+Output example:
+
+```
+🔍 Resolving RNS name: alice.rsk
+✅ Resolution successful!
+📌 Name: alice.rsk
+📍 Address: 0x123456789abcdef0123456789abcdef012345678
+🌐 Network: Rootstock Mainnet
+```
+
+#### Reverse Resolution (Address to Domain)
+
+Convert an address back to its RNS domain name:
+
+##### Mainnet
+
+```bash
+rsk-cli resolve 0x123456789abcdef0123456789abcdef012345678 --reverse
+```
+
+##### Testnet
+
+```bash
+rsk-cli resolve 0x123456789abcdef0123456789abcdef012345678 --reverse --testnet
+```
+
+Output example:
+
+```
+🔍 Resolving address: 0x123456789abcdef0123456789abcdef012345678
+✅ Resolution successful!
+📍 Address: 0x123456789abcdef0123456789abcdef012345678
+📌 Name: alice.rsk
+🌐 Network: Rootstock Testnet
+```
+
+> **Note**: 
+> - The `.rsk` extension is automatically appended if not provided
+> - Both checksummed and non-checksummed addresses are supported
+> - The command will show appropriate error messages if the name or address cannot be resolved
+
 ## Contributing
 
 We welcome contributions from the community. Please fork the repository and submit pull requests with your changes. Ensure your code adheres to the project's main objective.
