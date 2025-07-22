@@ -6,12 +6,22 @@ import { Address } from "viem";
 import { walletFilePath } from "../utils/constants.js";
 import { getTokenInfo, isERC20Contract } from "../utils/tokenHelper.js";
 
+
+function formatValue(value: number): string {
+  return value.toFixed(18).replace(/\.?0+$/, '');
+}
+
 export async function transferCommand(
   testnet: boolean,
   toAddress: Address,
   value: number,
   name?: string,
-  tokenAddress?: Address
+  tokenAddress?: Address,
+  options?: {
+    gasLimit?: bigint;
+    gasPrice?: bigint;
+    data?: `0x${string}`;
+  }
 ) {
   try {
     if (!fs.existsSync(walletFilePath)) {
@@ -107,14 +117,14 @@ export async function transferCommand(
       console.log(chalk.white(`     Symbol: ${tokenSymbol}`));
       console.log(chalk.white(`     Contract: ${tokenAddress}`));
       console.log(chalk.white(`🎯 To Address: ${toAddress}`));
-      console.log(chalk.white(`💵 Amount to Transfer: ${value} ${tokenSymbol}`));
+      console.log(chalk.white(`💵 Amount to Transfer: ${formatValue(value)} ${tokenSymbol}`));
 
       // Check balance and proceed with transfer
       const { balance } = await getTokenInfo(publicClient, tokenAddress, walletAddress);
       const formattedBalance = Number(balance) / 10 ** 18;
 
       if (formattedBalance < value) {
-        console.log(chalk.red(`🚫 Insufficient balance to transfer ${value} tokens.`));
+        console.log(chalk.red(`🚫 Insufficient balance to transfer ${formatValue(value)} tokens.`));
         return;
       }
 
@@ -133,7 +143,8 @@ export async function transferCommand(
           outputs: [{ type: "bool" }]
         }],
         functionName: "transfer",
-        args: [toAddress, BigInt(value * (10 ** 18))]
+        args: [toAddress, BigInt(value * (10 ** 18))],
+        ...options
       });
 
       spinner.succeed("✅ Simulation successful, proceeding with transfer...");
@@ -166,7 +177,7 @@ export async function transferCommand(
       console.log(chalk.white(`🎯 Recipient Address:`), chalk.green(toAddress));
       console.log(
         chalk.white(`💵 Amount to Transfer:`),
-        chalk.green(`${value} RBTC`)
+        chalk.green(`${formatValue(value)} RBTC`)
       );
       console.log(
         chalk.white(`💰 Current Balance:`),
@@ -175,7 +186,7 @@ export async function transferCommand(
 
       if (rbtcBalance < value) {
         console.log(
-          chalk.red(`🚫 Insufficient balance to transfer ${value} RBTC.`)
+          chalk.red(`🚫 Insufficient balance to transfer ${formatValue(value)} RBTC.`)
         );
         return;
       }
@@ -185,6 +196,7 @@ export async function transferCommand(
         chain: provider.chain,
         to: toAddress,
         value: BigInt(value * 10 ** 18),
+        ...options
       });
 
       console.log(
