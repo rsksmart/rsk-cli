@@ -61,7 +61,7 @@ function saveConfig(config: ConfigData): void {
 
 function displayCurrentConfig(config: ConfigData): void {
   console.log(chalk.blue("📋 Current Configuration:"));
-  console.log(chalk.cyan("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"));
+  console.log("");
   
   console.log(chalk.white(`🌐 Default Network: ${chalk.green(config.defaultNetwork)}`));
   console.log(chalk.white(`⛽ Default Gas Limit: ${chalk.green(config.defaultGasLimit.toLocaleString())}`));
@@ -74,13 +74,15 @@ function displayCurrentConfig(config: ConfigData): void {
     console.log(chalk.white(`🔑 Alchemy API Key: ${chalk.red("Not set")}`));
   }
   
-  console.log(chalk.cyan("\n🎨 Display Preferences:"));
+  console.log("");
+  console.log(chalk.white("🎨 Display Preferences:"));
   console.log(chalk.white(`  🔗 Show Explorer Links: ${config.displayPreferences.showExplorerLinks ? chalk.green("Yes") : chalk.red("No")}`));
   console.log(chalk.white(`  ⛽ Show Gas Details: ${config.displayPreferences.showGasDetails ? chalk.green("Yes") : chalk.red("No")}`));
   console.log(chalk.white(`  📦 Show Block Details: ${config.displayPreferences.showBlockDetails ? chalk.green("Yes") : chalk.red("No")}`));
   console.log(chalk.white(`  📱 Compact Mode: ${config.displayPreferences.compactMode ? chalk.green("Yes") : chalk.red("No")}`));
   
-  console.log(chalk.cyan("\n👛 Wallet Preferences:"));
+  console.log("");
+  console.log(chalk.white("👛 Wallet Preferences:"));
   console.log(chalk.white(`  ✅ Auto Confirm Transactions: ${config.walletPreferences.autoConfirmTransactions ? chalk.green("Yes") : chalk.red("No")}`));
   if (config.walletPreferences.defaultWallet) {
     console.log(chalk.white(`  🏦 Default Wallet: ${chalk.green(config.walletPreferences.defaultWallet)}`));
@@ -88,7 +90,7 @@ function displayCurrentConfig(config: ConfigData): void {
     console.log(chalk.white(`  🏦 Default Wallet: ${chalk.red("Not set")}`));
   }
   
-  console.log(chalk.cyan("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"));
+  console.log("");
 }
 
 async function configureNetwork(config: ConfigData): Promise<ConfigData> {
@@ -262,7 +264,7 @@ async function resetToDefaults(): Promise<ConfigData> {
 export async function configCommand(): Promise<void> {
   try {
     console.log(chalk.blue("⚙️ RSK CLI Configuration Manager"));
-    console.log(chalk.cyan("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"));
+    console.log("");
     
     let config = loadConfig();
     
@@ -327,7 +329,7 @@ export async function configCommand(): Promise<void> {
           return;
       }
       
-      console.log(chalk.cyan("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"));
+      console.log("");
     }
   } catch (error: any) {
     console.error(chalk.red("❌ Error in configuration manager:"), error.message);
