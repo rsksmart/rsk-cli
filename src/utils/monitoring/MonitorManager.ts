@@ -136,6 +136,14 @@ export class MonitorManager {
 
     await this.saveState();
     console.log(chalk.yellow(`⏹️  Stopped monitoring session: ${sessionId}`));
+
+    const activeSessions = this.getActiveSessions();
+    if (activeSessions.length === 0) {
+      setTimeout(() => {
+        process.exit(0);
+      }, 100);
+    }
+
     return true;
   }
 
@@ -201,8 +209,12 @@ export class MonitorManager {
 
       console.log(chalk.blue(`📊 TX ${config.txHash.slice(0, 10)}... - Status: ${status}, Confirmations: ${confirmations}`));
 
-      if (confirmations >= (config.confirmations || 12)) {
-        console.log(chalk.green(`✅ Transaction ${config.txHash.slice(0, 10)}... confirmed with ${confirmations} confirmations`));
+      if (receipt && (status === 'failed' || confirmations >= (config.confirmations || 12))) {
+        if (status === 'failed') {
+          console.log(chalk.red(`❌ Transaction ${config.txHash.slice(0, 10)}... failed`));
+        } else {
+          console.log(chalk.green(`✅ Transaction ${config.txHash.slice(0, 10)}... confirmed with ${confirmations} confirmations`));
+        }
         await this.stopMonitoring(session.id);
       }
 
@@ -211,6 +223,10 @@ export class MonitorManager {
         console.log(chalk.yellow(`⚠️  Transaction ${config.txHash.slice(0, 10)}... not found or pending`));
       } else {
         console.error(chalk.red(`❌ Error checking transaction ${config.txHash.slice(0, 10)}...:`), error.message || error);
+        if (session.checkCount > 10) {
+          console.log(chalk.yellow(`⚠️  Too many errors, stopping monitoring`));
+          await this.stopMonitoring(session.id);
+        }
       }
     }
   }
