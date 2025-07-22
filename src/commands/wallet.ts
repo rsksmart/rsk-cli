@@ -21,7 +21,18 @@ type InquirerAnswers = {
   newWalletName?: string;
   backupPath?: string;
 };
-
+type WalletCommandOptions = {
+  isExternal?: boolean,
+  action?: string | undefined, 
+  password?: string | undefined,
+  walletsData?: WalletData | undefined,
+  newWalletName?: string | undefined,
+  replaceCurrentWallet?: boolean,
+  pk?: string | undefined,
+  newMainWallet?: string | undefined,
+  previousWallet?: string | undefined, 
+  deleteWalletName?: string | undefined
+};
 
 export const createWalletOptions = [
   "🆕 Create a new wallet",
@@ -34,19 +45,58 @@ export const createWalletOptions = [
   "📖 Address Book",
 ] as const;
 
-export async function walletCommand (
-  _action: string | undefined = undefined, 
-  _password: string | undefined = undefined,
-  _walletsData: WalletData | undefined = undefined,
-  _newWalletName: string | undefined = undefined,
-  _replaceCurrentWallet: boolean = false,
-  _pk: string | undefined = undefined,
-  _newMainWallet: string | undefined = undefined,
-  _previousWallet: string | undefined = undefined,
-  _deleteWalletName: string | undefined = undefined
-) {
+function getWalletsData(params: WalletCommandOptions): WalletData {
+  return params.walletsData && params.isExternal 
+    ? params.walletsData 
+    : JSON.parse(loadWallets());
+}
+
+function logMessage(params: WalletCommandOptions, message: string, color: any = chalk.white) {
+  if (!params.isExternal) {
+    console.log(color(message));
+  }
+}
+
+function logError(params: WalletCommandOptions, message: string) {
+  logMessage(params, `❌ ${message}`, chalk.red);
+}
+
+function logSuccess(params: WalletCommandOptions, message: string) {
+  logMessage(params, message, chalk.green);
+}
+
+function logWarning(params: WalletCommandOptions, message: string) {
+  logMessage(params, message, chalk.yellow);
+}
+
+function logInfo(params: WalletCommandOptions, message: string) {
+  logMessage(params, message, chalk.blue);
+}
+
+function encryptPrivateKey(privateKey: string, password: string): {
+  encryptedPrivateKey: string;
+  iv: string;
+} {
+  const iv = crypto.randomBytes(16);
+  const key = crypto.scryptSync(password, Uint8Array.from(iv), 32);
+  const cipher = crypto.createCipheriv(
+    "aes-256-cbc",
+    Uint8Array.from(key),
+    Uint8Array.from(iv)
+  );
+
+  let encrypted = cipher.update(privateKey, "utf8", "hex");
+  encrypted += cipher.final("hex");
+
+  return {
+    encryptedPrivateKey: encrypted,
+    iv: iv.toString("hex")
+  };
+}
+
+export async function walletCommand (params: WalletCommandOptions = {}) {
   try {
-    if (!_action && fs.existsSync(walletFilePath)) {
+    if (!params.action && fs.existsSync(walletFilePath)) {
       console.log(chalk.grey("📁 Wallet data file found."));
 
       const walletsDataString = loadWallets();
@@ -61,14 +111,14 @@ export async function walletCommand (
         }
       }
     }
-    if (_action && !_password) {
+    if (params.action && !params.password) {
       return {
         error: "Password is required to import an existing wallet, when using in external mode.",
         success: false,
       };
     }
-    let runOption: string | undefined = _action;
-    if (!_action) {
+    let runOption: string | undefined = params.action;
+    if (!params.action) {
       const questions: any = [
         {
           type: "list",
@@ -81,18 +131,10 @@ export async function walletCommand (
       const { action } = await inquirer.prompt<InquirerAnswers>(questions);
       runOption = action;
     }
-    return await processOption(
-      !!_action,
-      runOption,
-      _password,
-      _walletsData,
-      _newWalletName,
-      _replaceCurrentWallet,
-      _pk,
-      _newMainWallet,
-      _previousWallet,
-      _deleteWalletName
-    );
+    return await processOption({
+      ...params,
+      action: runOption,
+    });
   } catch (error: any) {
     console.error(
       chalk.red("❌ Error creating or managing wallets:"),
@@ -101,19 +143,8 @@ export async function walletCommand (
   }
 }
 
-export async function processOption(
-  _isExternal: boolean,
-  _action: string | undefined, 
-  _password: string | undefined,
-  _walletsData: WalletData | undefined,
-  _newWalletName: string | undefined,
-  _replaceCurrentWallet: boolean, 
-  _pk: string | undefined,
-  _newMainWallet: string | undefined,
-  _previousWallet: string | undefined,
-  _deleteWalletName: string | undefined
-) {
-  switch (_action) {
+export async function processOption(params: WalletCommandOptions) {
+  switch (params.action) {
     case "🆕 Create a new wallet": {
       const privateKey: string = generatePrivateKey();
       const prefixedPrivateKey: `0x${string}` = `0x${privateKey.replace(
@@ -122,9 +153,9 @@ export async function processOption(
       )}` as `0x${string}`;
       const account = privateKeyToAccount(prefixedPrivateKey);
 
-      const existingWalletsData: any = _walletsData && _isExternal ? _walletsData : JSON.parse(loadWallets());
+      const existingWalletsData: any = getWalletsData(params);
 
-      const finalPassword = await createPassword(_isExternal, _password);
+      const finalPassword = await createPassword(params.isExternal ?? false, params.password);
 
       if (!finalPassword) {
         return {
@@ -133,15 +164,9 @@ export async function processOption(
         };
       }
 
-      const iv = crypto.randomBytes(16);
-      const key = crypto.scryptSync(finalPassword, Uint8Array.from(iv), 32);
-      const cipher = crypto.createCipheriv(
-        "aes-256-cbc",
-        Uint8Array.from(key),
-        Uint8Array.from(iv)
-      );
+      const { encryptedPrivateKey, iv } = encryptPrivateKey(prefixedPrivateKey, finalPassword);
 
-      let finalWalletName = _newWalletName;
+      let finalWalletName = params.newWalletName;
       if (!finalWalletName) {
         const walletNameQuestion: any = [
           {
@@ -156,7 +181,7 @@ export async function processOption(
         );
         
         if (existingWalletsData.wallets[walletName!]) {
-          console.log(chalk.red(`❌ Wallet named ${walletName} already exists.`));
+          logError(params, `Wallet named ${walletName} already exists.`);
           return {
             error: "Wallet named ${walletName} already exists.",
             success: false,
@@ -166,48 +191,34 @@ export async function processOption(
       }
 
       if(!finalWalletName) {
-        if (_isExternal) {
-          return {
-            error: "No wallet name provided.",
-            success: false,
-          }
-        } else {
-          console.log(chalk.red("❌ No wallet name provided."));
-          return {
-            error: "No wallet name provided.",
-            success: false,
-          }
+        logError(params, "No wallet name provided.");
+        return {
+          error: "No wallet name provided.",
+          success: false,
         }
       }
-
-      let encryptedPrivateKey = cipher.update(
-        prefixedPrivateKey,
-        "utf8",
-        "hex"
-      );
-      encryptedPrivateKey += cipher.final("hex");
 
       const walletData = {
         address: account.address,
         encryptedPrivateKey: encryptedPrivateKey,
-        iv: iv.toString("hex"),
+        iv: iv,
       };
 
       return await saveWalletData(
         existingWalletsData,
-        _isExternal,
-        _replaceCurrentWallet,
+        params.isExternal ?? false,
+        params.replaceCurrentWallet ?? false,
         finalWalletName,
         walletData,
         prefixedPrivateKey
       );
     }
     case "🔑 Import existing wallet": {
-      const existingWalletsData: any = _walletsData && _isExternal ? _walletsData : JSON.parse(loadWallets());
+      const existingWalletsData: any = getWalletsData(params);
 
       let prefixedPrivateKey: `0x${string}`;
 
-      if (!_isExternal && !_pk) {
+      if (!params.isExternal && !params.pk) {
         const inputQuestions: any = [
           {
             type: "password",
@@ -224,7 +235,7 @@ export async function processOption(
           ""
         )}` as `0x${string}`;
       } else {
-        prefixedPrivateKey = `0x${_pk!.replace(
+        prefixedPrivateKey = `0x${params.pk!.replace(
           /^0x/,
           ""
         )}` as `0x${string}`;
@@ -238,18 +249,14 @@ export async function processOption(
           (wallet: any) => wallet.address === account.address
         )
       ) {
-        if (!_isExternal) {
-          console.log(
-            chalk.red(`❌ Wallet with address ${account.address} already saved.`)
-          );
-        }
+        logError(params, `Wallet with address ${account.address} already saved.`);
         return {
           error: `Wallet with address ${account.address} already saved.`,
           success: false,
         }
       }
-      let finalWalletName = _newWalletName;
-      if (!_isExternal) {
+      let finalWalletName = params.newWalletName;
+      if (!params.isExternal) {
         const walletNameQuestion: any = [
           {
             type: "input",
@@ -264,7 +271,7 @@ export async function processOption(
         finalWalletName = walletName;
       }
       if(!finalWalletName) {
-        if (!_isExternal) console.log(chalk.red("❌ No wallet name provided."));
+        logError(params, "No wallet name provided.");
         return {
           error: "No wallet name provided.",
           success: false,
@@ -272,18 +279,14 @@ export async function processOption(
       }
       
       if (existingWalletsData.wallets[finalWalletName]) {
-        if (!_isExternal) {
-          console.log(
-            chalk.red(`❌ Wallet named ${finalWalletName} already exists.`)
-          );
-        }
+        logError(params, `Wallet named ${finalWalletName} already exists.`);
         return {
           error: `Wallet named ${finalWalletName} already exists.`,
           success: false,
         };
       }
-      let finalPassword: string | undefined = _password;
-      if (!_isExternal) {
+      let finalPassword: string | undefined = params.password;
+      if (!params.isExternal) {
         const passwordQuestion: any = [
           {
             type: "password",
@@ -300,31 +303,18 @@ export async function processOption(
       }
 
       if (!finalPassword) {
-        if (!_isExternal) console.log(chalk.red("❌ No password provided."));
+        logError(params, "No password provided.");
         return {
           error: "Error creating wallet, password required contains an error.",
           success: false,
         };
       }
 
-      const iv = crypto.randomBytes(16);
-      const key = crypto.scryptSync(finalPassword, Uint8Array.from(iv), 32);
-      const cipher = crypto.createCipheriv(
-        "aes-256-cbc",
-        Uint8Array.from(key),
-        Uint8Array.from(iv)
-      );
-
-      let encryptedPrivateKey = cipher.update(
-        prefixedPrivateKey,
-        "utf8",
-        "hex"
-      );
-      encryptedPrivateKey += cipher.final("hex");
+      const { encryptedPrivateKey, iv } = encryptPrivateKey(prefixedPrivateKey, finalPassword);
 
       if (existingWalletsData?.currentWallet) {
-        let finalCurrentWallet: boolean = _replaceCurrentWallet;
-        if (!_isExternal) {
+        let finalCurrentWallet: boolean = params.replaceCurrentWallet ?? false;
+        if (!params.isExternal) {
           const setCurrentWalletQuestion: any = [
             {
               type: "confirm",
@@ -342,7 +332,7 @@ export async function processOption(
 
         if (finalCurrentWallet) {
           existingWalletsData.currentWallet = finalWalletName;
-          console.log(chalk.green("✅ Wallet set as current!"));
+          logSuccess(params, "✅ Wallet set as current!");
         }
       } else {
         existingWalletsData.currentWallet = finalWalletName;
@@ -351,13 +341,13 @@ export async function processOption(
       const walletData = {
         address: account.address,
         encryptedPrivateKey: encryptedPrivateKey,
-        iv: iv.toString("hex"),
+        iv: iv,
       };
 
       existingWalletsData.wallets[finalWalletName] = walletData;
 
-      if (!_isExternal) {
-        console.log(chalk.green("✅ Wallet validated successfully!"));
+      if (!params.isExternal) {
+        logSuccess(params, "✅ Wallet validated successfully!");
         console.log(
           chalk.white(`📄 Address:`),
           chalk.green(`${chalk.bold(account.address)}`)
@@ -371,35 +361,25 @@ export async function processOption(
       };
     }
     case "🔍 List saved wallets": {
-      const existingWalletsData: any = _walletsData && _isExternal ? _walletsData : JSON.parse(loadWallets());
+      const existingWalletsData: any = getWalletsData(params);
   
       const walletCount = Object.keys(existingWalletsData.wallets).length;
   
       if (walletCount === 0) {
-        if (!_isExternal) console.log(chalk.red("❌ No wallets found."));
+        logError(params, "No wallets found.");
         return {
           error: "No wallets found.",
           success: false,
         };
       }
   
-      if (!_isExternal) console.log(chalk.green(`📜 Saved wallets (${walletCount}):`));
+      logSuccess(params, `📜 Saved wallets (${walletCount}):`);
       Object.keys(existingWalletsData.wallets).forEach((walletName) => {
-        if (!_isExternal) {
-          console.log(
-            chalk.blue(
-              `- ${walletName}: ${existingWalletsData.wallets[walletName].address}`
-            )
-          );
-        }
+        logInfo(params, `- ${walletName}: ${existingWalletsData.wallets[walletName].address}`);
       });
   
       if (existingWalletsData.currentWallet) {
-        if (!_isExternal) {
-          console.log(
-            chalk.yellow(`\n🔑 Current wallet: ${existingWalletsData.currentWallet}`)
-          );
-        }
+        logWarning(params, `\n🔑 Current wallet: ${existingWalletsData.currentWallet}`);
       }
       return {
         success: true,
@@ -408,7 +388,7 @@ export async function processOption(
       };
     }
     case "🔁 Switch wallet": {
-      const existingWalletsData: any = _walletsData && _isExternal ? _walletsData : JSON.parse(loadWallets());
+      const existingWalletsData: any = getWalletsData(params);
   
       const walletNames = Object.keys(existingWalletsData.wallets);
   
@@ -417,14 +397,14 @@ export async function processOption(
       );
   
       if (otherWallets.length === 0) {
-        if (!_isExternal) console.log(chalk.red("❌ No other wallets available to switch to."));
+        logError(params, "No other wallets available to switch to.");
         return {
           error: "No other wallets available to switch to.",
           success: false,
         };
       }
-      let finalWalletName: string | undefined = _newMainWallet;
-      if (!_isExternal) {
+      let finalWalletName: string | undefined = params.newMainWallet;
+      if (!params.isExternal) {
         const walletSwitchQuestion: any = [
           {
             type: "list",
@@ -442,10 +422,8 @@ export async function processOption(
   
       existingWalletsData.currentWallet = finalWalletName;
       
-      if (!_isExternal) {
-        console.log(
-          chalk.green(`✅ Successfully switched to wallet: ${finalWalletName}`)
-        );
+      if (!params.isExternal) {
+        logSuccess(params, `✅ Successfully switched to wallet: ${finalWalletName}`);
         console.log(
           chalk.white(`📄 Address:`),
           chalk.green(
@@ -463,7 +441,7 @@ export async function processOption(
       };
     }
     case "❌ Delete wallet": {
-      const existingWalletsData: any = _walletsData && _isExternal ? _walletsData : JSON.parse(loadWallets());
+      const existingWalletsData: any = getWalletsData(params);
       const walletNames = Object.keys(existingWalletsData.wallets);
   
       const otherWallets = walletNames.filter(
@@ -471,22 +449,18 @@ export async function processOption(
       );
   
       if (otherWallets.length === 0) {
-        if (!_isExternal) console.log(chalk.red("❌ No other wallets available to delete."));
+        logError(params, "No other wallets available to delete.");
         return {
           error: "No other wallets available to delete.",
           success: false,
         };
       }
       
-      let deleteWalletName: string | undefined = _deleteWalletName;
-      if (!_isExternal) {
-        console.log(chalk.green("📜 Other available wallets:"));
+      let deleteWalletName: string | undefined = params.deleteWalletName;
+      if (!params.isExternal) {
+        logSuccess(params, "📜 Other available wallets:");
         otherWallets.forEach((walletName) => {
-          console.log(
-            chalk.blue(
-              `- ${walletName}: ${existingWalletsData.wallets[walletName].address}`
-            )
-          );
+          logInfo(params, `- ${walletName}: ${existingWalletsData.wallets[walletName].address}`);
         });
 
         const deleteWalletQuestion: any = [
@@ -505,7 +479,7 @@ export async function processOption(
       }
 
       if (!deleteWalletName) {
-        if (!_isExternal) console.log(chalk.red("❌ No wallet name provided."));
+        logError(params, "No wallet name provided.");
         return {
           error: "No wallet name provided.",
           success: false,
@@ -513,15 +487,15 @@ export async function processOption(
       }
 
       if (!existingWalletsData.wallets[deleteWalletName]) {
-        if (!_isExternal) console.log(chalk.red(`❌ Wallet "${deleteWalletName}" not found.`));
+        logError(params, `Wallet "${deleteWalletName}" not found.`);
         return {
           error: `Wallet "${deleteWalletName}" not found.`,
           success: false,
         };
       }
 
-      let confirmDelete = !!_deleteWalletName;
-      if (!_isExternal) {
+      let confirmDelete = !!params.deleteWalletName;
+      if (!params.isExternal) {
         const confirmDeleteQuestion: any = [
           {
             type: "confirm",
@@ -538,7 +512,7 @@ export async function processOption(
       }
   
       if (!confirmDelete) {
-        if (!_isExternal) console.log(chalk.yellow("🚫 Wallet deletion cancelled."));
+        logWarning(params, "🚫 Wallet deletion cancelled.");
         return {
           error: "Wallet deletion cancelled.",
           success: false,
@@ -547,8 +521,8 @@ export async function processOption(
   
       delete existingWalletsData.wallets[deleteWalletName];
       
-      if (!_isExternal) {
-        console.log(chalk.red(`🗑️ Wallet "${deleteWalletName}" has been deleted.`));
+      if (!params.isExternal) {
+        logError(params, `🗑️ Wallet "${deleteWalletName}" has been deleted.`);
         writeWalletData(walletFilePath, existingWalletsData);
       }
       
@@ -559,19 +533,19 @@ export async function processOption(
       };
     }
     case "📝 Update wallet name": {
-      const existingWalletsData: any = _walletsData && _isExternal ? _walletsData : JSON.parse(loadWallets());
+      const existingWalletsData: any = getWalletsData(params);
       const walletNames = Object.keys(existingWalletsData.wallets);
   
       if (walletNames.length === 0) {
-        if (!_isExternal) console.log(chalk.red("❌ No wallets available to update."));
+        logError(params, "No wallets available to update.");
         return {
           error: "No wallets available to update.",
           success: false,
         };
       }
       
-      let prevWalletName: string | undefined = _previousWallet;
-      if (!_isExternal) {
+      let prevWalletName: string | undefined = params.previousWallet;
+      if (!params.isExternal) {
         console.log(chalk.green("📜 Available wallets:"));
         walletNames.forEach((walletName) => {
           const isCurrent =
@@ -601,7 +575,7 @@ export async function processOption(
       }
 
       if (!prevWalletName) {
-        if (!_isExternal) console.log(chalk.red("❌ No wallet selected."));
+        if (!params.isExternal) console.log(chalk.red("❌ No wallet selected."));
         return {
           error: "No wallet selected.",
           success: false,
@@ -609,15 +583,15 @@ export async function processOption(
       }
 
       if (!existingWalletsData.wallets[prevWalletName]) {
-        if (!_isExternal) console.log(chalk.red(`❌ Wallet "${prevWalletName}" not found.`));
+        if (!params.isExternal) console.log(chalk.red(`❌ Wallet "${prevWalletName}" not found.`));
         return {
           error: `Wallet "${prevWalletName}" not found.`,
           success: false,
         };
       }
 
-      let newWalletName: string | undefined = _newWalletName;
-      if (!_isExternal) {
+      let newWalletName: string | undefined = params.newWalletName;
+      if (!params.isExternal) {
         const updateNameQuestion: any = [
           {
             type: "input",
@@ -633,7 +607,7 @@ export async function processOption(
       }
 
       if (!newWalletName) {
-        if (!_isExternal) console.log(chalk.red("❌ No new wallet name provided."));
+        if (!params.isExternal) console.log(chalk.red("❌ No new wallet name provided."));
         return {
           error: "No new wallet name provided.",
           success: false,
@@ -641,7 +615,7 @@ export async function processOption(
       }
   
       if (existingWalletsData.wallets[newWalletName]) {
-        if (!_isExternal) {
+        if (!params.isExternal) {
           console.log(
             chalk.red(
               `❌ A wallet with the name "${newWalletName}" already exists.`
@@ -661,7 +635,7 @@ export async function processOption(
         existingWalletsData.currentWallet = newWalletName;
       }
   
-      if (!_isExternal) {
+      if (!params.isExternal) {
         console.log(
           chalk.green(
             `✅ Wallet name updated from "${prevWalletName}" to "${newWalletName}".`
@@ -677,7 +651,7 @@ export async function processOption(
       };
     }
     case "📂 Backup wallet data": {
-      if (_isExternal) {
+      if (params.isExternal) {
         return {
           error: "Backup is not available in external mode.",
           success: false,
@@ -703,12 +677,21 @@ export async function processOption(
       break;
     }
     case "📖 Address Book": {
+      if (params.isExternal) {
+        return {
+          error: "Address book is not available in external mode.",
+          success: false,
+        };
+      }
       await addressBookCommand(); 
       break;
     }
     default: {
-      console.log(chalk.red("❌ Invalid option selected."));
-      break;
+      if (!params.isExternal) console.log(chalk.red("❌ Invalid option selected."));
+      return {
+        error: "Invalid option selected.",
+        success: false,
+      };
     }
   }
 }
