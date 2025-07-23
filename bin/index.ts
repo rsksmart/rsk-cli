@@ -182,7 +182,10 @@ program
   .option("-t, --testnet", "Deploy on the testnet")
   .option("--wallet <wallet>", "Name of the wallet")
   .action(async (options: CommandOptions) => {
-    await bridgeCommand(!!options.testnet, options.wallet!);
+    await bridgeCommand({
+      testnet: !!options.testnet,
+      name: options.wallet!,
+    });
   });
 
 program
