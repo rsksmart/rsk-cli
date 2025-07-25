@@ -192,8 +192,7 @@ export async function verifyCommand(
         body: formData,
       });
     } catch (fetchError) {
-      const errorMsg = fetchError instanceof Error ? fetchError.message : String(fetchError);
-      const errorMessage = `Network error during contract verification: ${errorMsg}`;
+      const errorMessage = "Network error during contract verification";
       failSpinner(params, spinner, errorMessage);
       return {
         error: errorMessage,
@@ -202,8 +201,7 @@ export async function verifyCommand(
     }
     
     if (!response.ok) {
-      const errorText = await response.text();
-      const errorMessage = `Error during contract verification: ${errorText}`;
+      const errorMessage = "Error during contract verification";
       failSpinner(params, spinner, errorMessage);
       return {
         error: errorMessage,
@@ -240,8 +238,8 @@ export async function verifyCommand(
       },
     };
   } catch (error) {
-    const errorMessage = `Error during contract verification${error instanceof Error ? ': ' + error.message : ''}`;
-    failSpinner(params, spinner, "Error during contract verification.");
+    const errorMessage = "Error during contract verification";
+    failSpinner(params, spinner, errorMessage);
     return {
       error: errorMessage,
       success: false,

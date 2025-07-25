@@ -298,7 +298,7 @@ export async function deployCommand(
         },
       };
     } catch (error) {
-      const errorMessage = `Error during contract deployment: ${error instanceof Error ? error.message : 'Unknown error'}`;
+      const errorMessage = "Error during contract deployment, please check the ABI and bytecode files.";
       failSpinner(params, spinner, "Error during contract deployment.");
       return {
         error: errorMessage,
@@ -306,7 +306,7 @@ export async function deployCommand(
       };
     }
   } catch (error) {
-    const errorMessage = `Error deploying contract: ${error instanceof Error ? error.message : 'Unknown error'}`;
+    const errorMessage = "Error deploying contract, please check the ABI and bytecode files.";
     logError(params, errorMessage);
     return {
       error: errorMessage,

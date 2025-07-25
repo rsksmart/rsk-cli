@@ -295,10 +295,7 @@ export async function balanceCommand(params: BalanceCommandOptions): Promise<Bal
       };
     }
   } catch (error) {
-    const errorMessage = error instanceof Error 
-      ? `Error checking balance: ${error.message}`
-      : "An unknown error occurred while checking balance.";
-    
+    const errorMessage = "Error checking balance, please check the token address.";
     logError(params, errorMessage);
     
     return { error: errorMessage, success: false };

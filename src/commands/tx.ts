@@ -79,9 +79,7 @@ export async function txCommand(
       data: txData,
     };
   } catch (error) {
-    const errorMessage = error instanceof Error 
-      ? `Error checking transaction status: ${error.message}`
-      : "An unknown error occurred while checking transaction status.";
+    const errorMessage = "Error checking transaction status, please check the transaction ID.";
     
     logError(params, errorMessage);
     

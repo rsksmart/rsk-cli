@@ -97,11 +97,7 @@ export async function transactionCommand(
       );
     }
   } catch (error) {
-    if (error instanceof Error) {
-      console.error(chalk.red("🚨 Error:"), chalk.yellow(error.message));
-    } else {
-      console.error(chalk.red("🚨 An unknown error occurred."));
-    }
+    console.error(chalk.red("🚨 Error:"), chalk.yellow("Error during transaction, please check the transaction details."));
   }
 }
 

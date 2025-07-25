@@ -370,10 +370,7 @@ export async function transferCommand(
       }
     }
   } catch (error) {
-    const errorMessage = error instanceof Error 
-      ? `Error during transfer: ${error.message}`
-      : "An unknown error occurred during transfer.";
-    
+    const errorMessage = "Error during transfer, please check the transfer details.";
     logError(params, errorMessage);
     
     return {
