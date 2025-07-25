@@ -37,9 +37,7 @@ function logInfo(params: DeployCommandOptions, message: string) {
   logMessage(params, message, chalk.blue);
 }
 
-function logWarning(params: DeployCommandOptions, message: string) {
-  logMessage(params, message, chalk.yellow);
-}
+
 
 function startSpinner(
   params: DeployCommandOptions,
