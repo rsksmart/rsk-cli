@@ -175,111 +175,113 @@ export async function bridgeCommand(params: BridgeCommandOptions) {
         (input: any) => answers[input.name]
       );
     }
+    try {
+      if (finalSelectedType === FunctionType.READ) {
+        startSpinner(
+          params,
+          spinner,
+          `⏳ Calling ${finalSelectedFunction} function...`
+        );
+        const data = await publicClient.readContract({
+          address: bridge.address as `0x${string}`,
+          abi: bridge.abi,
+          functionName: finalSelectedFunction,
+          args,
+        });
 
-    if (finalSelectedType === FunctionType.READ) {
-      startSpinner(
-        params,
-        spinner,
-        `⏳ Calling ${finalSelectedFunction} function...`
-      );
+        stopSpinner(params, spinner);
+        if (data) {
+          logSuccess(
+            params,
+            `✅ Function ${finalSelectedFunction} called successfully!`
+          );
+          succeedSpinner(
+            params,
+            spinner,
+            chalk.white(`🔧 Result: `) + chalk.green(data)
+          );
+          return {
+            success: true,
+            result: data,
+          };
+        }
+      }
 
-      const data = await publicClient.readContract({
-        address: bridge.address as `0x${string}`,
-        abi: bridge.abi,
-        functionName: finalSelectedFunction,
-        args,
-      });
+      let finalWalletClient;
+      if (finalSelectedType === FunctionType.WRITE) {
+        if (params.isExternal) {
+          if (!params.name || !params.password || !params.walletsData) {
+            logError(
+              params,
+              "Wallet name, password and wallets data are required."
+            );
+            return {
+              error: "Wallet name, password and wallets data are required.",
+              success: false,
+            };
+          }
+          finalWalletClient = await provider.getWalletClientExternal(
+            params.walletsData,
+            params.name,
+            params.password,
+            provider
+          );
+        } else {
+          finalWalletClient = await provider.getWalletClient(params.name);
+        }
+        if (!finalWalletClient) {
+          logError(params, "Failed to get wallet client.");
+          return {
+            error: "Failed to get wallet client.",
+            success: false,
+          };
+        }
+        const account = finalWalletClient.account;
 
-      stopSpinner(params, spinner);
-      if (data) {
+        logInfo(params, `🔑 Wallet account: ${account?.address}`);
+
+        startSpinner(
+          params,
+          spinner,
+          `⏳ Calling ${finalSelectedFunction} function...`
+        );
+
+        const { request, result } = await publicClient.simulateContract({
+          account,
+          address: bridge.address as `0x${string}`,
+          abi: bridge.abi,
+          functionName: finalSelectedFunction,
+          args,
+        });
+
+        await finalWalletClient.writeContract(request);
+
+        stopSpinner(params, spinner);
         logSuccess(
           params,
           `✅ Function ${finalSelectedFunction} called successfully!`
         );
-        succeedSpinner(
-          params,
-          spinner,
-          chalk.white(`🔧 Result: `) + chalk.green(data)
-        );
-        return {
-          success: true,
-          result: data,
-        };
-      }
-    }
-
-    let finalWalletClient;
-    if (finalSelectedType === FunctionType.WRITE) {
-      if (params.isExternal) {
-        if (!params.name || !params.password || !params.walletsData) {
-          logError(
+        if (result) {
+          succeedSpinner(
             params,
-            "Wallet name, password and wallets data are required."
+            spinner,
+            chalk.white(`🔧 Result: `) + chalk.green(result)
           );
           return {
-            error: "Wallet name, password and wallets data are required.",
-            success: false,
+            success: true,
+            result,
           };
         }
-        finalWalletClient = await provider.getWalletClientExternal(
-          params.walletsData,
-          params.name,
-          params.password,
-          provider
-        );
-      } else {
-        finalWalletClient = await provider.getWalletClient(params.name);
       }
-      if (!finalWalletClient) {
-        logError(params, "Failed to get wallet client.");
-        return {
-          error: "Failed to get wallet client.",
-          success: false,
-        };
-      }
-      const account = finalWalletClient.account;
-
-      logInfo(params, `🔑 Wallet account: ${account?.address}`);
-
-      startSpinner(
-        params,
-        spinner,
-        `⏳ Calling ${finalSelectedFunction} function...`
-      );
-
-      const { request, result } = await publicClient.simulateContract({
-        account,
-        address: bridge.address as `0x${string}`,
-        abi: bridge.abi,
-        functionName: finalSelectedFunction,
-        args,
-      });
-
-      await finalWalletClient.writeContract(request);
-
+      logInfo(params, `🔗 View on Explorer: ${explorerUrl}`);
+    } catch (error) {
       stopSpinner(params, spinner);
-      logSuccess(
-        params,
-        `✅ Function ${finalSelectedFunction} called successfully!`
-      );
-      if (result) {
-        succeedSpinner(
-          params,
-          spinner,
-          chalk.white(`🔧 Result: `) + chalk.green(result)
-        );
-        return {
-          success: true,
-          result,
-        };
-      }
+      throw error;
     }
-    logInfo(params, `🔗 View on Explorer: ${explorerUrl}`);
   } catch (error: any) {
-    logError(params, error.message || error);
-    return {
-      error: error.message || error,
-      success: false,
-    };
+    console.error(
+      chalk.red("❌ Error interacting with the bridge: "),
+      chalk.yellow(error.message || error)
+    );
   }
 }
