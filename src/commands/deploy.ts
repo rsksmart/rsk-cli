@@ -161,7 +161,19 @@ export async function deployCommand(
         account: account,
       });
     } else {
-      walletClient = await provider.getWalletClient(walletName);
+      try {
+        walletClient = await provider.getWalletClient(walletName);
+      } catch (error) {
+        if (error instanceof Error && error.message.includes("Failed to decrypt the private key")) {
+          const errorMessage = `Error interacting with the bridge: ${error.message}`;
+          logError(params, errorMessage);
+          return {
+            error: errorMessage,
+            success: false,
+          };
+        }
+        throw error;
+      }
     }
 
     if (!walletClient.account) {
