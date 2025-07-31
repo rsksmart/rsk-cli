@@ -73,9 +73,11 @@ program
   .description("Check the balance of the saved wallet")
   .option("-t, --testnet", "Check the balance on the testnet")
   .option("--wallet <wallet>", "Name of the wallet")
-  .option("-a ,--address <address>", "Token holder address")
   .action(async (options: CommandOptions) => {
-    await balanceCommand(!!options.testnet, options.wallet!, options.address);
+    await balanceCommand({
+      testnet: !!options.testnet,
+      walletName: options.wallet!,
+    });
   });
 
 program
@@ -93,7 +95,10 @@ program
   .action(async (options: CommandOptions) => {
     try {
       if (options.interactive) {
-        await batchTransferCommand(undefined, !!options.testnet, true);
+        await batchTransferCommand({
+          testnet: !!options.testnet,
+          interactive: true,
+        });
         return;
       }
 
@@ -118,12 +123,13 @@ program
       };
 
       await transferCommand(
-        !!options.testnet,
-        address,
-        value,
-        options.wallet!,
-        options.token as `0x${string}` | undefined,
-        Object.keys(txOptions).length > 0 ? txOptions : undefined
+        {
+          testnet: !!options.testnet,
+          toAddress: address,
+          value: value,
+          name: options.wallet!,
+          tokenAddress: options.token as `0x${string}` | undefined,
+        }
       );
     } catch (error: any) {
       console.error(
@@ -143,7 +149,10 @@ program
       ? options.txid
       : `0x${options.txid}`;
 
-    await txCommand(!!options.testnet, formattedTxId as `0x${string}`);
+    await txCommand({
+      testnet: !!options.testnet,
+      txid: formattedTxId as `0x${string}`,
+    });
   });
 
 program
@@ -157,11 +166,13 @@ program
   .action(async (options: CommandOptions) => {
     const args = options.args || [];
     await deployCommand(
-      options.abi!,
-      options.bytecode!,
-      !!options.testnet,
-      args,
-      options.wallet!
+      {
+        abiPath: options.abi!,
+        bytecodePath: options.bytecode!,
+        testnet: !!options.testnet,
+        args: args,
+        name: options.wallet!,
+      }
     );
   });
 
@@ -179,12 +190,13 @@ program
   .action(async (options: CommandOptions) => {
     const args = options.decodedArgs || [];
     await verifyCommand(
-      options.json!,
-      options.address!,
-      options.name!,
-      !!options.testnet,
-
-      args
+      {
+        jsonPath: options.json!,
+        address: options.address!,
+        name: options.name!,
+        testnet: !!options.testnet,
+        args: args,
+      }
     );
   });
 
@@ -194,7 +206,10 @@ program
   .requiredOption("-a, --address <address>", "Address of a verified contract")
   .option("-t, --testnet", "Deploy on the testnet")
   .action(async (options: CommandOptions) => {
-    await ReadContract(options.address! as `0x${string}`, !!options.testnet);
+    await ReadContract({
+      address: options.address! as `0x${string}`,
+      testnet: !!options.testnet,
+    });
   });
 
 program
@@ -203,7 +218,10 @@ program
   .option("-t, --testnet", "Deploy on the testnet")
   .option("--wallet <wallet>", "Name of the wallet")
   .action(async (options: CommandOptions) => {
-    await bridgeCommand(!!options.testnet, options.wallet!);
+    await bridgeCommand({
+      testnet: !!options.testnet,
+      name: options.wallet!,
+    });
   });
 
 program
@@ -213,7 +231,11 @@ program
   .option("--number <number>", "Number of transactions to fetch")
   .option("-t, --testnet", "History of wallet on the testnet")
   .action(async (options: CommandOptions) => {
-    await historyCommand(!!options.testnet, options.apiKey!, options.number!);
+    await historyCommand({
+      testnet: !!options.testnet,
+      apiKey: options.apiKey!,
+      number: options.number!,
+    });
   });
 
 program
@@ -237,7 +259,11 @@ program
         return;
       }
 
-      await batchTransferCommand(file, testnet, interactive);
+      await batchTransferCommand({
+        filePath: file,
+        testnet: testnet,
+        interactive: interactive,
+      });
     } catch (error: any) {
       console.error(
         chalk.red("🚨 Error during batch transfer:"),
