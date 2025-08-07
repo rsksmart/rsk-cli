@@ -501,7 +501,7 @@ Output example:
    Time: Tue Nov 12 2024 11:46:32 GMT+0700 (Indochina Time)
 ```
 
-### 9. Fetch Wallet History
+### 10. Batch Transfer
 
 The batch-transfer command allows you to send multiple transactions in one batch. This feature supports both interactive mode (manual input) and file-based batch processing, enabling you to transfer rBTC to multiple addresses in a single operation.
 
@@ -581,6 +581,67 @@ Output example:
 📦 Block Number: 6021846
 ⛽ Gas Used: 21000
 ```
+
+### 11. RNS Resolve
+
+The `resolve` command allows you to interact with the RIF Name Service (RNS) on the Rootstock blockchain. You can perform both forward resolution (domain to address) and reverse resolution (address to domain name).
+
+#### Forward Resolution (Domain to Address)
+
+Convert an RNS domain name to its associated address:
+
+##### Mainnet
+
+```bash
+rsk-cli resolve alice.rsk
+```
+
+##### Testnet
+
+```bash
+rsk-cli resolve alice.rsk --testnet
+```
+
+Output example:
+
+```
+🔍 Resolving RNS name: alice.rsk
+✅ Resolution successful!
+📌 Name: alice.rsk
+📍 Address: 0x123456789abcdef0123456789abcdef012345678
+🌐 Network: Rootstock Mainnet
+```
+
+#### Reverse Resolution (Address to Domain)
+
+Convert an address back to its RNS domain name:
+
+##### Mainnet
+
+```bash
+rsk-cli resolve 0x123456789abcdef0123456789abcdef012345678 --reverse
+```
+
+##### Testnet
+
+```bash
+rsk-cli resolve 0x123456789abcdef0123456789abcdef012345678 --reverse --testnet
+```
+
+Output example:
+
+```
+🔍 Resolving address: 0x123456789abcdef0123456789abcdef012345678
+✅ Resolution successful!
+📍 Address: 0x123456789abcdef0123456789abcdef012345678
+📌 Name: alice.rsk
+🌐 Network: Rootstock Testnet
+```
+
+> **Note**: 
+> - The `.rsk` extension is automatically appended if not provided
+> - Both checksummed and non-checksummed addresses are supported
+> - The command will show appropriate error messages if the name or address cannot be resolved
 
 ## Contributing
 

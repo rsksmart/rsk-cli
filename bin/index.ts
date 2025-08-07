@@ -14,6 +14,7 @@ import { bridgeCommand } from "../src/commands/bridge.js";
 import { batchTransferCommand } from "../src/commands/batchTransfer.js";
 import { historyCommand } from "../src/commands/history.js";
 import { selectAddress } from "../src/commands/selectAddress.js";
+import { resolveCommand } from "../src/commands/resolve.js";
 import { transactionCommand } from "../src/commands/transaction.js";
 import { parseEther } from "viem";
 
@@ -35,6 +36,7 @@ interface CommandOptions {
   file?: string;
   interactive?: boolean;
   token?: Address;
+  reverse?: boolean;
   gasLimit?: string;
   gasPrice?: string;
   data?: string;
@@ -270,6 +272,15 @@ program
         chalk.yellow(error.message || "Unknown error")
       );
     }
+  });
+
+program
+  .command("resolve <name>")
+  .description("Resolve RNS names to addresses or reverse lookup addresses to names")
+  .option("-t, --testnet", "Use testnet (currently mainnet only)")
+  .option("-r, --reverse", "Reverse lookup: address to name")
+  .action(async (name: string, options: CommandOptions) => {
+    await resolveCommand(name, !!options.testnet, !!options.reverse);
   });
 
 program.parse(process.argv);
