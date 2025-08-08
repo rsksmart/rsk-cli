@@ -244,17 +244,32 @@ You can execute transfers on either mainnet or testnet using the appropriate fla
 - **ERC721:**  
   `rsk-cli transfer --token <erc721-address> --address <recipient> --tokenId <id>`
 
+#### Interactive Mode
+
+Use the `-i` or `--interactive` flag to enter transfer details interactively:
+
+```bash
+# Interactive mode on testnet
+rsk-cli transfer --testnet -i
+
+# Interactive mode on mainnet
+rsk-cli transfer -i
+```
+
 #### For RBTC Transfer
 
 ```bash
-# Mainnet
+# Basic transfer on mainnet
 rsk-cli transfer --address 0xRecipientAddress --value 0.001
 
-# Testnet
+# Transfer on testnet
 rsk-cli transfer --testnet --address 0x08C4E4BdAb2473E454B8B2a4400358792786d341 --value 0.001
 
 # Using specific wallet
-rsk-cli transfer --wallet <name> --address 0x08C4E4BdAb2473E454B8B2a4400358792786d341 --value 0.001
+rsk-cli transfer --wallet <n> --address 0x08C4E4BdAb2473E454B8B2a4400358792786d341 --value 0.001
+
+# Advanced transfer with custom gas parameters
+rsk-cli transfer --address 0x08C4E4BdAb2473E454B8B2a4400358792786d341 --value 0.001 --gas-limit 21000 --priority-fee 1.5
 ```
 
 Output example for RBTC transfer:
@@ -276,14 +291,17 @@ Output example for RBTC transfer:
 Add the `--token` flag with the token contract address to transfer ERC20 tokens:
 
 ```bash
-# Mainnet
+# Basic token transfer on mainnet
 rsk-cli transfer --token 0xTokenAddress --address 0xRecipientAddress --value 0.1
 
-# Testnet
+# Token transfer on testnet
 rsk-cli transfer --testnet --token 0x32Cd6c5831531F96f57d1faf4DDdf0222c4Af8AB --address 0x8A0d290b2EE35eFde47810CA8fF057e109e4190B --value 0.1
 
 # Using specific wallet
-rsk-cli transfer --wallet <name> --testnet --token 0x32Cd6c5831531F96f57d1faf4DDdf0222c4Af8AB --address 0x8A0d290b2EE35eFde47810CA8fF057e109e4190B --value 0.1
+rsk-cli transfer --wallet <n> --testnet --token 0x32Cd6c5831531F96f57d1faf4DDdf0222c4Af8AB --address 0x8A0d290b2EE35eFde47810CA8fF057e109e4190B --value 0.1
+
+# Advanced token transfer with custom parameters
+rsk-cli transfer --testnet --token 0x32Cd6c5831531F96f57d1faf4DDdf0222c4Af8AB --address 0x8A0d290b2EE35eFde47810CA8fF057e109e4190B --value 0.1 --gas-limit 65000 --data "0x1234abcd"
 ```
 
 Output example for ERC20 transfer:
@@ -302,7 +320,6 @@ Output example for ERC20 transfer:
 ⛽ Gas Used: 35460
 🔗 View on Explorer: https://explorer.testnet.rootstock.io/tx/0x680c4aa4f8b1ba0b7295a97d348a0ffa458a254d36af3cefc6048f8ae3f66b90
 ```
-
 #### For ERC721 (NFT) Token Transfer
 
 You can transfer ERC721 tokens (NFTs) using the `transfer` command. The `--value` flag is not required for ERC721 transfers; use `--tokenId` to specify the NFT.
@@ -348,6 +365,7 @@ rsk-cli transfer --testnet --token 0x65C955e31F8BD0964127a0a2f4bc84ab298c71BE --
 > 2. The correct ERC20 token contract address (when transferring tokens)
 > 3. A valid recipient address
 > 4. Enough RBTC to cover gas fees
+> 5. Appropriate gas parameters for your transaction type
 
 ### 4. Check Transaction Status
 
@@ -553,7 +571,7 @@ Output example:
 
 ```
 ? 🔒 Enter Alchemy API key to fetch history: ********************************
-🔍 Fetching transaction history on Rootstack Testnet for 0x19661D036D4e590948b9c00eef3807b88fBfA8e1 ...
+🔍 Fetching transaction history on Rootstock Testnet for 0x19661D036D4e590948b9c00eef3807b88fBfA8e1 ...
 ✅ Transfer:
    From: 0x19661d036d4e590948b9c00eef3807b88fbfa8e1
    To: 0xb45805aead9407f5c7860ff8eccaedd4d0ab36a6

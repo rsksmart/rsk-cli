@@ -17,12 +17,81 @@ import fs from "fs";
 import { walletFilePath } from "../utils/constants.js";
 import { TokenStandard, getTokenInfo as getTokenInfoStandard, getERC721TokenIds, detectTokenStandard } from "../utils/tokenStandards.js";
 
-export async function balanceCommand(
-  testnet: boolean,
-  walletName: string,
-  holderAddress?: Address
+type BalanceCommandOptions = {
+  testnet: boolean;
+  walletName?: string;
+  isExternal?: boolean;
+  token?: string;
+  customTokenAddress?: Address;
+  walletsData?: WalletData;
+};
+
+function logMessage(
+  params: BalanceCommandOptions,
+  message: string,
+  color: any = chalk.white
 ) {
-  const spinner = ora();
+  if (!params.isExternal) {
+    console.log(color(message));
+  }
+}
+
+function logError(params: BalanceCommandOptions, message: string) {
+  logMessage(params, `❌ ${message}`, chalk.red);
+}
+
+function logSuccess(params: BalanceCommandOptions, message: string) {
+  logMessage(params, message, chalk.green);
+}
+
+function logInfo(params: BalanceCommandOptions, message: string) {
+  logMessage(params, message, chalk.blue);
+}
+
+function startSpinner(
+  params: BalanceCommandOptions,
+  spinner: any,
+  message: string
+) {
+  if (!params.isExternal) {
+    spinner.start(message);
+  }
+}
+
+function stopSpinner(params: BalanceCommandOptions, spinner: any) {
+  if (!params.isExternal) {
+    spinner.stop();
+  }
+}
+
+function succeedSpinner(
+  params: BalanceCommandOptions,
+  spinner: any,
+  message: string
+) {
+  if (!params.isExternal) {
+    spinner.succeed(message);
+  }
+}
+
+type BalanceResult = {
+  success: boolean;
+  data?: {
+    walletAddress: string;
+    network: string;
+    balance: string;
+    symbol: string;
+    tokenType: "native" | "erc20";
+    tokenName?: string;
+    tokenSymbol?: string;
+    tokenContract?: string;
+    decimals?: number;
+  };
+  error?: string;
+};
+
+export async function balanceCommand(params: BalanceCommandOptions): Promise<BalanceResult | void> {
+  const spinner = params.isExternal ? ora({isEnabled: false}) : ora();
 
   try {
     let targetAddress: Address;
@@ -76,18 +145,35 @@ export async function balanceCommand(
       targetAddress = addressResult;
     }
 
-    const provider = new ViemProvider(testnet);
+    const provider = new ViemProvider(params.testnet);
     const client = await provider.getPublicClient();
 
-    const { token } = await inquirer.prompt({
-      type: "list",
-      name: "token",
-      message: "Select token to check balance:",
-      choices: ["rBTC", ...Object.keys(TOKENS), "Custom Token"],
-    });
+    let token: string;
+    
+    if (params.isExternal && params.token) {
+      token = params.token;
+    } else if (params.isExternal && !params.token) {
+      return {
+        error: "Token parameter is required when using external mode.",
+        success: false,
+      };
+    } else {
+      const { token: selectedToken } = await inquirer.prompt({
+        type: "list",
+        name: "token",
+        message: "Select token to check balance:",
+        choices: ["rBTC", ...Object.keys(TOKENS), "Custom Token"],
+      });
+      token = selectedToken;
+    }
 
     if (token === "rBTC") {
-      spinner.start(chalk.white("🔍 Checking balance..."));
+      startSpinner(
+        params,
+        spinner,
+        `⏳ Checking balance...`
+      );
+      
       const balance = await client.getBalance({ address: targetAddress });
       const rbtcBalance = formatUnits(balance, 18);
 
@@ -101,16 +187,21 @@ export async function balanceCommand(
         chalk.white(`🌐 Network:`),
         chalk.green(testnet ? "Rootstock Testnet" : "Rootstock Mainnet")
       );
-      console.log(
-        chalk.white(`💰 Current Balance:`),
-        chalk.green(`${rbtcBalance} RBTC`)
-      );
-      console.log(
-        chalk.blue(
-          `🔗 Ensure that transactions are being conducted on the correct network.`
-        )
-      );
-      return;
+      logSuccess(params, `📄 Wallet Address: ${targetAddress}`);
+      logSuccess(params, `🌐 Network: ${params.testnet ? "Rootstock Testnet" : "Rootstock Mainnet"}`);
+      logSuccess(params, `💰 Current Balance: ${rbtcBalance} RBTC`);
+      logInfo(params, "🔗 Ensure that transactions are being conducted on the correct network.");
+      
+      return {
+        success: true,
+        data: {
+          walletAddress: targetAddress,
+          network: params.testnet ? "Rootstock Testnet" : "Rootstock Mainnet",
+          balance: rbtcBalance,
+          symbol: "RBTC",
+          tokenType: "native",
+        },
+      };
     }
 
     let tokenAddress: Address;
@@ -136,18 +227,19 @@ export async function balanceCommand(
             if (standard !== TokenStandard.ERC20 && standard !== TokenStandard.ERC721) {
               return "🚫 Invalid contract address, only ERC20 or ERC721 tokens are supported";
             }
-            return true;
-          } catch {
-            return false;
-          }
-        },
-      });
-      tokenAddress = address.toLowerCase() as Address;
+          },
+        });
+        tokenAddress = address.toLowerCase() as Address;
+      }
     } else {
-      tokenAddress = resolveTokenAddress(token, testnet);
+      tokenAddress = resolveTokenAddress(token, params.testnet);
     }
 
-    spinner.start(chalk.white("🔍 Checking balance..."));
+    startSpinner(
+      params,
+      spinner,
+      `⏳ Checking balance...`
+    );
 
     const { balance, decimals, name, symbol, standard } = await getTokenInfoStandard(
       client,

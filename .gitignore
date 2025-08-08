@@ -180,3 +180,8 @@ dist
 .DS_Store
 
 files/*
+
+/deploydata
+my-wallets.json
+password.json
+Storage.json
