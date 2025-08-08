@@ -2,7 +2,6 @@ import ViemProvider from "../utils/viemProvider.js";
 import chalk from "chalk";
 import inquirer from "inquirer";
 import {
-  getTokenInfo,
   isERC20Contract,
   resolveTokenAddress,
 } from "../utils/tokenHelper.js";
@@ -16,7 +15,7 @@ import { Address, formatUnits } from "viem";
 import { TOKENS } from "../constants/tokenAdress.js";
 import fs from "fs";
 import { walletFilePath } from "../utils/constants.js";
-import { WalletData } from "../utils/types.js";
+import { TokenStandard, getTokenInfo as getTokenInfoStandard, getERC721TokenIds, detectTokenStandard } from "../utils/tokenStandards.js";
 
 type BalanceCommandOptions = {
   testnet: boolean;
@@ -95,53 +94,55 @@ export async function balanceCommand(params: BalanceCommandOptions): Promise<Bal
   const spinner = params.isExternal ? ora({isEnabled: false}) : ora();
 
   try {
-    const walletsData = params.isExternal && params.walletsData ? params.walletsData : JSON.parse(fs.readFileSync(walletFilePath, "utf8"));
+    let targetAddress: Address;
 
-    if (!walletsData.currentWallet || !walletsData.wallets) {
-      const errorMessage = "No valid wallet found. Please create or import a wallet first.";
-      logError(params, errorMessage);
-      return {
-        error: errorMessage,
-        success: false,
-      };
-    }
-
-    const { currentWallet, wallets } = walletsData;
-    let wallet = wallets[currentWallet];
-
-    if (params.walletName) {
-      if (!wallets[params.walletName]) {
-        const errorMessage = "Wallet with the provided name does not exist.";
-        logError(params, errorMessage);
-        return {
-          error: errorMessage,
-          success: false,
-        };
-      } else {
-        wallet = wallets[params.walletName];
+    if (holderAddress) {
+      // Validate the provided address
+      const formattedAddress = validateAndFormatAddress(holderAddress);
+      if (!formattedAddress) {
+        console.log(chalk.red("⚠️ Invalid address provided."));
+        return;
       }
-    }
+      targetAddress = formattedAddress;
+    } else {
+      // Use wallet address logic
+      const walletsData = JSON.parse(fs.readFileSync(walletFilePath, "utf8"));
 
-    const { address } = wallet;
+      if (!walletsData.currentWallet || !walletsData.wallets) {
+        console.log(
+          chalk.red(
+            "⚠️ No valid wallet found. Please create or import a wallet first."
+          )
+        );
+        throw new Error();
+      }
 
-    if (!address) {
-      const errorMessage = "No valid address found in the saved wallet.";
-      logError(params, errorMessage);
-      return {
-        error: errorMessage,
-        success: false,
-      };
-    }
+      const { currentWallet, wallets } = walletsData;
+      let wallet = wallets[currentWallet];
 
-    const targetAddress = getAddress(address);
+      if (walletName) {
+        if (!wallets[walletName]) {
+          console.log(
+            chalk.red("⚠️ Wallet with the provided name does not exist.")
+          );
+          return;
+        } else {
+          wallet = wallets[walletName];
+        }
+      }
 
-    if (!targetAddress) {
-      const errorMessage = "Invalid address format.";
-      logError(params, errorMessage);
-      return {
-        error: errorMessage,
-        success: false,
-      };
+      const { address } = wallet;
+
+      if (!address) {
+        console.log(chalk.red("⚠️ No valid address found in the saved wallet."));
+        return;
+      }
+
+      const addressResult = getAddress(address);
+      if (!addressResult) {
+        return;
+      }
+      targetAddress = addressResult;
     }
 
     const provider = new ViemProvider(params.testnet);
@@ -176,10 +177,15 @@ export async function balanceCommand(params: BalanceCommandOptions): Promise<Bal
       const balance = await client.getBalance({ address: targetAddress });
       const rbtcBalance = formatUnits(balance, 18);
 
-      succeedSpinner(
-        params,
-        spinner,
-        chalk.white("Balance retrieved successfully")
+      spinner.succeed(chalk.green("Balance retrieved successfully"));
+
+      console.log(
+        chalk.white(`📄 Address:`),
+        chalk.green(targetAddress)
+      );
+      console.log(
+        chalk.white(`🌐 Network:`),
+        chalk.green(testnet ? "Rootstock Testnet" : "Rootstock Mainnet")
       );
       logSuccess(params, `📄 Wallet Address: ${targetAddress}`);
       logSuccess(params, `🌐 Network: ${params.testnet ? "Rootstock Testnet" : "Rootstock Mainnet"}`);
@@ -201,45 +207,25 @@ export async function balanceCommand(params: BalanceCommandOptions): Promise<Bal
     let tokenAddress: Address;
 
     if (token === "Custom Token") {
-      if (params.isExternal && params.customTokenAddress) {
-        const formattedContractAddress = validateAndFormatAddress(params.customTokenAddress);
-        if (!formattedContractAddress) {
-          return { error: "Invalid custom token address provided.", success: false };
-        }
-        if (!(await isValidContract(client, formattedContractAddress))) {
-          return { error: "Invalid contract address or contract not found.", success: false };
-        }
-        if (!(await isERC20Contract(client, formattedContractAddress))) {
-          return { error: "Invalid contract address, only ERC20 tokens are supported.", success: false };
-        }
-        tokenAddress = params.customTokenAddress.toLowerCase() as Address;
-      } else if (params.isExternal && !params.customTokenAddress) {
-        return { error: "Custom token address is required when using Custom Token in external mode.", success: false };
-      } else {
-        stopSpinner(params, spinner);
-        const { address } = await inquirer.prompt({
-          type: "input",
-          name: "address",
-          message: "Enter the token address:",
-          validate: async (input: string) => {
-            try {
-              const address = input as Address;
-              const formattedContractAddress = validateAndFormatAddress(address);
-              if (!formattedContractAddress) {
-                logError(params, "Invalid contract address");
-                return "🚫 Invalid contract address";
-              }
-              if (!(await isValidContract(client, formattedContractAddress))) {
-                logError(params, "Invalid contract address or contract not found");
-                return "🚫 Invalid contract address or contract not found";
-              }
-              if (!(await isERC20Contract(client, formattedContractAddress))) {
-                logError(params, "Invalid contract address, only ERC20 tokens are supported");
-                return "🚫 Invalid contract address, only ERC20 tokens are supported";
-              }
-              return true;
-            } catch {
-              return false;
+      spinner.stop();
+      const { address } = await inquirer.prompt({
+        type: "input",
+        name: "address",
+        message: "Enter the token address:",
+        validate: async (input: string) => {
+          try {
+            const address = input as Address;
+            const formattedContractAddress = validateAndFormatAddress(address);
+            if (!formattedContractAddress) {
+              console.log(chalk.red());
+              return "🚫 Invalid contract address";
+            }
+            if (!(await isValidContract(client, formattedContractAddress))) {
+              return "🚫 Invalid contract address or contract not found";
+            }
+            const standard = await detectTokenStandard(client, formattedContractAddress);
+            if (standard !== TokenStandard.ERC20 && standard !== TokenStandard.ERC721) {
+              return "🚫 Invalid contract address, only ERC20 or ERC721 tokens are supported";
             }
           },
         });
@@ -255,53 +241,31 @@ export async function balanceCommand(params: BalanceCommandOptions): Promise<Bal
       `⏳ Checking balance...`
     );
 
-    const { balance, decimals, name, symbol } = await getTokenInfo(
+    const { balance, decimals, name, symbol, standard } = await getTokenInfoStandard(
       client,
       tokenAddress,
       targetAddress
     );
-    const formattedBalance = formatUnits(balance, decimals);
+    const formattedBalance = formatUnits(balance, decimals ?? 18);
 
-    succeedSpinner(
-      params,
-      spinner,
-      chalk.white("Balance retrieved successfully")
+    if (standard === TokenStandard.ERC721) {
+      const tokenIds = await getERC721TokenIds(client, tokenAddress, targetAddress);
+      spinner.succeed(chalk.green("NFTs retrieved successfully"));
+      console.log(chalk.white(`📄 Token Information:`));
+      console.log(chalk.white(`     Name: ${chalk.green(name)}`));
+      console.log(chalk.white(`     Contract: ${chalk.green(tokenAddress)}`));
+      console.log(chalk.white(`  👤 Holder Address: ${chalk.green(targetAddress)}`));
+      console.log(chalk.white(`  🖼️ Owned Token IDs: ${chalk.green(tokenIds.length > 0 ? tokenIds.join(", ") : "None")}`));
+      console.log(chalk.white(`  🌐 Network: ${chalk.green(testnet ? "Rootstock Testnet" : "Rootstock Mainnet")}`));
+      return;
+    }
+
+    spinner.succeed(chalk.green("Balance retrieved successfully"));
+
+    console.log(
+      chalk.white(`📄 Token Information:\n     Name: ${chalk.green(name)}\n     Contract: ${chalk.green(tokenAddress)}\n  👤 Holder Address: ${chalk.green(targetAddress)}\n  💰 Current Balance: ${chalk.green(formattedBalance)} ${symbol}\n  🌐 Network: ${chalk.green(testnet ? "Rootstock Testnet" : "Rootstock Mainnet")}`)
     );
-
-
-    logSuccess(params, `📄 Token Information:
-       Name: ${name}
-       Contract: ${tokenAddress}
-    👤 Holder Address: ${targetAddress}
-    💰 Balance: ${formattedBalance} ${symbol}
-    🌐 Network: ${params.testnet ? "Rootstock Testnet" : "Rootstock Mainnet"}`);
-
-    logInfo(params, "🔗 Ensure that transactions are being conducted on the correct network.");
-    
-    if (params.isExternal) {
-      return {
-        success: true,
-        data: {
-          walletAddress: targetAddress,
-          network: params.testnet ? "Rootstock Testnet" : "Rootstock Mainnet",
-          balance: formattedBalance,
-          symbol: symbol,
-          tokenType: "erc20",
-          tokenName: name,
-          tokenSymbol: symbol,
-          tokenContract: tokenAddress,
-          decimals: decimals,
-        },
-      };
-    }
   } catch (error) {
-    const errorMessage = "Error checking balance, please check the token address.";
-    logError(params, errorMessage);
-    
-    return { error: errorMessage, success: false };
-  } finally {
-    if (!params.isExternal) {
-      spinner.stop();
-    }
+    console.error(chalk.red("An error occurred: "), error);
   }
 }

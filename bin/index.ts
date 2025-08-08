@@ -35,9 +35,7 @@ interface CommandOptions {
   file?: string;
   interactive?: boolean;
   token?: Address;
-  gasLimit?: string;
-  gasPrice?: string;
-  data?: string;
+  tokenId?: string;
 }
 
 const orange = chalk.rgb(255, 165, 0);
@@ -82,54 +80,53 @@ program
 
 program
   .command("transfer")
-  .description("Transfer RBTC or ERC20 tokens to the provided address")
+  .description("Transfer RBTC or ERC20/ERC721 tokens to the provided address")
   .option("-t, --testnet", "Transfer on the testnet")
   .option("--wallet <wallet>", "Name of the wallet")
   .option("-a, --address <address>", "Recipient address")
-  .option("--token <address>", "ERC20 token contract address (optional, for token transfers)")
-  .option("--value <value>", "Amount to transfer")
-  .option("-i, --interactive", "Execute interactively and input transactions")
-  .option("--gas-limit <limit>", "Custom gas limit")
-  .option("--gas-price <price>", "Custom gas price in RBTC")
-  .option("--data <data>", "Custom transaction data (hex)")
+  .option(
+    "--token <address>",
+    "Token contract address (for ERC20/ERC721 transfers)"
+  )
+  .option("--tokenId <id>", "Token ID (required for ERC721 transfers)")
+  .option("--value <value>", "Amount to transfer (for RBTC/ERC20)")
   .action(async (options: CommandOptions) => {
     try {
-      if (options.interactive) {
-        await batchTransferCommand({
-          testnet: !!options.testnet,
-          interactive: true,
-        });
-        return;
-      }
+      let value = 0;
 
-      if (!options.value) {
-        throw new Error("Value is required for the transfer.");
-      }
-
-      const value = parseFloat(options.value);
-
-      if (isNaN(value) || value <= 0) {
-        throw new Error("Invalid value specified for transfer.");
+      if (!options.tokenId) {
+        if (!options.value) {
+          throw new Error(
+            "The --value option is required for RBTC or ERC20 transfers."
+          );
+        }
+        value = parseFloat(options.value);
+        if (isNaN(value) || value <= 0) {
+          throw new Error("A valid, positive --value is required.");
+        }
+      } else if (options.value) {
+        console.log(
+          chalk.yellow(
+            "Warning: --value is ignored for ERC-721 transfers; --tokenId is used instead."
+          )
+        );
       }
 
       const address = options.address
         ? (`0x${options.address.replace(/^0x/, "")}` as `0x${string}`)
         : await selectAddress();
 
-      const txOptions = {
-        ...(options.gasLimit && { gasLimit: BigInt(options.gasLimit) }),
-        ...(options.gasPrice && { gasPrice: parseEther(options.gasPrice.toString()) }),
-        ...(options.data && { data: options.data as `0x${string}` })
-      };
+
+      const tokenId = options.tokenId ? BigInt(options.tokenId) : undefined;
+      const token = options.token?.toLowerCase() as Address | undefined;
 
       await transferCommand(
-        {
-          testnet: !!options.testnet,
-          toAddress: address,
-          value: value,
-          name: options.wallet!,
-          tokenAddress: options.token as `0x${string}` | undefined,
-        }
+        !!options.testnet,
+        address,
+        value,
+        options.wallet!,
+        token,
+        tokenId
       );
     } catch (error: any) {
       console.error(

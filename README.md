@@ -134,16 +134,21 @@ This command will guide you through the process of wallet management, offering o
 
 ### 2. Check Balance
 
-The `balance` command allows you to check the balance of any token on the Rootstock blockchain for any of the saved wallets. You can check the balance on either the mainnet or testnet using the appropriate flags.
+The `balance` command allows you to check the balance of any token (ERC20 or ERC721) on the Rootstock blockchain for any address or saved wallet. You can check the balance on either the mainnet or testnet using the appropriate flags.
 
-#### Mainnet
+- You can check the balance for any address using the `--address` flag.
+- You can check the balance for any saved wallet using the `--wallet` flag.
+- You can check both ERC20 and ERC721 (NFT) tokens.
+- For ERC721 tokens, the CLI will list all owned NFT token IDs for the selected address.
+- Use the 'Custom Token' option to check balances for any ERC20 or ERC721 contract address.
+
+#### Mainnet (ERC20 example)
 
 ```bash
-rsk-cli balance
+rsk-cli balance --wallet <name>
 ```
 
 Output example:
-
 ```
 ? Select token to check balance: RIF
 ✔ Balance retrieved successfully
@@ -156,16 +161,13 @@ Output example:
 🔗 Ensure that transactions are being conducted on the correct network.
 ```
 
-#### Testnet
-
-Use the `-t` or `--testnet` flag to check the balance on the Rootstock testnet.
+#### Testnet (ERC20 example)
 
 ```bash
-rsk-cli balance -t
+rsk-cli balance --testnet --wallet <name>
 ```
 
 Output example:
-
 ```
 ? Select token to check balance: RIF
 ✔ Balance retrieved successfully
@@ -178,17 +180,69 @@ Output example:
 🔗 Ensure that transactions are being conducted on the correct network.
 ```
 
-#### Dynamic Wallet Selection
+#### Check balance for any address (ERC20 or ERC721)
 
-Use the `--wallet` flag to dynamically select the wallet.
+```bash
+rsk-cli balance --address 0xYourAddressHere
+```
+
+Output example (ERC20):
+```
+📄 Token Information:
+     Name: tRIF Token
+     Contract: 0x19f64674d8a5b4e652319f5e239efd3bc969a1fe
+  👤 Holder Address: 0xYourAddressHere
+  💰 Balance: 0.01 tRIF
+  🌐 Network: Rootstock Testnet
+```
+
+#### Check balance for a custom ERC20 or ERC721 contract
 
 ```bash
 rsk-cli balance --wallet <name>
+# When prompted, select 'Custom Token' and enter the contract address
 ```
 
-### 3. Transfer (RBTC and ERC20)
+Output example (ERC721):
+```
+📄 Token Information:
+     Name: RSKNFTToken
+     Contract: 0x2e027a3a05f3de6777b23397a50a60ecd04fe34c
+  👤 Holder Address: 0x81407e34049b60f5ecafe5425f0914149587d893
+  🖼️ Owned Token IDs: 1, 2, 3
+  🌐 Network: Rootstock Testnet
+```
 
-The `transfer` command allows you to transfer both RBTC and ERC20 tokens from your saved wallet to a specified address on the Rootstock blockchain. You can execute transfers on either mainnet or testnet using the appropriate flags.
+If you do not own any NFTs from the contract:
+```
+🖼️ Owned Token IDs: None
+```
+
+### 3. Transfer (RBTC, ERC20, and ERC721)
+
+The `transfer` command allows you to transfer:
+- **RBTC** (native coin)
+- **ERC20 tokens** (fungible tokens)
+- **ERC721 tokens** (NFTs)
+
+from your saved wallet to a specified address on the Rootstock blockchain.
+You can execute transfers on either mainnet or testnet using the appropriate flags.
+
+**Recent improvements:**
+- Full support for both ERC20 and ERC721 (NFT) transfers in a single command.
+- For ERC721, the `--value` flag is not required; use `--tokenId` to specify the NFT.
+- The CLI checks NFT ownership before attempting a transfer and provides a clear error if you do not own the token.
+- Token addresses are automatically lowercased to prevent checksum errors.
+- Improved error messages and user experience for all transfer types.
+
+**Usage summary:**
+
+- **RBTC:**  
+  `rsk-cli transfer --address <recipient> --value <amount>`
+- **ERC20:**  
+  `rsk-cli transfer --token <erc20-address> --address <recipient> --value <amount>`
+- **ERC721:**  
+  `rsk-cli transfer --token <erc721-address> --address <recipient> --tokenId <id>`
 
 #### Interactive Mode
 
@@ -266,19 +320,45 @@ Output example for ERC20 transfer:
 ⛽ Gas Used: 35460
 🔗 View on Explorer: https://explorer.testnet.rootstock.io/tx/0x680c4aa4f8b1ba0b7295a97d348a0ffa458a254d36af3cefc6048f8ae3f66b90
 ```
+#### For ERC721 (NFT) Token Transfer
 
-#### Available Options
+You can transfer ERC721 tokens (NFTs) using the `transfer` command. The `--value` flag is not required for ERC721 transfers; use `--tokenId` to specify the NFT.
 
-The transfer command supports the following options:
+```bash
+# Mainnet
+rsk-cli transfer --token 0xTokenAddress --address 0xRecipientAddress --tokenId 123
 
-- `-i, --interactive`: Enter transfer details interactively
-- `--testnet`: Use Rootstock testnet network
-- `--address`: Recipient address
-- `--value`: Amount to transfer
-- `--token`: Token contract address (for ERC20 transfers)
-- `--wallet`: Select a specific wallet to use
-- `--gas-limit`: Custom gas limit for the transaction
-- `--data`: Custom transaction data (hexadecimal format)
+# Testnet
+rsk-cli transfer --testnet --token 0x65C955e31F8BD0964127a0a2f4bc84ab298c71BE --address 0xcafecafecafecafecafecafecafecafecafecafe --tokenId 9
+```
+
+**Behavior:**
+- The `--value` flag is ignored for ERC721 transfers.
+- The `--tokenId` flag is required to specify which NFT to transfer.
+- If you try to transfer an NFT you do not own, the CLI will show a clear error message and will not attempt the transaction.
+- The token address is automatically lowercased to prevent checksum errors.
+
+**Example output:**
+```
+📄 Token Information:
+     Name: NonFungibleRootstock
+     Symbol: NRSK
+     Standard: ERC721
+     Contract: 0x65c955e31f8bd0964127a0a2f4bc84ab298c71be
+🎯 To Address: 0xcafecafecafecafecafecafecafecafecafecafe
+🖼️ Token ID: 9
+⏳ Verifying token ownership...
+✅ Token ownership verified.
+✔ ✅ Simulation successful, proceeding with transfer...
+🔄 Transaction initiated. TxHash: 0x...
+✅ Transfer completed successfully!
+```
+
+**If you do not own the NFT:**
+```
+✖ You do not own the token with ID 1.
+   Current owner: 0x08C4E4BdAb2473E454B8B2a4400358792786d341
+```
 
 > **Note**: Before making any transfer, ensure you have:
 > 1. A wallet configured with sufficient balance (RBTC or ERC20 tokens)
