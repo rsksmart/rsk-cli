@@ -12,6 +12,6 @@ export type WalletData = {
 };
 
 export type FileTx = {
-  to: Address;
-  value: bigint;
+  to: Address | string;  // Can be address or RNS domain
+  value: number;
 };

@@ -5,17 +5,19 @@ import readline from "readline";
 import ViemProvider from "../utils/viemProvider.js";
 import { Address } from "viem";
 import { FileTx } from "../utils/types.js";
+import { resolveRNSToAddress, isRNSDomain } from "../utils/rnsHelper.js";
 
 export async function batchTransferCommand(
   filePath?: string,
   testnet: boolean = false,
-  interactive: boolean = false
+  interactive: boolean = false,
+  resolveRNS: boolean = false
 ) {
   try {
-    let batchData: { to: Address; value: number }[] = [];
+    let batchData: { to: Address | string; value: number }[] = [];
 
     if (interactive) {
-      batchData = await promptForTransactions();
+      batchData = await promptForTransactions(resolveRNS);
     } else if (filePath) {
       if (!fs.existsSync(filePath)) {
         console.log(
@@ -25,7 +27,7 @@ export async function batchTransferCommand(
       }
       const fileContent = JSON.parse(fs.readFileSync(filePath, "utf8"));
       batchData = fileContent.map((tx: FileTx) => ({
-        to: validateAddress(tx.to),
+        to: tx.to,
         value: tx.value,
       }));
     } else {
@@ -76,10 +78,24 @@ export async function batchTransferCommand(
         break;
       }
 
+      // Resolve RNS domain if needed
+      let recipientAddress: Address;
+      if (isRNSDomain(to)) {
+        console.log(chalk.white(`🔍 Resolving RNS domain: ${to}`));
+        const resolved = await resolveRNSToAddress(publicClient, to, testnet);
+        if (!resolved) {
+          console.log(chalk.red(`❌ Failed to resolve RNS domain: ${to}. Skipping transaction.`));
+          continue;
+        }
+        recipientAddress = resolved;
+      } else {
+        recipientAddress = validateAddress(to as string);
+      }
+
       const txHash = await walletClient.sendTransaction({
         account,
         chain: provider.chain,
-        to,
+        to: recipientAddress,
         value: BigInt(Math.floor(value * 10 ** 18)),
       });
 
@@ -117,16 +133,32 @@ export async function batchTransferCommand(
   }
 }
 
-async function promptForTransactions() {
+async function promptForTransactions(allowRNS: boolean = false) {
   const rl = readline.createInterface({
     input: process.stdin,
     output: process.stdout,
   });
 
-  const transactions: { to: Address; value: number }[] = [];
+  const transactions: { to: Address | string; value: number }[] = [];
 
   while (true) {
-    const to = validateAddress(await askQuestion(rl, "Enter address: "));
+    const prompt = allowRNS 
+      ? "Enter address or RNS domain (e.g., alice.rsk): "
+      : "Enter address: ";
+    const input = await askQuestion(rl, prompt);
+    
+    let to: Address | string;
+    if (allowRNS && isRNSDomain(input)) {
+      to = input; // Keep as string for later resolution
+    } else {
+      try {
+        to = validateAddress(input);
+      } catch (error) {
+        console.log(chalk.red("⚠️ Invalid address. Please try again."));
+        continue;
+      }
+    }
+    
     const value = parseFloat(await askQuestion(rl, "Enter amount: "));
 
     if (isNaN(value)) {
