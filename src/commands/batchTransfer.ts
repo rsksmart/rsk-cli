@@ -4,55 +4,115 @@ import ora from "ora";
 import readline from "readline";
 import ViemProvider from "../utils/viemProvider.js";
 import { Address } from "viem";
-import { FileTx } from "../utils/types.js";
+import { FileTx, WalletData } from "../utils/types.js";
 import { resolveRNSToAddress, isRNSDomain } from "../utils/rnsHelper.js";
 
-export async function batchTransferCommand(
-  filePath?: string,
-  testnet: boolean = false,
-  interactive: boolean = false,
-  resolveRNS: boolean = false
-) {
-  try {
-    let batchData: { to: Address | string; value: number }[] = [];
+type BatchTransferCommandOptions = {
+  testnet: boolean;
+  interactive: boolean;
+  filePath?: string;
+  isExternal?: boolean;
+  batchData?: BatchData[];
+  name?: string;
+  password?: string;
+  walletsData?: WalletData;
+  resolveRNS?: boolean;
+};
 
-    if (interactive) {
-      batchData = await promptForTransactions(resolveRNS);
-    } else if (filePath) {
-      if (!fs.existsSync(filePath)) {
-        console.log(
-          chalk.red("🚫 Batch file not found. Please provide a valid file.")
-        );
-        return;
-      }
-      const fileContent = JSON.parse(fs.readFileSync(filePath, "utf8"));
-      batchData = fileContent.map((tx: FileTx) => ({
-        to: tx.to,
-        value: tx.value,
-      }));
-    } else {
-      console.log(
-        chalk.yellow(
-          "⚠️ No transactions file provided nor interactive mode enabled. Exiting..."
-        )
-      );
-      return;
-    }
+type BatchData = {
+  to: Address | string;
+  value: number;
+};
+
+function logMessage(
+  params: BatchTransferCommandOptions,
+  message: string,
+  color: any = chalk.white
+) {
+  if (!params.isExternal) {
+    console.log(color(message));
+  }
+}
+
+function logSuccess(params: BatchTransferCommandOptions, message: string) {
+  logMessage(params, message, chalk.green);
+}
+
+function logError(params: BatchTransferCommandOptions, message: string) {
+  logMessage(params, `❌ ${message}`, chalk.red);
+}
+
+function logInfo(params: BatchTransferCommandOptions, message: string) {
+  logMessage(params, message, chalk.blue);
+}
+
+function startSpinner(
+  params: BatchTransferCommandOptions,
+  spinner: any,
+  message: string
+) {
+  if (!params.isExternal) {
+    spinner.start(message);
+  }
+}
+
+function stopSpinner(params: BatchTransferCommandOptions, spinner: any) {
+  if (!params.isExternal) {
+    spinner.stop();
+  }
+}
+
+export async function batchTransferCommand(params: BatchTransferCommandOptions) {
+  try {
+    const batchData = await getBatchData(params);
 
     if (batchData.length === 0) {
-      console.log(chalk.red("⚠️ No transactions file provided. Exiting..."));
-      return;
+      const errorMessage = "No transactions file provided. Exiting...";
+      logError(params, errorMessage);
+      return {
+        error: errorMessage,
+        success: false,
+      };
     }
 
-    const provider = new ViemProvider(testnet);
-    const walletClient = await provider.getWalletClient();
+    const provider = new ViemProvider(params.testnet);
+
+    let walletClient;
+    if (params.isExternal) {
+      if (!params.name || !params.password || !params.walletsData) {
+        const errorMessage = "Wallet name, password and wallets data are required.";
+        logError(params, errorMessage);
+        return {
+          error: errorMessage,
+          success: false,
+        };
+      }
+      walletClient = await provider.getWalletClientExternal(
+        params.walletsData,
+        params.name,
+        params.password,
+        provider
+      );
+    } else {
+      walletClient = await provider.getWalletClient();
+    }
+    if (!walletClient) {
+      const errorMessage = "Failed to get wallet client.";
+      logError(params, errorMessage);
+      return {
+        error: errorMessage,
+        success: false,
+      };
+    }
     const account = walletClient.account;
 
     if (!account) {
-      console.log(
-        chalk.red("🚫 Failed to retrieve wallet account. Exiting...")
-      );
-      return;
+      const errorMessage = "Failed to retrieve wallet account. Exiting...";
+      logError(params, errorMessage);
+      return {
+        error: errorMessage,
+        success: false,
+      };
     }
 
     const publicClient = await provider.getPublicClient();
@@ -61,30 +121,26 @@ export async function batchTransferCommand(
     });
     const rbtcBalance = Number(balance) / 10 ** 18;
 
-    console.log(
-      chalk.white(`📄 Wallet Address:`),
-      chalk.green(account.address)
-    );
-    console.log(
-      chalk.white(`💰 Current Balance:`),
-      chalk.green(`${rbtcBalance} RBTC`)
-    );
+    logMessage(params, `📄 Wallet Address: ${account.address}`);
+    logMessage(params, `💰 Current Balance: ${rbtcBalance} RBTC`);
 
     for (const { to, value } of batchData) {
       if (rbtcBalance < value) {
-        console.log(
-          chalk.red(`🚫 Insufficient balance to transfer ${value} RBTC.`)
-        );
-        break;
+        const errorMessage = `Insufficient balance to transfer ${value} RBTC.`;
+        logError(params, errorMessage);
+        return {
+          error: errorMessage,
+          success: false,
+        };
       }
 
       // Resolve RNS domain if needed
       let recipientAddress: Address;
-      if (isRNSDomain(to)) {
-        console.log(chalk.white(`🔍 Resolving RNS domain: ${to}`));
-        const resolved = await resolveRNSToAddress(publicClient, to, testnet);
+      if (params.resolveRNS && isRNSDomain(to)) {
+        logMessage(params, `🔍 Resolving RNS domain: ${to}`);
+        const resolved = await resolveRNSToAddress(publicClient, to, params.testnet);
         if (!resolved) {
-          console.log(chalk.red(`❌ Failed to resolve RNS domain: ${to}. Skipping transaction.`));
+          logError(params, `Failed to resolve RNS domain: ${to}. Skipping transaction.`);
           continue;
         }
         recipientAddress = resolved;
@@ -99,37 +155,48 @@ export async function batchTransferCommand(
         value: BigInt(Math.floor(value * 10 ** 18)),
       });
 
-      console.log(
-        chalk.white(`🔄 Transaction initiated. TxHash:`),
-        chalk.green(txHash)
-      );
+      logMessage(params, `🔄 Transaction initiated. TxHash: ${txHash}`);
 
-      const spinner = ora("⏳ Waiting for confirmation...").start();
+      const spinner = params.isExternal ? ora({isEnabled: false}) : ora();
+      startSpinner(params, spinner, "⏳ Waiting for confirmation...");
 
       const receipt = await publicClient.waitForTransactionReceipt({
         hash: txHash,
       });
-      spinner.stop();
+
+      stopSpinner(params, spinner);
 
       if (receipt.status === "success") {
-        console.log(chalk.green("✅ Transaction confirmed successfully!"));
-        console.log(
-          chalk.white(`📦 Block Number:`),
-          chalk.green(receipt.blockNumber)
-        );
-        console.log(
-          chalk.white(`⛽ Gas Used:`),
-          chalk.green(receipt.gasUsed.toString())
-        );
+        logSuccess(params, "✅ Transaction confirmed successfully!");
+        logInfo(params, `📦 Block Number: ${receipt.blockNumber}`);
+        logInfo(params, `⛽ Gas Used: ${receipt.gasUsed.toString()}`);
+        return {
+          success: true,
+          data: {
+            transactionHash: txHash,
+            blockNumber: receipt.blockNumber,
+            gasUsed: receipt.gasUsed.toString(),
+          },
+        };
       } else {
-        console.log(chalk.red("❌ Transaction failed."));
+        logError(params, "❌ Transaction failed.");
+        return {
+          success: false,
+          data: {
+            transactionHash: txHash,
+            blockNumber: receipt.blockNumber,
+            gasUsed: receipt.gasUsed.toString(),
+          },
+        };
       }
     }
   } catch (error: any) {
-    console.error(
-      chalk.red("🚨 Error during batch transfer:"),
-      chalk.yellow(error.message || "Unknown error")
-    );
+    const errorMessage = `🚨 Error during batch transfer: ${error.message || "Unknown error"}`;
+    logError(params, errorMessage);
+    return {
+      error: errorMessage,
+      success: false,
+    };
   }
 }
 
@@ -184,6 +251,41 @@ function validateAddress(address: string): Address {
     throw new Error(`Invalid Ethereum address: ${address}`);
   }
   return address as Address;
+}
+
+async function getBatchData(params: BatchTransferCommandOptions): Promise<BatchData[] | []> {
+  let batchData: BatchData[] | [];
+
+  if (params.isExternal) {
+    if (!params.batchData || params.batchData.length <= 0) {
+      return [];
+    }
+    return params.batchData;
+  } else {
+    if (params.interactive) {
+      return await promptForTransactions(params.resolveRNS);
+    } else if (params.filePath) {
+      if (!fs.existsSync(params.filePath)) {
+        console.log(
+          chalk.red("🚫 Batch file not found. Please provide a valid file.")
+        );
+        return [];
+      }
+      const fileContent = JSON.parse(fs.readFileSync(params.filePath, "utf8"));
+      batchData = fileContent.map((tx: FileTx) => ({
+        to: tx.to,
+        value: tx.value,
+      }));
+      return batchData;
+    } else {
+      console.log(
+        chalk.yellow(
+          "⚠️ No transactions file provided nor interactive mode enabled. Exiting..."
+        )
+      );
+      return [];
+    }
+  }
 }
 
 async function readStdin(): Promise<string> {
