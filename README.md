@@ -145,8 +145,8 @@ rsk-cli balance
 # Check balance of a specific address
 rsk-cli balance --address 0x123...
 
-# Check balance using RNS domain
-rsk-cli balance --rns alice.rsk
+# Check balance using RNS domain (example with real mainnet domain)
+rsk-cli balance --rns testing.rsk
 ```
 
 Output example:
@@ -168,7 +168,11 @@ Output example:
 Use the `-t` or `--testnet` flag to check the balance on the Rootstock testnet.
 
 ```bash
+# Check balance on testnet
 rsk-cli balance -t
+
+# Check balance using RNS domain on testnet  
+rsk-cli balance -t --rns testing.rsk
 ```
 
 Output example:
@@ -216,7 +220,7 @@ rsk-cli transfer -i
 rsk-cli transfer --address 0xRecipientAddress --value 0.001
 
 # Transfer using RNS domain
-rsk-cli transfer --rns alice.rsk --value 0.001
+rsk-cli transfer --rns testing.rsk --value 0.001
 
 # Transfer on testnet
 rsk-cli transfer --testnet --address 0x08C4E4BdAb2473E454B8B2a4400358792786d341 --value 0.001
@@ -251,13 +255,13 @@ Add the `--token` flag with the token contract address to transfer ERC20 tokens:
 rsk-cli transfer --token 0xTokenAddress --address 0xRecipientAddress --value 0.1
 
 # Token transfer using RNS domain
-rsk-cli transfer --token 0xTokenAddress --rns alice.rsk --value 0.1
+rsk-cli transfer --token 0xTokenAddress --rns testing.rsk --value 0.1
 
 # Token transfer on testnet
 rsk-cli transfer --testnet --token 0x32Cd6c5831531F96f57d1faf4DDdf0222c4Af8AB --address 0x8A0d290b2EE35eFde47810CA8fF057e109e4190B --value 0.1
 
 # Token transfer on testnet using RNS domain
-rsk-cli transfer --testnet --token 0x32Cd6c5831531F96f57d1faf4DDdf0222c4Af8AB --rns alice.rsk --value 0.1
+rsk-cli transfer --testnet --token 0x32Cd6c5831531F96f57d1faf4DDdf0222c4Af8AB --rns testing.rsk --value 0.1
 
 # Using specific wallet
 rsk-cli transfer --wallet <n> --testnet --token 0x32Cd6c5831531F96f57d1faf4DDdf0222c4Af8AB --address 0x8A0d290b2EE35eFde47810CA8fF057e109e4190B --value 0.1
@@ -578,12 +582,12 @@ In this mode, you provide a JSON file containing the batch transactions. The fil
 ]
 ```
 
-Or with RNS domains:
+Or with RNS domains (when using --rns flag):
 
 ```json
 [
-  { "to": "alice.rsk", "value": 0.000001 },
-  { "to": "charlie.rsk", "value": 0.000001 },
+  { "to": "testing.rsk", "value": 0.000001 },
+  { "to": "rifos.rsk", "value": 0.000001 },
   { "to": "0xDdC94BFde7C64117F35803AeA4FA4F98A7b4f57C", "value": 0.000001 }
 ]
 ```
@@ -635,22 +639,22 @@ Convert an RNS domain name to its associated address:
 ##### Mainnet
 
 ```bash
-rsk-cli resolve alice.rsk
+rsk-cli resolve testing.rsk
 ```
 
 ##### Testnet
 
 ```bash
-rsk-cli resolve alice.rsk --testnet
+rsk-cli resolve testing.rsk --testnet
 ```
 
 Output example:
 
 ```
-🔍 Resolving RNS name: alice.rsk
-✅ Resolution successful!
-📌 Name: alice.rsk
-📍 Address: 0x123456789abcdef0123456789abcdef012345678
+🔍 Resolving testing.rsk...
+✅ Domain resolved successfully!
+🏷️  Domain: testing.rsk
+📄 Address: 0x0000000000000000000000000000000001000006
 🌐 Network: Rootstock Mainnet
 ```
 
