@@ -134,12 +134,19 @@ This command will guide you through the process of wallet management, offering o
 
 ### 2. Check Balance
 
-The `balance` command allows you to check the balance of any token on the Rootstock blockchain for any of the saved wallets. You can check the balance on either the mainnet or testnet using the appropriate flags.
+The `balance` command allows you to check the balance of any token on the Rootstock blockchain for any of the saved wallets. You can check the balance on either the mainnet or testnet using the appropriate flags. The command now supports RNS domain resolution for checking balances of any address.
 
 #### Mainnet
 
 ```bash
+# Check balance of your wallet
 rsk-cli balance
+
+# Check balance of a specific address
+rsk-cli balance --address 0x123...
+
+# Check balance using RNS domain
+rsk-cli balance --rns alice.rsk
 ```
 
 Output example:
@@ -188,7 +195,7 @@ rsk-cli balance --wallet <name>
 
 ### 3. Transfer (RBTC and ERC20)
 
-The `transfer` command allows you to transfer both RBTC and ERC20 tokens from your saved wallet to a specified address on the Rootstock blockchain. You can execute transfers on either mainnet or testnet using the appropriate flags.
+The `transfer` command allows you to transfer both RBTC and ERC20 tokens from your saved wallet to a specified address on the Rootstock blockchain. You can execute transfers on either mainnet or testnet using the appropriate flags. The command now supports RNS domain resolution for recipient addresses.
 
 #### Interactive Mode
 
@@ -205,8 +212,11 @@ rsk-cli transfer -i
 #### For RBTC Transfer
 
 ```bash
-# Basic transfer on mainnet
+# Basic transfer on mainnet using address
 rsk-cli transfer --address 0xRecipientAddress --value 0.001
+
+# Transfer using RNS domain
+rsk-cli transfer --rns alice.rsk --value 0.001
 
 # Transfer on testnet
 rsk-cli transfer --testnet --address 0x08C4E4BdAb2473E454B8B2a4400358792786d341 --value 0.001
@@ -237,11 +247,17 @@ Output example for RBTC transfer:
 Add the `--token` flag with the token contract address to transfer ERC20 tokens:
 
 ```bash
-# Basic token transfer on mainnet
+# Basic token transfer on mainnet using address
 rsk-cli transfer --token 0xTokenAddress --address 0xRecipientAddress --value 0.1
+
+# Token transfer using RNS domain
+rsk-cli transfer --token 0xTokenAddress --rns alice.rsk --value 0.1
 
 # Token transfer on testnet
 rsk-cli transfer --testnet --token 0x32Cd6c5831531F96f57d1faf4DDdf0222c4Af8AB --address 0x8A0d290b2EE35eFde47810CA8fF057e109e4190B --value 0.1
+
+# Token transfer on testnet using RNS domain
+rsk-cli transfer --testnet --token 0x32Cd6c5831531F96f57d1faf4DDdf0222c4Af8AB --rns alice.rsk --value 0.1
 
 # Using specific wallet
 rsk-cli transfer --wallet <n> --testnet --token 0x32Cd6c5831531F96f57d1faf4DDdf0222c4Af8AB --address 0x8A0d290b2EE35eFde47810CA8fF057e109e4190B --value 0.1
@@ -503,7 +519,7 @@ Output example:
 
 ### 10. Batch Transfer
 
-The batch-transfer command allows you to send multiple transactions in one batch. This feature supports both interactive mode (manual input) and file-based batch processing, enabling you to transfer rBTC to multiple addresses in a single operation.
+The batch-transfer command allows you to send multiple transactions in one batch. This feature supports both interactive mode (manual input) and file-based batch processing, enabling you to transfer rBTC to multiple addresses in a single operation. The command now supports RNS domain resolution for recipient addresses.
 
 #### Interactive Mode
 
@@ -512,13 +528,21 @@ In this mode, the CLI will prompt you to enter the recipient addresses and amoun
 #### Mainnet
 
 ```bash
+# Interactive mode without RNS
 rsk-cli batch-transfer --interactive
+
+# Interactive mode with RNS support
+rsk-cli batch-transfer --interactive --rns
 ```
 
 #### Testnet
 
 ```bash
+# Interactive mode without RNS
 rsk-cli batch-transfer --testnet --interactive
+
+# Interactive mode with RNS support
+rsk-cli batch-transfer --testnet --interactive --rns
 ```
 
 Output example:
@@ -545,7 +569,7 @@ Add another transaction? (y/n): n
 
 #### File-based
 
-In this mode, you provide a JSON file containing the batch transactions. The file must include a list of transactions, each specifying the recipient address (address) and the amount (amount). The file should look something like this:
+In this mode, you provide a JSON file containing the batch transactions. The file must include a list of transactions, each specifying the recipient address (address) and the amount (amount). With RNS support, you can also use domain names as recipients. The file should look something like this:
 
 ```json
 [
@@ -554,16 +578,34 @@ In this mode, you provide a JSON file containing the batch transactions. The fil
 ]
 ```
 
+Or with RNS domains:
+
+```json
+[
+  { "to": "alice.rsk", "value": 0.000001 },
+  { "to": "charlie.rsk", "value": 0.000001 },
+  { "to": "0xDdC94BFde7C64117F35803AeA4FA4F98A7b4f57C", "value": 0.000001 }
+]
+```
+
 #### Mainnet
 
 ```bash
+# File-based batch transfer
 rsk-cli batch-transfer --file <path/to/file.json>
+
+# File-based batch transfer with RNS resolution
+rsk-cli batch-transfer --file <path/to/file.json> --rns
 ```
 
 #### Testnet
 
 ```bash
+# File-based batch transfer
 rsk-cli batch-transfer --testnet --file <path/to/file.json>
+
+# File-based batch transfer with RNS resolution
+rsk-cli batch-transfer --testnet --file <path/to/file.json> --rns
 ```
 
 Output example:
