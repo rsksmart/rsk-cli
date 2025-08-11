@@ -40,6 +40,7 @@ interface CommandOptions {
   gasLimit?: string;
   gasPrice?: string;
   data?: string;
+  rns?: string;
 }
 
 const orange = chalk.rgb(255, 165, 0);
@@ -76,8 +77,26 @@ program
   .option("-t, --testnet", "Check the balance on the testnet")
   .option("--wallet <wallet>", "Name of the wallet")
   .option("-a ,--address <address>", "Token holder address")
+  .option("--rns <domain>", "Token holder RNS domain (e.g., alice.rsk)")
   .action(async (options: CommandOptions) => {
-    await balanceCommand(!!options.testnet, options.wallet!, options.address);
+    // Handle RNS domain resolution if provided
+    let holderAddress = options.address;
+    if (options.rns) {
+      const { resolveRNSToAddress } = await import("../src/utils/rnsHelper.js");
+      const ViemProvider = (await import("../src/utils/viemProvider.js")).default;
+      
+      const provider = new ViemProvider(!!options.testnet);
+      const client = await provider.getPublicClient();
+      
+      const resolvedAddress = await resolveRNSToAddress(client, options.rns, !!options.testnet);
+      if (!resolvedAddress) {
+        console.error(chalk.red(`Failed to resolve RNS domain: ${options.rns}`));
+        return;
+      }
+      holderAddress = resolvedAddress;
+    }
+    
+    await balanceCommand(!!options.testnet, options.wallet!, holderAddress);
   });
 
 program
@@ -86,6 +105,7 @@ program
   .option("-t, --testnet", "Transfer on the testnet")
   .option("--wallet <wallet>", "Name of the wallet")
   .option("-a, --address <address>", "Recipient address")
+  .option("--rns <domain>", "Recipient RNS domain (e.g., alice.rsk)")
   .option("--token <address>", "ERC20 token contract address (optional, for token transfers)")
   .option("--value <value>", "Amount to transfer")
   .option("-i, --interactive", "Execute interactively and input transactions")
@@ -109,9 +129,26 @@ program
         throw new Error("Invalid value specified for transfer.");
       }
 
-      const address = options.address
-        ? (`0x${options.address.replace(/^0x/, "")}` as `0x${string}`)
-        : await selectAddress();
+      // Handle RNS domain resolution
+      let address: `0x${string}`;
+      if (options.rns) {
+        // Import RNS helper and resolve domain
+        const { resolveRNSToAddress } = await import("../src/utils/rnsHelper.js");
+        const ViemProvider = (await import("../src/utils/viemProvider.js")).default;
+        
+        const provider = new ViemProvider(!!options.testnet);
+        const client = await provider.getPublicClient();
+        
+        const resolvedAddress = await resolveRNSToAddress(client, options.rns, !!options.testnet);
+        if (!resolvedAddress) {
+          throw new Error(`Failed to resolve RNS domain: ${options.rns}`);
+        }
+        address = resolvedAddress;
+      } else if (options.address) {
+        address = `0x${options.address.replace(/^0x/, "")}` as `0x${string}`;
+      } else {
+        address = await selectAddress();
+      }
 
       const txOptions = {
         ...(options.gasLimit && { gasLimit: BigInt(options.gasLimit) }),
@@ -224,11 +261,13 @@ program
   .option("-i, --interactive", "Execute interactively and input transactions")
   .option("-t, --testnet", "Execute on the testnet")
   .option("-f, --file <path>", "Execute transactions from a file")
+  .option("--rns", "Enable RNS domain resolution for recipient addresses")
   .action(async (options) => {
     try {
       const interactive = !!options.interactive;
       const testnet = !!options.testnet;
       const file = options.file;
+      const resolveRNS = !!options.rns;
 
       if (interactive && file) {
         console.error(
@@ -239,7 +278,7 @@ program
         return;
       }
 
-      await batchTransferCommand(file, testnet, interactive);
+      await batchTransferCommand(file, testnet, interactive, resolveRNS);
     } catch (error: any) {
       console.error(
         chalk.red("🚨 Error during batch transfer:"),
