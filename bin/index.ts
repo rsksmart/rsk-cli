@@ -15,6 +15,9 @@ import { batchTransferCommand } from "../src/commands/batchTransfer.js";
 import { historyCommand } from "../src/commands/history.js";
 import { selectAddress } from "../src/commands/selectAddress.js";
 import { monitorCommand, listMonitoringSessions, stopMonitoringSession } from "../src/commands/monitor.js";
+import { transactionCommand } from "../src/commands/transaction.js";
+import { parseEther } from "viem";
+import { MonitorManager } from "../src/utils/monitoring/MonitorManager.js";
 
 interface CommandOptions {
   testnet?: boolean;
@@ -41,6 +44,9 @@ interface CommandOptions {
   list?: boolean;
   stop?: string;
   monitor?: boolean;
+  gasLimit?: string;
+  gasPrice?: string;
+  data?: string;
 }
 
 const orange = chalk.rgb(255, 165, 0);
@@ -76,9 +82,11 @@ program
   .description("Check the balance of the saved wallet")
   .option("-t, --testnet", "Check the balance on the testnet")
   .option("--wallet <wallet>", "Name of the wallet")
-  .option("-a ,--address <address>", "Token holder address")
   .action(async (options: CommandOptions) => {
-    await balanceCommand(!!options.testnet, options.wallet!, options.address);
+    await balanceCommand({
+      testnet: !!options.testnet,
+      walletName: options.wallet!,
+    });
   });
 
 program
@@ -88,9 +96,21 @@ program
   .option("--wallet <wallet>", "Name of the wallet")
   .option("-a, --address <address>", "Recipient address")
   .option("--token <address>", "ERC20 token contract address (optional, for token transfers)")
-  .requiredOption("--value <value>", "Amount to transfer")
+  .option("--value <value>", "Amount to transfer")
+  .option("-i, --interactive", "Execute interactively and input transactions")
+  .option("--gas-limit <limit>", "Custom gas limit")
+  .option("--gas-price <price>", "Custom gas price in RBTC")
+  .option("--data <data>", "Custom transaction data (hex)")
   .action(async (options: CommandOptions) => {
     try {
+      if (options.interactive) {
+        await batchTransferCommand({
+          testnet: !!options.testnet,
+          interactive: true,
+        });
+        return;
+      }
+
       if (!options.value) {
         throw new Error("Value is required for the transfer.");
       }
@@ -105,12 +125,20 @@ program
         ? (`0x${options.address.replace(/^0x/, "")}` as `0x${string}`)
         : await selectAddress();
 
+      const txOptions = {
+        ...(options.gasLimit && { gasLimit: BigInt(options.gasLimit) }),
+        ...(options.gasPrice && { gasPrice: parseEther(options.gasPrice.toString()) }),
+        ...(options.data && { data: options.data as `0x${string}` })
+      };
+
       await transferCommand(
-        !!options.testnet,
-        address,
-        value,
-        options.wallet!,
-        options.token as `0x${string}` | undefined
+        {
+          testnet: !!options.testnet,
+          toAddress: address,
+          value: value,
+          name: options.wallet!,
+          tokenAddress: options.token as `0x${string}` | undefined,
+        }
       );
     } catch (error: any) {
       console.error(
@@ -132,12 +160,11 @@ program
       ? options.txid
       : `0x${options.txid}`;
 
-    await txCommand(
-      !!options.testnet, 
-      formattedTxId as `0x${string}`,
-      !!options.monitor,
-      options.confirmations ? parseInt(options.confirmations.toString()) : undefined
-    );
+    await txCommand({
+      testnet: !!options.testnet,
+      txid: formattedTxId as `0x${string}`,
+      isExternal: false,
+    });
   });
 
 program
@@ -151,11 +178,13 @@ program
   .action(async (options: CommandOptions) => {
     const args = options.args || [];
     await deployCommand(
-      options.abi!,
-      options.bytecode!,
-      !!options.testnet,
-      args,
-      options.wallet!
+      {
+        abiPath: options.abi!,
+        bytecodePath: options.bytecode!,
+        testnet: !!options.testnet,
+        args: args,
+        name: options.wallet!,
+      }
     );
   });
 
@@ -173,12 +202,13 @@ program
   .action(async (options: CommandOptions) => {
     const args = options.decodedArgs || [];
     await verifyCommand(
-      options.json!,
-      options.address!,
-      options.name!,
-      !!options.testnet,
-
-      args
+      {
+        jsonPath: options.json!,
+        address: options.address!,
+        name: options.name!,
+        testnet: !!options.testnet,
+        args: args,
+      }
     );
   });
 
@@ -188,7 +218,10 @@ program
   .requiredOption("-a, --address <address>", "Address of a verified contract")
   .option("-t, --testnet", "Deploy on the testnet")
   .action(async (options: CommandOptions) => {
-    await ReadContract(options.address! as `0x${string}`, !!options.testnet);
+    await ReadContract({
+      address: options.address! as `0x${string}`,
+      testnet: !!options.testnet,
+    });
   });
 
 program
@@ -197,7 +230,10 @@ program
   .option("-t, --testnet", "Deploy on the testnet")
   .option("--wallet <wallet>", "Name of the wallet")
   .action(async (options: CommandOptions) => {
-    await bridgeCommand(!!options.testnet, options.wallet!);
+    await bridgeCommand({
+      testnet: !!options.testnet,
+      name: options.wallet!,
+    });
   });
 
 program
@@ -207,7 +243,11 @@ program
   .option("--number <number>", "Number of transactions to fetch")
   .option("-t, --testnet", "History of wallet on the testnet")
   .action(async (options: CommandOptions) => {
-    await historyCommand(!!options.testnet, options.apiKey!, options.number!);
+    await historyCommand({
+      testnet: !!options.testnet,
+      apiKey: options.apiKey!,
+      number: options.number!,
+    });
   });
 
 program
@@ -231,7 +271,11 @@ program
         return;
       }
 
-      await batchTransferCommand(file, testnet, interactive);
+      await batchTransferCommand({
+        filePath: file,
+        testnet: testnet,
+        interactive: interactive,
+      });
     } catch (error: any) {
       console.error(
         chalk.red("🚨 Error during batch transfer:"),
@@ -242,9 +286,11 @@ program
 
 program
   .command("monitor")
-  .description("Monitor addresses with real-time updates")
+  .description("Monitor addresses or transactions with real-time updates")
   .option("-t, --testnet", "Monitor on the testnet")
   .option("-a, --address <address>", "Address to monitor")
+  .option("--tx <txid>", "Transaction ID to monitor")
+  .option("--confirmations <number>", "Required confirmations for transaction monitoring (default: 12)")
   .option("--balance", "Monitor address balance changes")
   .option("--transactions", "Monitor address transaction history")
   .option("--list", "List active monitoring sessions")
@@ -258,6 +304,40 @@ program
 
       if (options.stop) {
         await stopMonitoringSession(options.stop, !!options.testnet);
+        return;
+      }
+
+      // Handle transaction monitoring
+      if (options.tx) {
+        const formattedTxId = options.tx.startsWith("0x") ? options.tx : `0x${options.tx}`;
+        const confirmations = options.confirmations ? parseInt(options.confirmations.toString()) : 12;
+        
+        console.log(chalk.blue(`🔍 Starting transaction monitoring...`));
+        console.log(chalk.gray(`Network: ${options.testnet ? 'Testnet' : 'Mainnet'}`));
+        console.log(chalk.gray(`Transaction: ${formattedTxId}`));
+        console.log(chalk.gray(`Required confirmations: ${confirmations}`));
+        console.log('');
+
+        const monitorManager = new MonitorManager(!!options.testnet);
+        await monitorManager.initialize();
+
+        const sessionId = await monitorManager.startTransactionMonitoring(
+          formattedTxId as `0x${string}`,
+          confirmations,
+          !!options.testnet
+        );
+
+        console.log(chalk.green(`\n🎯 Monitoring started successfully!`));
+        console.log(chalk.blue(`Press Ctrl+C to stop monitoring`));
+        console.log('');
+
+        process.on('SIGINT', async () => {
+          console.log(chalk.yellow(`\n⏹️  Stopping monitoring...`));
+          await monitorManager.stopMonitoring(sessionId);
+          process.exit(0);
+        });
+
+        setInterval(() => {}, 1000);
         return;
       }
 
