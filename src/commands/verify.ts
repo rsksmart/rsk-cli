@@ -1,183 +1,248 @@
 import chalk from "chalk";
 import fs from "fs";
 import ora from "ora";
-import { wait } from "../utils/index.js";
+import { VerifyResult, VerificationRequest } from "../utils/types.js";
+
+type VerifyCommandOptions = {
+  jsonPath: string;
+  address: string;
+  name: string;
+  testnet: boolean;
+  args?: any[];
+  isExternal?: boolean;
+};
+
+function logMessage(
+  params: VerifyCommandOptions,
+  message: string,
+  color: any = chalk.white
+) {
+  if (!params.isExternal) {
+    console.log(color(message));
+  }
+}
+
+function logError(params: VerifyCommandOptions, message: string) {
+  logMessage(params, `❌ ${message}`, chalk.red);
+}
+
+function logSuccess(params: VerifyCommandOptions, message: string) {
+  logMessage(params, message, chalk.green);
+}
+
+function logInfo(params: VerifyCommandOptions, message: string) {
+  logMessage(params, message, chalk.blue);
+}
+
+function startSpinner(
+  params: VerifyCommandOptions,
+  spinner: any,
+  message?: string
+) {
+  if (!params.isExternal) {
+    if (message) {
+      spinner.start(message);
+    } else {
+      spinner.start();
+    }
+  }
+}
+
+function stopSpinner(params: VerifyCommandOptions, spinner: any) {
+  if (!params.isExternal) {
+    spinner.stop();
+  }
+}
+
+function succeedSpinner(
+  params: VerifyCommandOptions,
+  spinner: any,
+  message: string
+) {
+  if (!params.isExternal) {
+    spinner.succeed(message);
+  }
+}
+
+function failSpinner(
+  params: VerifyCommandOptions,
+  spinner: any,
+  message: string
+) {
+  if (!params.isExternal) {
+    spinner.fail(message);
+  }
+}
 
 export async function verifyCommand(
-  jsonPath: string,
-  address: string,
-  name: string,
-  testnet: boolean,
-  args: any[] = []
-): Promise<void> {
-  console.log(
-    chalk.blue(
-      `🔧 Initializing verification on ${testnet ? "testnet" : "mainnet"}...`
-    )
-  );
+  params: VerifyCommandOptions
+): Promise<VerifyResult | void> {
+  logInfo(params, `🔧 Initializing verification on ${params.testnet ? "testnet" : "mainnet"}...`);
 
-  const baseUrl = testnet
+  const baseUrl = params.testnet
     ? "https://be.explorer.testnet.rootstock.io"
     : "https://be.explorer.rootstock.io";
 
   const response = await fetch(
-    `${baseUrl}/api?module=verificationResults&action=getVerification&address=${address.toLowerCase()}`
+    `${baseUrl}/api/v3/addresses/verification/${params.address.toLowerCase()}`
   );
 
   const resData = await response.json();
 
   if (resData.data !== null) {
-    console.log(
-      chalk.green(
-        `✅ Contract ${chalk.green(`${address}`)} is already verified.`
-      )
-    );
-    return;
+    const explorerUrl = params.testnet
+      ? `https://explorer.testnet.rootstock.io/address/${params.address}`
+      : `https://explorer.rootstock.io/address/${params.address}`;
+
+    logSuccess(params, `✅ Contract ${params.address} is already verified.`);
+    
+    return {
+      success: true,
+      data: {
+        contractAddress: params.address,
+        contractName: params.name,
+        network: params.testnet ? "Rootstock Testnet" : "Rootstock Mainnet",
+        explorerUrl: explorerUrl,
+        verified: true,
+        alreadyVerified: true,
+      },
+    };
   }
 
-  console.log(chalk.blue(`📄 Reading JSON Standard Input from ${jsonPath}...`));
   let parsedJson;
 
-  try {
-    const json = fs.readFileSync(jsonPath, "utf8");
-    parsedJson = JSON.parse(json);
-  } catch (error) {
-    console.error(
-      chalk.red("⚠️ Please check your JSON Standard Input file and try again.")
-    );
-    return;
+  if (params.isExternal) {
+    try {
+      parsedJson = JSON.parse(params.jsonPath);
+    } catch (error) {
+      return {
+        error: "Error parsing JSON Standard Input content",
+        success: false,
+      };
+    }
+  } else {
+    logInfo(params, `📄 Reading JSON Standard Input from ${params.jsonPath}...`);
+    try {
+      const json = fs.readFileSync(params.jsonPath, "utf8");
+      parsedJson = JSON.parse(json);
+    } catch (error) {
+      const errorMessage = "Please check your JSON Standard Input file and try again.";
+      logError(params, errorMessage);
+      return {
+        error: errorMessage,
+        success: false,
+      };
+    }
   }
+  
+  logInfo(params, `🔎 Verifying contract ${params.name} deployed at ${params.address}...`);
 
-  console.log(
-    `🔎 Verifying contract ${chalk.green(`${name}`)} deployed at ${chalk.green(
-      `${address}`
-    )}..`
-  );
-
-  const spinner = ora().start();
+  const spinner = params.isExternal ? ora({isEnabled: false}) : ora();
+  startSpinner(params, spinner);
 
   try {
     if (
       !parsedJson.hasOwnProperty("solcLongVersion") ||
       !parsedJson.hasOwnProperty("input")
     ) {
-      spinner.fail(
-        "❌ Please check your JSON Standard Input file and try again."
-      );
-      return;
+      const errorMessage = "Please check your JSON Standard Input file and try again.";
+      failSpinner(params, spinner, errorMessage);
+      return {
+        error: errorMessage,
+        success: false,
+      };
     }
 
-    const solidityVersion = parsedJson.solcLongVersion;
+    const solidityVersion = parsedJson.solcLongVersion.split('+')[0];
+    const { sources, settings } = parsedJson.input;
+    
+    const transformedSettings = {
+      optimizer: settings.optimizer || { enabled: false, runs: 200 },
+      evmVersion: settings.evmVersion || 'london',
+    };
+    
+    parsedJson.sources = sources;
+    parsedJson.settings = settings;
 
-    const { language, sources, settings } = parsedJson.input;
-
-    const requestBody = {
-      module: "contractVerifier",
-      action: "verify",
-      getDelayed: true,
-      params: {
-        request: {
-          address: address.toLowerCase(),
-          name,
-          version: solidityVersion,
-          language,
-          sources,
-          settings,
-        },
-      },
+    const verificationData: VerificationRequest = {
+      address: params.address.toLowerCase(),
+      name: params.name,
+      version: solidityVersion,
+      sources: JSON.stringify(sources),
+      settings: transformedSettings,
     };
 
-    if (args.length > 0) {
-      spinner.stop();
-      console.log(
-        chalk.blue(`📄 Using constructor arguments: ${args.join(", ")}`)
-      );
-      spinner.start();
-      // @ts-ignore
-      requestBody.params.request.constructorArguments = args;
+    if (params.args && params.args.length > 0) {
+      stopSpinner(params, spinner);
+      logInfo(params, `📄 Using constructor arguments: ${params.args.join(", ")}`);
+      startSpinner(params, spinner);
+      verificationData.constructorArguments = params.args;
     }
 
-    const response = await fetch(`${baseUrl}/api`, {
-      method: "POST",
-      body: JSON.stringify(requestBody),
-      headers: {
-        "Content-Type": "application/json",
-      },
-    });
+    const formData = new FormData();
+    formData.append('data', JSON.stringify(verificationData));
+    
+    const jsonBlob = new Blob([JSON.stringify(parsedJson)], { type: 'application/json' });
+    formData.append('file', jsonBlob, 'standard-input.json');
 
+    let response;
+    try {
+      response = await fetch(`${baseUrl}/api/v3/verifications/verify`, {
+        method: "POST",
+        body: formData,
+      });
+    } catch (fetchError) {
+      const errorMessage = "Network error during contract verification";
+      failSpinner(params, spinner, errorMessage);
+      return {
+        error: errorMessage,
+        success: false,
+      };
+    }
+    
     if (!response.ok) {
-      spinner.fail("❌ Error during contract verification.");
-      return;
+      const errorMessage = "Error during contract verification";
+      failSpinner(params, spinner, errorMessage);
+      return {
+        error: errorMessage,
+        success: false,
+      };
     }
 
     const resData = await response.json();
-    const { _id } = resData.data;
-
-    spinner.succeed("🎉 Contract verification request sent!");
-    spinner.start("⏳ Waiting for verification confirmation...");
-
-    const maxRetries = 10;
-    const retryDelay = 4000;
-
-    const match = await pollVerificationResult(
-      baseUrl,
-      _id,
-      maxRetries,
-      retryDelay
-    );
-
-    if (!match) {
-      spinner.fail("❌ JSON Standard Input verification don't match.");
-      return;
+    if (!resData.success) {
+      const errorMessage = resData.message || "Contract verification failed";
+      failSpinner(params, spinner, errorMessage);
+      return {
+        error: errorMessage,
+        success: false,
+      };
     }
 
-    spinner.succeed("📜 Contract verified successfully!");
+    const explorerUrl = params.testnet
+      ? `https://explorer.testnet.rootstock.io/address/${params.address}`
+      : `https://explorer.rootstock.io/address/${params.address}`;
 
-    const explorerUrl = testnet
-      ? `https://explorer.testnet.rootstock.io/address/${address}`
-      : `https://explorer.rootstock.io/address/${address}`;
+    succeedSpinner(params, spinner, "📜 Contract verified successfully!");
+    logInfo(params, `🔗 View on Explorer: ${explorerUrl}`);
 
-    console.log(
-      chalk.white(`🔗 View on Explorer:`),
-      chalk.dim(`${explorerUrl}`)
-    );
+    return {
+      success: true,
+      data: {
+        contractAddress: params.address,
+        contractName: params.name,
+        network: params.testnet ? "Rootstock Testnet" : "Rootstock Mainnet",
+        explorerUrl: explorerUrl,
+        verified: true,
+        verificationData: resData.data,
+      },
+    };
   } catch (error) {
-    spinner.fail("❌ Error during contract verification.");
-    return;
+    const errorMessage = "Error during contract verification";
+    failSpinner(params, spinner, errorMessage);
+    return {
+      error: errorMessage,
+      success: false,
+    };
   }
-}
-
-async function pollVerificationResult(
-  baseUrl: string,
-  verificationId: string,
-  maxRetries: number,
-  retryDelay: number
-): Promise<boolean> {
-  for (let attempt = 0; attempt < maxRetries; attempt++) {
-    const confirmation = await fetch(
-      `${baseUrl}/api?module=contractVerifier&action=getVerificationResult&id=${verificationId}`
-    );
-
-    if (!confirmation.ok) {
-      console.log(
-        chalk.yellow("⚠️ Error fetching verification status, retrying...")
-      );
-    } else {
-      const confirmationData = await confirmation.json();
-      const { match } = confirmationData.data;
-
-      if (match !== undefined) {
-        return match;
-      }
-    }
-
-    await wait(retryDelay);
-  }
-
-  console.log(
-    chalk.red(
-      "⚠️ Maximum retries reached, verification status could not be confirmed."
-    )
-  );
-  return false;
 }

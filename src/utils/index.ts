@@ -93,9 +93,7 @@ export const formatBridgeFragments = (bridgeAbi: any) => {
     return formattedBridgeAbi;
   } catch (error) {
     console.error(
-      `Error while formatting bridge abi fragments: ${
-        error instanceof Error ? error.message : String(error)
-      }`
+      "Error while formatting bridge abi fragments"
     );
   }
 };
