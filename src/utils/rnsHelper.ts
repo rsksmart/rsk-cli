@@ -32,25 +32,44 @@ export const RNS_RESOLVER_ABI = [
   },
 ] as const;
 
+type ResolveRNSOptions = {
+  client: PublicClient;
+  name: string;
+  testnet?: boolean;
+  isExternal?: boolean;
+};
+
+type ResolveAddressOptions = {
+  client: PublicClient;
+  address: Address;
+  testnet?: boolean;
+  isExternal?: boolean;
+};
+
+type ResolveToAddressOptions = {
+  client: PublicClient;
+  input: string;
+  testnet?: boolean;
+  isExternal?: boolean;
+};
+
 export function isRNSDomain(input: string): boolean {
   return input.endsWith(".rsk") || (!input.startsWith("0x") && input.includes("."));
 }
 
 export async function resolveRNSToAddress(
-  client: PublicClient,
-  name: string,
-  testnet: boolean = false,
-  isExternal: boolean = false
+  params: ResolveRNSOptions
 ): Promise<Address | null> {
   try {
+    let name = params.name;
     if (!name.endsWith(".rsk")) {
       name = name + ".rsk";
     }
 
     const node = namehash(name);
 
-    const registryAddress = testnet ? RNS_REGISTRY_TESTNET : RNS_REGISTRY_MAINNET;
-    const resolverAddress = await client.readContract({
+    const registryAddress = params.testnet ? RNS_REGISTRY_TESTNET : RNS_REGISTRY_MAINNET;
+    const resolverAddress = await params.client.readContract({
       address: registryAddress as Address,
       abi: RNS_REGISTRY_ABI,
       functionName: "resolver",
@@ -58,13 +77,13 @@ export async function resolveRNSToAddress(
     }) as Address;
 
     if (resolverAddress === ZERO_ADDRESS) {
-      if (!isExternal) {
+      if (!params.isExternal) {
         console.log(chalk.yellow(`⚠️ No resolver found for ${name}`));
       }
       return null;
     }
 
-    const resolvedAddress = await client.readContract({
+    const resolvedAddress = await params.client.readContract({
       address: resolverAddress,
       abi: RNS_RESOLVER_ABI,
       functionName: "addr",
@@ -72,19 +91,19 @@ export async function resolveRNSToAddress(
     }) as Address;
 
     if (resolvedAddress === ZERO_ADDRESS) {
-      if (!isExternal) {
+      if (!params.isExternal) {
         console.log(chalk.yellow(`⚠️ No address set for ${name}`));
       }
       return null;
     }
 
-    if (!isExternal) {
+    if (!params.isExternal) {
       console.log(chalk.green(`✅ Resolved ${name} to ${resolvedAddress}`));
     }
     return resolvedAddress;
   } catch (error) {
-    if (!isExternal) {
-      console.error(chalk.red(`❌ Failed to resolve RNS name: ${name}`));
+    if (!params.isExternal) {
+      console.error(chalk.red(`❌ Failed to resolve RNS name: ${params.name}`));
       if (error instanceof Error) {
         console.error(chalk.yellow(error.message));
       }
@@ -94,32 +113,29 @@ export async function resolveRNSToAddress(
 }
 
 export async function resolveAddressToRNS(
-  client: PublicClient,
-  address: Address,
-  testnet: boolean = false,
-  isExternal: boolean = false
+  params: ResolveAddressOptions
 ): Promise<string | null> {
   try {
-    const resolverAddress = testnet ? RNS_RESOLVER_TESTNET : RNS_RESOLVER_MAINNET;
+    const resolverAddress = params.testnet ? RNS_RESOLVER_TESTNET : RNS_RESOLVER_MAINNET;
     
-    const resolverName = await client.readContract({
+    const resolverName = await params.client.readContract({
       address: resolverAddress as Address,
       abi: RNS_RESOLVER_ABI,
       functionName: "name",
-      args: [address],
+      args: [params.address],
     }) as string;
 
     if (resolverName && resolverName !== "") {
-      if (!isExternal) {
-        console.log(chalk.green(`✅ Resolved ${address} to ${resolverName}`));
+      if (!params.isExternal) {
+        console.log(chalk.green(`✅ Resolved ${params.address} to ${resolverName}`));
       }
       return resolverName;
     }
     
     return null;
   } catch (error) {
-    if (!isExternal) {
-      console.error(chalk.red(`❌ Failed to reverse resolve address: ${address}`));
+    if (!params.isExternal) {
+      console.error(chalk.red(`❌ Failed to reverse resolve address: ${params.address}`));
       if (error instanceof Error) {
         console.error(chalk.yellow(error.message));
       }
@@ -129,27 +145,29 @@ export async function resolveAddressToRNS(
 }
 
 export async function resolveToAddress(
-  client: PublicClient,
-  input: string,
-  testnet: boolean = false,
-  isExternal: boolean = false
+  params: ResolveToAddressOptions
 ): Promise<Address | null> {
-  if (input.startsWith("0x") && input.length === 42) {
+  if (params.input.startsWith("0x") && params.input.length === 42) {
     try {
-      return input as Address;
+      return params.input as Address;
     } catch {
-      if (!isExternal) {
+      if (!params.isExternal) {
         console.error(chalk.red("❌ Invalid address format"));
       }
       return null;
     }
   }
 
-  if (isRNSDomain(input)) {
-    return await resolveRNSToAddress(client, input, testnet, isExternal);
+  if (isRNSDomain(params.input)) {
+    return await resolveRNSToAddress({
+      client: params.client,
+      name: params.input,
+      testnet: params.testnet,
+      isExternal: params.isExternal
+    });
   }
 
-  if (!isExternal) {
+  if (!params.isExternal) {
     console.error(chalk.red("❌ Input is neither a valid address nor an RNS domain"));
   }
   return null;

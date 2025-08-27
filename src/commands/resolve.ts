@@ -42,10 +42,6 @@ function logError(params: ResolveCommandOptions, message: string) {
   logMessage(params, `❌ ${message}`, chalk.red);
 }
 
-function logSuccess(params: ResolveCommandOptions, message: string) {
-  logMessage(params, message, chalk.green);
-}
-
 function logInfo(params: ResolveCommandOptions, message: string) {
   logMessage(params, message, chalk.blue);
 }
@@ -109,14 +105,14 @@ export async function resolveCommand(
       startSpinner(params, spinner, chalk.white("🔍 Looking up name for address..."));
       
       try {
-        const address = params.name as Address;
+        const address = params.name;
         const resolverAddress = params.testnet ? RNS_RESOLVER_TESTNET : RNS_RESOLVER_MAINNET;
         
         const resolverName = await client.readContract({
           address: resolverAddress,
           abi: RNS_RESOLVER_ABI,
           functionName: "name",
-          args: [address],
+          args: [address as Address],
         }) as string;
 
         if (resolverName && resolverName !== "") {

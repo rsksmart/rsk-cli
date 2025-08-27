@@ -87,7 +87,12 @@ program
       const provider = new ViemProvider(!!options.testnet);
       const client = await provider.getPublicClient();
       
-      const resolvedAddress = await resolveRNSToAddress(client, options.rns, !!options.testnet);
+      const resolvedAddress = await resolveRNSToAddress({
+        client,
+        name: options.rns,
+        testnet: !!options.testnet,
+        isExternal: false
+      });
       if (!resolvedAddress) {
         console.error(chalk.red(`Failed to resolve RNS domain: ${options.rns}`));
         return;
@@ -143,7 +148,12 @@ program
         const provider = new ViemProvider(!!options.testnet);
         const client = await provider.getPublicClient();
         
-        const resolvedAddress = await resolveRNSToAddress(client, options.rns, !!options.testnet);
+        const resolvedAddress = await resolveRNSToAddress({
+        client,
+        name: options.rns,
+        testnet: !!options.testnet,
+        isExternal: false
+      });
         if (!resolvedAddress) {
           throw new Error(`Failed to resolve RNS domain: ${options.rns}`);
         }
