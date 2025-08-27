@@ -307,56 +307,22 @@ program
         return;
       }
 
-      // Handle transaction monitoring
-      if (options.tx) {
-        const formattedTxId = options.tx.startsWith("0x") ? options.tx : `0x${options.tx}`;
-        const confirmations = options.confirmations ? parseInt(options.confirmations.toString()) : 12;
-        
-        console.log(chalk.blue(`🔍 Starting transaction monitoring...`));
-        console.log(chalk.gray(`Network: ${options.testnet ? 'Testnet' : 'Mainnet'}`));
-        console.log(chalk.gray(`Transaction: ${formattedTxId}`));
-        console.log(chalk.gray(`Required confirmations: ${confirmations}`));
-        console.log('');
-
-        const monitorManager = new MonitorManager(!!options.testnet);
-        await monitorManager.initialize();
-
-        const sessionId = await monitorManager.startTransactionMonitoring(
-          formattedTxId as `0x${string}`,
-          confirmations,
-          !!options.testnet
-        );
-
-        console.log(chalk.green(`\n🎯 Monitoring started successfully!`));
-        console.log(chalk.blue(`Press Ctrl+C to stop monitoring`));
-        console.log('');
-
-        process.on('SIGINT', async () => {
-          console.log(chalk.yellow(`\n⏹️  Stopping monitoring...`));
-          await monitorManager.stopMonitoring(sessionId);
-          process.exit(0);
-        });
-
-        setInterval(() => {}, 1000);
-        return;
-      }
-
-      if (!options.address) {
-        console.log(chalk.yellow("📊 No monitoring target specified. Showing active sessions:"));
-        await listMonitoringSessions(!!options.testnet);
-        return;
-      }
-
       const address = options.address 
         ? (`0x${options.address.replace(/^0x/, "")}` as `0x${string}`)
         : undefined;
 
-      await monitorCommand(
-        !!options.testnet,
-        address as Address,
-        options.balance !== false,
-        !!options.transactions
-      );
+      const tx = options.tx
+        ? (options.tx.startsWith("0x") ? options.tx : `0x${options.tx}`) as `0x${string}`
+        : undefined;
+
+      await monitorCommand({
+        testnet: !!options.testnet,
+        address: address as Address | undefined,
+        monitorBalance: options.balance !== false,
+        monitorTransactions: !!options.transactions,
+        tx,
+        confirmations: options.confirmations ? parseInt(options.confirmations.toString()) : undefined
+      });
     } catch (error: any) {
       console.error(
         chalk.red("Error during monitoring:"),
