@@ -69,7 +69,6 @@ function displayCurrentConfig(config: ConfigData): void {
   
   if (config.alchemyApiKey) {
     const maskedKey = config.alchemyApiKey.substring(0, 8) + "..." + config.alchemyApiKey.substring(config.alchemyApiKey.length - 4);
-    console.log(chalk.white(`🔑 Alchemy API Key: ${chalk.green(maskedKey)}`));
   } else {
     console.log(chalk.white(`🔑 Alchemy API Key: ${chalk.red("Not set")}`));
   }
