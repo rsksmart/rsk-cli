@@ -79,7 +79,6 @@ program
   .option("-a ,--address <address>", "Token holder address")
   .option("--rns <domain>", "Token holder RNS domain (e.g., alice.rsk)")
   .action(async (options: CommandOptions) => {
-    // Handle RNS domain resolution if provided
     let holderAddress = options.address;
     if (options.rns) {
       const { resolveRNSToAddress } = await import("../src/utils/rnsHelper.js");
@@ -136,10 +135,8 @@ program
         throw new Error("Invalid value specified for transfer.");
       }
 
-      // Handle RNS domain resolution
       let address: `0x${string}`;
       if (options.rns) {
-        // Import RNS helper and resolve domain
         const { resolveRNSToAddress } = await import("../src/utils/rnsHelper.js");
         const ViemProvider = (await import("../src/utils/viemProvider.js")).default;
         
@@ -322,7 +319,11 @@ program
   .option("-t, --testnet", "Use testnet (currently mainnet only)")
   .option("-r, --reverse", "Reverse lookup: address to name")
   .action(async (name: string, options: CommandOptions) => {
-    await resolveCommand(name, !!options.testnet, !!options.reverse);
+    await resolveCommand({
+      name,
+      testnet: !!options.testnet,
+      reverse: !!options.reverse
+    });
   });
 
 program.parse(process.argv);
