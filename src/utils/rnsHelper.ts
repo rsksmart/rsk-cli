@@ -59,7 +59,7 @@ export async function resolveRNSToAddress(
 
     if (resolverAddress === ZERO_ADDRESS) {
       if (!isExternal) {
-        console.log(chalk.yellow(`No resolver found for ${name}`));
+        console.log(chalk.yellow(`⚠️ No resolver found for ${name}`));
       }
       return null;
     }
@@ -73,18 +73,18 @@ export async function resolveRNSToAddress(
 
     if (resolvedAddress === ZERO_ADDRESS) {
       if (!isExternal) {
-        console.log(chalk.yellow(`No address set for ${name}`));
+        console.log(chalk.yellow(`⚠️ No address set for ${name}`));
       }
       return null;
     }
 
     if (!isExternal) {
-      console.log(chalk.green(`Resolved ${name} to ${resolvedAddress}`));
+      console.log(chalk.green(`✅ Resolved ${name} to ${resolvedAddress}`));
     }
     return resolvedAddress;
   } catch (error) {
     if (!isExternal) {
-      console.error(chalk.red(`Failed to resolve RNS name: ${name}`));
+      console.error(chalk.red(`❌ Failed to resolve RNS name: ${name}`));
       if (error instanceof Error) {
         console.error(chalk.yellow(error.message));
       }
@@ -111,7 +111,7 @@ export async function resolveAddressToRNS(
 
     if (resolverName && resolverName !== "") {
       if (!isExternal) {
-        console.log(chalk.green(`Resolved ${address} to ${resolverName}`));
+        console.log(chalk.green(`✅ Resolved ${address} to ${resolverName}`));
       }
       return resolverName;
     }
@@ -119,7 +119,7 @@ export async function resolveAddressToRNS(
     return null;
   } catch (error) {
     if (!isExternal) {
-      console.error(chalk.red(`Failed to reverse resolve address: ${address}`));
+      console.error(chalk.red(`❌ Failed to reverse resolve address: ${address}`));
       if (error instanceof Error) {
         console.error(chalk.yellow(error.message));
       }
@@ -139,7 +139,7 @@ export async function resolveToAddress(
       return input as Address;
     } catch {
       if (!isExternal) {
-        console.error(chalk.red("Invalid address format"));
+        console.error(chalk.red("❌ Invalid address format"));
       }
       return null;
     }
@@ -150,7 +150,7 @@ export async function resolveToAddress(
   }
 
   if (!isExternal) {
-    console.error(chalk.red("Input is neither a valid address nor an RNS domain"));
+    console.error(chalk.red("❌ Input is neither a valid address nor an RNS domain"));
   }
   return null;
 }
