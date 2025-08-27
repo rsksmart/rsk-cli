@@ -67,9 +67,7 @@ function displayCurrentConfig(config: ConfigData): void {
   console.log(chalk.white(`⛽ Default Gas Limit: ${chalk.green(config.defaultGasLimit.toLocaleString())}`));
   console.log(chalk.white(`💰 Default Gas Price: ${chalk.green(config.defaultGasPrice === 0 ? "Auto" : `${config.defaultGasPrice} Gwei`)}`));
   
-  if (config.alchemyApiKey) {
-    const maskedKey = config.alchemyApiKey.substring(0, 8) + "..." + config.alchemyApiKey.substring(config.alchemyApiKey.length - 4);
-  } else {
+  if (!config.alchemyApiKey) {
     console.log(chalk.white(`🔑 Alchemy API Key: ${chalk.red("Not set")}`));
   }
   
