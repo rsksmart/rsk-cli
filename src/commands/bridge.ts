@@ -6,6 +6,7 @@ import { ALLOWED_BRIDGE_METHODS } from "../utils/constants.js";
 import ViemProvider from "../utils/viemProvider.js";
 import ora from "ora";
 import { WalletData } from "../utils/types.js";
+import { getConfig } from "./config.js";
 
 type InquirerAnswers = {
   selectedType?: FunctionType;
@@ -76,10 +77,13 @@ function succeedSpinner(
 
 export async function bridgeCommand(params: BridgeCommandOptions) {
   try {
+    const config = getConfig();
+    const isTestnet = params.testnet ?? (config.defaultNetwork === 'testnet');
+    
     const spinner = params.isExternal ? ora({ isEnabled: false }) : ora();
     logInfo(
       params,
-      `🔧 Initializing bridge for ${params.testnet ? "testnet" : "mainnet"}...`
+      `🔧 Initializing bridge for ${isTestnet ? "testnet" : "mainnet"}...`
     );
 
     const bridge = {
@@ -111,10 +115,10 @@ export async function bridgeCommand(params: BridgeCommandOptions) {
       };
     }
 
-    const provider = new ViemProvider(params.testnet);
+    const provider = new ViemProvider(isTestnet);
     const publicClient = await provider.getPublicClient();
 
-    const explorerUrl = params.testnet
+    const explorerUrl = isTestnet
       ? `https://explorer.testnet.rootstock.io/address/${bridge.address}`
       : `https://explorer.rootstock.io/address/${bridge.address}`;
 
@@ -195,11 +199,19 @@ export async function bridgeCommand(params: BridgeCommandOptions) {
             params,
             `✅ Function ${finalSelectedFunction} called successfully!`
           );
-          succeedSpinner(
-            params,
-            spinner,
-            chalk.white(`🔧 Result: `) + chalk.green(data)
-          );
+          if (config.displayPreferences.compactMode) {
+            succeedSpinner(
+              params,
+              spinner,
+              chalk.green(`${data}`)
+            );
+          } else {
+            succeedSpinner(
+              params,
+              spinner,
+              chalk.white(`🔧 Result: `) + chalk.green(data)
+            );
+          }
           return {
             success: true,
             result: data,
@@ -252,6 +264,8 @@ export async function bridgeCommand(params: BridgeCommandOptions) {
           abi: bridge.abi,
           functionName: finalSelectedFunction,
           args,
+          gas: BigInt(config.defaultGasLimit), // Use default gas limit from config
+          ...(config.defaultGasPrice > 0 && { maxFeePerGas: BigInt(config.defaultGasPrice) }), // Use default gas price if set
         });
 
         await finalWalletClient.writeContract(request);
@@ -262,18 +276,28 @@ export async function bridgeCommand(params: BridgeCommandOptions) {
           `✅ Function ${finalSelectedFunction} called successfully!`
         );
         if (result) {
-          succeedSpinner(
-            params,
-            spinner,
-            chalk.white(`🔧 Result: `) + chalk.green(result)
-          );
+          if (config.displayPreferences.compactMode) {
+            succeedSpinner(
+              params,
+              spinner,
+              chalk.green(`${result}`)
+            );
+          } else {
+            succeedSpinner(
+              params,
+              spinner,
+              chalk.white(`🔧 Result: `) + chalk.green(result)
+            );
+          }
           return {
             success: true,
             result,
           };
         }
       }
-      logInfo(params, `🔗 View on Explorer: ${explorerUrl}`);
+      if (config.displayPreferences.showExplorerLinks) {
+        logInfo(params, `🔗 View on Explorer: ${explorerUrl}`);
+      }
     } catch (error) {
       stopSpinner(params, spinner);
       throw error;

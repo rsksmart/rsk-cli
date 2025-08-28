@@ -6,6 +6,7 @@ import inquirer from "inquirer";
 import { Address, parseEther, formatEther } from "viem";
 import { walletFilePath } from "../utils/constants.js";
 import { getTokenInfo, isERC20Contract } from "../utils/tokenHelper.js";
+import { getConfig } from "./config.js";
 
 type TransactionType = 'simple' | 'advanced' | 'raw';
 
@@ -18,13 +19,15 @@ interface AdvancedTransactionOptions {
 }
 
 export async function transactionCommand(
-  testnet: boolean,
+  testnet?: boolean,
   toAddress?: Address,
   value?: number,
   name?: string,
   tokenAddress?: Address,
   options?: AdvancedTransactionOptions
 ) {
+  const config = getConfig();
+  const isTestnet = testnet ?? (config.defaultNetwork === 'testnet');
   try {
     if (!fs.existsSync(walletFilePath)) {
       console.log(chalk.red("🚫 No saved wallet found. Please create a wallet first."));
@@ -44,7 +47,7 @@ export async function transactionCommand(
       return;
     }
 
-    const provider = new ViemProvider(testnet);
+    const provider = new ViemProvider(isTestnet);
     const publicClient = await provider.getPublicClient();
     const walletClient = await provider.getWalletClient(name);
     const account = walletClient.account;
@@ -81,7 +84,7 @@ export async function transactionCommand(
         toAddress,
         value,
         wallet.address,
-        testnet,
+        isTestnet,
         options
       );
     } else {
@@ -92,7 +95,7 @@ export async function transactionCommand(
         toAddress,
         value,
         wallet.address,
-        testnet,
+        isTestnet,
         options
       );
     }
@@ -173,19 +176,20 @@ async function promptTransactionDetails(type: TransactionType, publicClient: any
     details.value = parseFloat(value);
   }
 
-  if (type === 'advanced' || type === 'raw') {
+      if (type === 'advanced' || type === 'raw') {
+    const config = getConfig();
     const advanced = await inquirer.prompt([
       {
         type: 'input',
         name: 'gasLimit',
         message: '⛽ Enter gas limit (optional):',
-        default: ''
+        default: config.defaultGasLimit.toString()
       },
       {
         type: 'input',
         name: 'maxFeePerGas',
         message: '💰 Enter max fee per gas in RBTC (optional):',
-        default: ''
+        default: config.defaultGasPrice > 0 ? config.defaultGasPrice.toString() : ''
       },
       {
         type: 'input',
@@ -303,6 +307,7 @@ async function handleRBTCTransfer(
 
 async function handleTransactionReceipt(publicClient: any, txHash: `0x${string}`, testnet: boolean) {
   const spinner = ora('⏳ Waiting for confirmation...').start();
+  const config = getConfig();
   
   try {
     const receipt = await publicClient.waitForTransactionReceipt({ hash: txHash });
@@ -310,13 +315,27 @@ async function handleTransactionReceipt(publicClient: any, txHash: `0x${string}`
 
     if (receipt.status === 'success') {
       console.log(chalk.green('\n✅ Transaction confirmed successfully!'));
-      console.log(chalk.white(`📦 Block Number: ${receipt.blockNumber}`));
-      console.log(chalk.white(`⛽ Gas Used: ${receipt.gasUsed}`));
       
-      const explorerUrl = testnet
-        ? `https://explorer.testnet.rootstock.io/tx/${txHash}`
-        : `https://explorer.rootstock.io/tx/${txHash}`;
-      console.log(chalk.white(`🔗 View on Explorer: ${chalk.dim(explorerUrl)}`));
+      if (config.displayPreferences.showBlockDetails) {
+        console.log(chalk.white(`📦 Block Number: ${receipt.blockNumber}`));
+      }
+      
+      if (config.displayPreferences.showGasDetails) {
+        console.log(chalk.white(`⛽ Gas Used: ${receipt.gasUsed}`));
+      }
+      
+      if (config.displayPreferences.showExplorerLinks) {
+        const explorerUrl = testnet
+          ? `https://explorer.testnet.rootstock.io/tx/${txHash}`
+          : `https://explorer.rootstock.io/tx/${txHash}`;
+        console.log(chalk.white(`🔗 View on Explorer: ${chalk.dim(explorerUrl)}`));
+      }
+
+      if (config.displayPreferences.compactMode) {
+        console.log(chalk.dim(`\nTx: ${txHash}`));
+      } else {
+        console.log(chalk.white(`\n📝 Transaction Hash: ${txHash}`));
+      }
     } else {
       console.log(chalk.red('\n❌ Transaction failed'));
     }
