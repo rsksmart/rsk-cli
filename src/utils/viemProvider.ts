@@ -12,6 +12,7 @@ import crypto from "crypto";
 import inquirer from "inquirer";
 import chalk from "chalk";
 import { walletFilePath } from "./constants.js";
+import { WalletData } from "./types.js";
 
 class ViemProvider {
   public chain: typeof rootstock | typeof rootstockTestnet;
@@ -111,6 +112,50 @@ class ViemProvider {
         "Failed to decrypt the private key. Please check your password and try again."
       );
     }
+  }
+
+  public async getWalletClientExternal(
+    walletsData: WalletData,
+    walletName: string,
+    password: string,
+    provider: ViemProvider
+  ): Promise<WalletClient | null> {
+    if (
+      !walletsData ||
+      !walletsData.wallets ||
+      !walletsData.wallets[walletName]
+    ) {
+      return null;
+    }
+    const wallet = walletsData.wallets[walletName];
+    const { encryptedPrivateKey, iv } = wallet;
+    let decryptedPrivateKey: string;
+    try {
+      if (!password) {
+        return null;
+      }
+      const decipherIv = Uint8Array.from(Buffer.from(iv, "hex"));
+      const key = crypto.scryptSync(password, decipherIv, 32);
+      const decipher = crypto.createDecipheriv(
+        "aes-256-cbc",
+        Uint8Array.from(key),
+        decipherIv
+      );
+
+      decryptedPrivateKey = decipher.update(encryptedPrivateKey, "hex", "utf8");
+      decryptedPrivateKey += decipher.final("utf8");
+    } catch (error) {
+      return null;
+    }
+
+    const prefixedPrivateKey = `0x${decryptedPrivateKey.replace(/^0x/, "")}`;
+    const account = privateKeyToAccount(prefixedPrivateKey as `0x${string}`);
+
+    return createWalletClient({
+      chain: provider.chain,
+      transport: http(),
+      account: account,
+    });
   }
 }
 
