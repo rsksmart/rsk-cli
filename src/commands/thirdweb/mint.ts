@@ -3,22 +3,21 @@ import { ThirdwebSDK } from '@thirdweb-dev/sdk';
 import inquirer from 'inquirer';
 import chalk from 'chalk';
 import ora from 'ora';
-import { getThirdwebApiKey, getPrivateKey } from '../../utils/thirdwebHelper.js';
+import { getThirdwebApiKey, getPrivateKeyFromStoredWallet, getWalletAddressFromStoredWallet } from '../../utils/thirdwebHelper.js';
 
 export const mintTokens = new Command()
   .name('mint')
-  .description('Mint ERC20 tokens to a specified address')
+  .description('Mint ERC20 tokens')
   .option('-c, --address <address>', 'Token contract address')
   .option('-t, --to <address>', 'Recipient address')
-  .option('-a, --amount <amount>', 'Amount of tokens to mint')
+  .option('-a, --amount <amount>', 'Amount to mint')
   .option('--testnet', 'Use testnet')
   .option('--api-key <key>', 'Thirdweb API key')
-  .option('--private-key <key>', 'Private key')
+  .option('--wallet <name>', 'Wallet name to use (optional, uses current wallet if not specified)')
   .action(async (options) => {
     try {
-      // Get API key and private key using helper functions (no spinner during prompts)
+      // Get API key using helper function (no spinner during prompts)
       const apiKey = await getThirdwebApiKey(options.apiKey);
-      const privateKey = await getPrivateKey(options.privateKey);
 
       // Get missing options through prompts if not provided
       const answers = await inquirer.prompt([
@@ -55,13 +54,13 @@ export const mintTokens = new Command()
         {
           type: 'input',
           name: 'amount',
-          message: 'Enter amount of tokens to mint:',
+          message: 'Enter amount to mint:',
           when: !options.amount,
           validate: (input) => {
             if (!input || input.trim() === '') {
               return 'Amount is required';
             }
-            const num = Number(input);
+            const num = parseFloat(input);
             if (isNaN(num) || num <= 0) {
               return 'Amount must be a positive number';
             }
@@ -71,10 +70,19 @@ export const mintTokens = new Command()
       ]);
 
       const tokenAddress = options.address || answers.address;
-      const recipientAddress = options.to || answers.to;
-      const amount = options.amount || answers.amount;
+      const toAddress = options.to || answers.to;
+      const amount = parseFloat(options.amount || answers.amount);
 
-      // Start spinner after all prompts are complete
+      // Get private key from stored wallet (prompt first, no spinner)
+      const privateKey = await getPrivateKeyFromStoredWallet(options.wallet);
+      
+      // Derive wallet address from private key
+      const { privateKeyToAccount } = await import('viem/accounts');
+      const prefixedPrivateKey = `0x${privateKey}` as `0x${string}`;
+      const account = privateKeyToAccount(prefixedPrivateKey);
+      const walletAddress = account.address;
+
+      // Start spinner after private key is obtained
       const spinner = ora('🔧 Initializing Thirdweb SDK...').start();
 
       // Initialize Thirdweb SDK with Rootstock network
@@ -98,13 +106,19 @@ export const mintTokens = new Command()
       spinner.text = '⏳ Minting tokens...';
 
       // Mint tokens
-      const tx = await contract.erc20.mintTo(recipientAddress, amount);
+      const tx = await contract.erc20.mintTo(toAddress, amount.toString());
 
       spinner.succeed(chalk.green('✅ Tokens minted successfully!'));
-      console.log(chalk.blue('🔑 Transaction Hash:'), tx.receipt.transactionHash);
-      console.log(chalk.blue('👤 Recipient:'), recipientAddress);
-      console.log(chalk.blue('💰 Amount:'), amount);
+      console.log(chalk.blue('📍 Token Address:'), tokenAddress);
+      console.log(chalk.blue('👤 Minted To:'), toAddress);
+      console.log(chalk.blue('💸 Amount:'), amount);
+      console.log(chalk.blue('🔗 Transaction Hash:'), tx.receipt.transactionHash);
       console.log(chalk.blue('🌐 Network:'), options.testnet ? 'Rootstock Testnet' : 'Rootstock Mainnet');
+
+      const explorerUrl = options.testnet
+        ? `https://explorer.testnet.rootstock.io/tx/${tx.receipt.transactionHash}`
+        : `https://explorer.rootstock.io/tx/${tx.receipt.transactionHash}`;
+      console.log(chalk.blue('🔗 View on Explorer:'), chalk.dim(explorerUrl));
 
     } catch (error: any) {
       console.error(chalk.red('❌ Failed to mint tokens'));
@@ -115,6 +129,32 @@ export const mintTokens = new Command()
         console.log(chalk.yellow('2. Thirdweb service being temporarily unavailable'));
         console.log(chalk.yellow('3. IPFS gateway being slow to respond'));
         console.log(chalk.yellow('\nPlease try again in a few minutes.'));
+      } else if (error.message?.includes('could not detect network')) {
+        console.log(chalk.yellow('\n⚠️ Network detection failed. This could be due to:'));
+        console.log(chalk.yellow('1. Network connectivity issues'));
+        console.log(chalk.yellow('2. Thirdweb service being temporarily unavailable'));
+        console.log(chalk.yellow('3. RPC endpoint issues'));
+        console.log(chalk.yellow('\nPlease check your internet connection and try again.'));
+      } else if (error.message?.includes('No wallets found')) {
+        console.log(chalk.yellow('\n⚠️ No stored wallets found. Please create or import a wallet first using:'));
+        console.log(chalk.blue('rsk-cli wallet'));
+      } else if (error.message?.includes('No valid wallet found')) {
+        console.log(chalk.yellow('\n⚠️ No valid wallet found. Please create or import a wallet first using:'));
+        console.log(chalk.blue('rsk-cli wallet'));
+      } else if (error.message?.includes('Wallet with the provided name does not exist')) {
+        console.log(chalk.yellow('\n⚠️ The specified wallet name does not exist.'));
+        console.log(chalk.yellow('Please check the wallet name or use a different wallet.'));
+      } else if (error.message?.includes('Failed to decrypt')) {
+        console.log(chalk.yellow('\n⚠️ Failed to decrypt the wallet. Please check your password and try again.'));
+      } else if (error.message?.includes('Contract not found')) {
+        console.log(chalk.yellow('\n⚠️ The specified token contract address was not found on this network.'));
+        console.log(chalk.yellow('Please verify the contract address and network selection.'));
+      } else if (error.message?.includes('insufficient funds')) {
+        console.log(chalk.yellow('\n⚠️ Insufficient funds for gas fees.'));
+        console.log(chalk.yellow('Please ensure your wallet has enough RBTC for transaction fees.'));
+      } else if (error.message?.includes('not authorized')) {
+        console.log(chalk.yellow('\n⚠️ You are not authorized to mint tokens from this contract.'));
+        console.log(chalk.yellow('Only the contract owner or authorized minter can mint tokens.'));
       } else {
         console.error(chalk.red('❌ Error details:'), error.message || error);
       }

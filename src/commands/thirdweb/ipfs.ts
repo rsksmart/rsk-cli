@@ -3,100 +3,120 @@ import { ThirdwebSDK } from '@thirdweb-dev/sdk';
 import inquirer from 'inquirer';
 import chalk from 'chalk';
 import ora from 'ora';
-import fs from 'fs-extra';
-import { getThirdwebApiKey, getPrivateKey } from '../../utils/thirdwebHelper.js';
+import fs from 'fs';
+import path from 'path';
+import { getThirdwebApiKey, getPrivateKeyFromStoredWallet, getWalletAddressFromStoredWallet } from '../../utils/thirdwebHelper.js';
 
-// Function to detect file type from buffer and return appropriate extension
-function detectFileExtension(buffer: ArrayBuffer): string {
-  const uint8Array = new Uint8Array(buffer);
-  
-  // Check for HTML error pages first
-  if (uint8Array.length >= 10) {
-    const text = new TextDecoder().decode(uint8Array.slice(0, 100));
-    if (text.toLowerCase().includes('<!doctype html>') || 
-        text.toLowerCase().includes('<html') ||
-        text.toLowerCase().includes('error') ||
-        text.toLowerCase().includes('not found')) {
-      return '.html';
-    }
-  }
-  
-  // Check for common file signatures
-  if (uint8Array.length >= 2) {
-    // JPEG
-    if (uint8Array[0] === 0xFF && uint8Array[1] === 0xD8) {
-      return '.jpg';
-    }
-    // PNG
-    if (uint8Array.length >= 8 && 
-        uint8Array[0] === 0x89 && uint8Array[1] === 0x50 && 
-        uint8Array[2] === 0x4E && uint8Array[3] === 0x47) {
-      return '.png';
-    }
-    // GIF
-    if (uint8Array.length >= 6 && 
-        uint8Array[0] === 0x47 && uint8Array[1] === 0x49 && 
-        uint8Array[2] === 0x46) {
-      return '.gif';
-    }
-    // PDF
-    if (uint8Array.length >= 4 && 
-        uint8Array[0] === 0x25 && uint8Array[1] === 0x50 && 
-        uint8Array[2] === 0x44 && uint8Array[3] === 0x46) {
-      return '.pdf';
-    }
-    // ZIP
-    if (uint8Array.length >= 4 && 
-        uint8Array[0] === 0x50 && uint8Array[1] === 0x4B && 
-        uint8Array[2] === 0x03 && uint8Array[3] === 0x04) {
-      return '.zip';
-    }
-    // MP4
-    if (uint8Array.length >= 12 && 
-        uint8Array[4] === 0x66 && uint8Array[5] === 0x74 && 
-        uint8Array[6] === 0x79 && uint8Array[7] === 0x70) {
-      return '.mp4';
-    }
-    // MP3
-    if (uint8Array.length >= 3 && 
-        uint8Array[0] === 0x49 && uint8Array[1] === 0x44 && 
-        uint8Array[2] === 0x33) {
-      return '.mp3';
-    }
-    // WebP
-    if (uint8Array.length >= 12 && 
-        uint8Array[0] === 0x52 && uint8Array[1] === 0x49 && 
-        uint8Array[2] === 0x46 && uint8Array[8] === 0x57 && 
-        uint8Array[9] === 0x45 && uint8Array[10] === 0x42 && 
-        uint8Array[11] === 0x50) {
-      return '.webp';
-    }
-  }
-  
-  // Default to .bin if no known signature is found
-  return '.bin';
+interface IpfsAnswers {
+  upload?: string;
+  download?: string;
+  output?: string;
 }
 
-export const ipfsStorage = new Command()
+export const ipfsCommand = new Command()
   .name('ipfs')
-  .description('IPFS storage operations using Thirdweb')
-  .option('-u, --upload <path>', 'Upload file to IPFS')
-  .option('-d, --download <hash>', 'Download file from IPFS')
+  .description('Upload and download files to/from IPFS using Thirdweb storage')
+  .option('-u, --upload <path>', 'Path to file to upload')
+  .option('-d, --download <hash>', 'IPFS hash to download')
+  .option('-o, --output <path>', 'Output path for downloaded file')
+  .option('-t, --testnet', 'Use testnet')
   .option('--api-key <key>', 'Thirdweb API key')
-  .option('--private-key <key>', 'Private key')
+  .option('--wallet <name>', 'Wallet name to use (optional, uses current wallet if not specified)')
   .action(async (options) => {
     try {
-      // Get API key and private key using helper functions (no spinner during prompts)
+      // Get API key using helper function (no spinner during prompts)
       const apiKey = await getThirdwebApiKey(options.apiKey);
-      const privateKey = await getPrivateKey(options.privateKey);
 
-      // Start spinner after all prompts are complete
+      // Determine operation type
+      const isUpload = options.upload || (!options.download && !options.upload);
+      const isDownload = options.download;
+
+      if (isUpload && isDownload) {
+        console.log(chalk.red('❌ Cannot upload and download at the same time. Please specify either --upload or --download.'));
+        return;
+      }
+
+      if (!isUpload && !isDownload) {
+        console.log(chalk.red('❌ Please specify either --upload or --download option.'));
+        return;
+      }
+
+      // Get missing options through prompts if not provided
+      let answers: IpfsAnswers = {};
+      if (isUpload) {
+        answers = await inquirer.prompt([
+          {
+            type: 'input',
+            name: 'upload',
+            message: 'Enter path to file to upload:',
+            when: !options.upload,
+            validate: (input) => {
+              if (!input || input.trim() === '') {
+                return 'File path is required';
+              }
+              if (!fs.existsSync(input)) {
+                return 'File does not exist';
+              }
+              if (!fs.statSync(input).isFile()) {
+                return 'Path must be a file';
+              }
+              return true;
+            }
+          }
+        ]);
+      } else if (isDownload) {
+        answers = await inquirer.prompt([
+          {
+            type: 'input',
+            name: 'download',
+            message: 'Enter IPFS hash to download:',
+            when: !options.download,
+            validate: (input) => {
+              if (!input || input.trim() === '') {
+                return 'IPFS hash is required';
+              }
+              return true;
+            }
+          },
+          {
+            type: 'input',
+            name: 'output',
+            message: 'Enter output path for downloaded file:',
+            when: !options.output,
+            validate: (input) => {
+              if (!input || input.trim() === '') {
+                return 'Output path is required';
+              }
+              const dir = path.dirname(input);
+              if (dir !== '.' && !fs.existsSync(dir)) {
+                return 'Output directory does not exist';
+              }
+              return true;
+            }
+          }
+        ]);
+      }
+
+      const uploadPath = options.upload || answers.upload;
+      const downloadHash = options.download || answers.download;
+      const outputPath = options.output || answers.output;
+
+      // Get private key from stored wallet (prompt first, no spinner)
+      const privateKey = await getPrivateKeyFromStoredWallet(options.wallet);
+      
+      // Derive wallet address from private key
+      const { privateKeyToAccount } = await import('viem/accounts');
+      const prefixedPrivateKey = `0x${privateKey}` as `0x${string}`;
+      const account = privateKeyToAccount(prefixedPrivateKey);
+      const walletAddress = account.address;
+
+      // Start spinner after private key is obtained
       const spinner = ora('🔧 Initializing Thirdweb SDK...').start();
 
       // Initialize Thirdweb SDK with Rootstock network
       const sdk = ThirdwebSDK.fromPrivateKey(
         privateKey,
-        'rootstock',
+        options.testnet ? 'rootstock-testnet' : 'rootstock',
         {
           clientId: apiKey,
           rpcBatchSettings: {
@@ -106,245 +126,40 @@ export const ipfsStorage = new Command()
         }
       );
 
-      if (options.upload) {
-        // Upload file to IPFS
+      if (isUpload && uploadPath) {
         spinner.text = '📤 Uploading file to IPFS...';
-        const filePath = options.upload;
-        if (!fs.existsSync(filePath)) {
-          throw new Error(`File not found: ${filePath}`);
-        }
 
-        const fileContent = await fs.readFile(filePath);
-        const upload = await sdk.storage.upload(fileContent);
+        // Upload file to IPFS
+        const fileBuffer = fs.readFileSync(uploadPath);
+        const fileName = path.basename(uploadPath);
+        const file = new File([new Uint8Array(fileBuffer)], fileName, { type: 'application/octet-stream' });
 
-        // Clean up the upload result - remove ipfs:// prefix if present
-        let cleanHash = upload;
-        if (cleanHash.startsWith('ipfs://')) {
-          cleanHash = cleanHash.replace('ipfs://', '');
-        }
+        const upload = await sdk.storage.upload(file);
+        const ipfsHash = upload.split('ipfs://')[1];
 
-        spinner.succeed(chalk.green('✅ File uploaded to IPFS successfully!'));
-        console.log(chalk.blue('🔗 IPFS Hash:'), cleanHash);
-        console.log(chalk.blue('🔗 IPFS URL:'), `ipfs://${cleanHash}`);
-        console.log(chalk.blue('🌐 Gateway URL:'), `https://ipfs.io/ipfs/${cleanHash}`);
+        spinner.succeed(chalk.green('✅ File uploaded successfully!'));
+        console.log(chalk.blue('📄 File Name:'), fileName);
+        console.log(chalk.blue('📁 File Path:'), uploadPath);
+        console.log(chalk.blue('🔗 IPFS Hash:'), ipfsHash);
+        console.log(chalk.blue('🔗 IPFS URL:'), upload);
+        console.log(chalk.blue('🌐 Network:'), options.testnet ? 'Rootstock Testnet' : 'Rootstock Mainnet');
 
-      } else if (options.download) {
-        // Download file from IPFS
+      } else if (isDownload && downloadHash && outputPath) {
         spinner.text = '📥 Downloading file from IPFS...';
-        let hash = options.download;
-        
-        // Clean up the hash - remove any ipfs:// prefix if present, but DO NOT strip /0 or path
-        if (hash.startsWith('ipfs://')) {
-          hash = hash.replace('ipfs://', '');
-        }
-        
-        console.log(chalk.gray(`Attempting to download hash: ${hash}`));
-        
-        // Try multiple IPFS gateways with the full hash (including /0)
-        const gateways = [
-          `https://ipfs.io/ipfs/${hash}`,
-          `https://gateway.pinata.cloud/ipfs/${hash}`,
-          `https://cloudflare-ipfs.com/ipfs/${hash}`,
-          `https://dweb.link/ipfs/${hash}`
-        ];
-        
-        let downloaded = false;
-        let arrayBuffer: ArrayBuffer | null = null;
-        
-        // First try Thirdweb SDK
-        try {
-          const ipfsUrl = `ipfs://${hash}`;
-          console.log(chalk.gray(`Trying Thirdweb SDK with URL: ${ipfsUrl}`));
-          
-          const fileContent = await sdk.storage.download(ipfsUrl);
-          arrayBuffer = await fileContent.arrayBuffer();
-          downloaded = true;
-          console.log(chalk.green('✓ Downloaded via Thirdweb SDK'));
-          
-        } catch (sdkError: any) {
-          console.log(chalk.yellow('Thirdweb SDK download failed, trying public gateways...'));
-          
-          // Try public gateways
-          for (const gateway of gateways) {
-            try {
-              console.log(chalk.gray(`Trying gateway: ${gateway}`));
-              const response = await fetch(gateway);
-              
-              if (!response.ok) {
-                console.log(chalk.red(`Gateway failed: ${response.status} ${response.statusText}`));
-                continue;
-              }
-              
-              arrayBuffer = await response.arrayBuffer();
-              downloaded = true;
-              console.log(chalk.green(`✓ Downloaded via ${gateway}`));
-              break;
-              
-            } catch (gatewayError: any) {
-              console.log(chalk.red(`Gateway error: ${gatewayError.message}`));
-              continue;
-            }
-          }
-        }
-        
-        if (!downloaded || !arrayBuffer) {
-          throw new Error('Failed to download file from all available sources');
-        }
-        
-        // Detect file type and get appropriate extension
-        const extension = detectFileExtension(arrayBuffer);
-        const outputPath = `ipfs-download-${Date.now()}${extension}`;
-        await fs.writeFile(outputPath, new Uint8Array(arrayBuffer));
 
-        spinner.succeed(chalk.green('✅ File downloaded from IPFS successfully!'));
-        console.log(chalk.blue('💾 Saved to:'), outputPath);
-        console.log(chalk.blue('📏 File size:'), `${(arrayBuffer.byteLength / 1024).toFixed(2)} KB`);
-        console.log(chalk.blue('📄 File type:'), extension.substring(1).toUpperCase());
-        
-        // If it's an HTML file, warn the user
-        if (extension === '.html') {
-          console.log(chalk.yellow('\n⚠️  Warning: Downloaded file appears to be an HTML error page.'));
-          console.log(chalk.yellow('This might indicate that the IPFS hash is invalid or the file is not accessible.'));
-          console.log(chalk.yellow('Please check the IPFS hash and try again.'));
-        }
+        // Download file from IPFS
+        const ipfsUrl = `ipfs://${downloadHash}`;
+        const fileBuffer = await sdk.storage.download(ipfsUrl);
+        const arrayBuffer = await fileBuffer.arrayBuffer();
 
-      } else {
-        // Interactive mode
-        const { operation } = await inquirer.prompt([
-          {
-            type: 'list',
-            name: 'operation',
-            message: 'Select IPFS operation:',
-            choices: ['Upload', 'Download']
-          }
-        ]);
+        // Write file to output path
+        fs.writeFileSync(outputPath, new Uint8Array(arrayBuffer));
 
-        if (operation === 'Upload') {
-          const { filePath } = await inquirer.prompt([
-            {
-              type: 'input',
-              name: 'filePath',
-              message: 'Enter file path to upload:',
-              validate: (input) => {
-                if (!input || input.trim() === '') {
-                  return 'File path is required';
-                }
-                if (!fs.existsSync(input)) {
-                  return 'File not found. Please check the path.';
-                }
-                return true;
-              }
-            }
-          ]);
-
-          spinner.text = '📤 Uploading file to IPFS...';
-          const fileContent = await fs.readFile(filePath);
-          const upload = await sdk.storage.upload(fileContent);
-
-          // Clean up the upload result - remove ipfs:// prefix if present
-          let cleanHash = upload;
-          if (cleanHash.startsWith('ipfs://')) {
-            cleanHash = cleanHash.replace('ipfs://', '');
-          }
-
-          spinner.succeed(chalk.green('✅ File uploaded to IPFS successfully!'));
-          console.log(chalk.blue('🔗 IPFS Hash:'), cleanHash);
-          console.log(chalk.blue('🔗 IPFS URL:'), `ipfs://${cleanHash}`);
-          console.log(chalk.blue('🌐 Gateway URL:'), `https://ipfs.io/ipfs/${cleanHash}`);
-
-        } else {
-          const { hash } = await inquirer.prompt([
-            {
-              type: 'input',
-              name: 'hash',
-              message: 'Enter IPFS hash to download:',
-              validate: (input) => {
-                if (!input || input.trim() === '') {
-                  return 'IPFS hash is required';
-                }
-                return true;
-              }
-            }
-          ]);
-
-          spinner.text = '📥 Downloading file from IPFS...';
-          
-          // Clean up the hash - remove any ipfs:// prefix if present, but DO NOT strip /0 or path
-          let cleanHash = hash;
-          if (cleanHash.startsWith('ipfs://')) {
-            cleanHash = cleanHash.replace('ipfs://', '');
-          }
-          
-          console.log(chalk.gray(`Attempting to download hash: ${cleanHash}`));
-          
-          // Try multiple IPFS gateways with the full hash (including /0)
-          const gateways = [
-            `https://ipfs.io/ipfs/${cleanHash}`,
-            `https://gateway.pinata.cloud/ipfs/${cleanHash}`,
-            `https://cloudflare-ipfs.com/ipfs/${cleanHash}`,
-            `https://dweb.link/ipfs/${cleanHash}`
-          ];
-          
-          let downloaded = false;
-          let arrayBuffer: ArrayBuffer | null = null;
-          
-          // First try Thirdweb SDK
-          try {
-            const ipfsUrl = `ipfs://${cleanHash}`;
-            console.log(chalk.gray(`Trying Thirdweb SDK with URL: ${ipfsUrl}`));
-            
-            const fileContent = await sdk.storage.download(ipfsUrl);
-            arrayBuffer = await fileContent.arrayBuffer();
-            downloaded = true;
-            console.log(chalk.green('✓ Downloaded via Thirdweb SDK'));
-            
-          } catch (sdkError: any) {
-            console.log(chalk.yellow('Thirdweb SDK download failed, trying public gateways...'));
-            
-            // Try public gateways
-            for (const gateway of gateways) {
-              try {
-                console.log(chalk.gray(`Trying gateway: ${gateway}`));
-                const response = await fetch(gateway);
-                
-                if (!response.ok) {
-                  console.log(chalk.red(`Gateway failed: ${response.status} ${response.statusText}`));
-                  continue;
-                }
-                
-                arrayBuffer = await response.arrayBuffer();
-                downloaded = true;
-                console.log(chalk.green(`✓ Downloaded via ${gateway}`));
-                break;
-                
-              } catch (gatewayError: any) {
-                console.log(chalk.red(`Gateway error: ${gatewayError.message}`));
-                continue;
-              }
-            }
-          }
-          
-          if (!downloaded || !arrayBuffer) {
-            throw new Error('Failed to download file from all available sources');
-          }
-          
-          // Detect file type and get appropriate extension
-          const extension = detectFileExtension(arrayBuffer);
-          const outputPath = `ipfs-download-${Date.now()}${extension}`;
-          await fs.writeFile(outputPath, new Uint8Array(arrayBuffer));
-
-          spinner.succeed(chalk.green('✅ File downloaded from IPFS successfully!'));
-          console.log(chalk.blue('💾 Saved to:'), outputPath);
-          console.log(chalk.blue('📏 File size:'), `${(arrayBuffer.byteLength / 1024).toFixed(2)} KB`);
-          console.log(chalk.blue('📄 File type:'), extension.substring(1).toUpperCase());
-          
-          // If it's an HTML file, warn the user
-          if (extension === '.html') {
-            console.log(chalk.yellow('\n⚠️  Warning: Downloaded file appears to be an HTML error page.'));
-            console.log(chalk.yellow('This might indicate that the IPFS hash is invalid or the file is not accessible.'));
-            console.log(chalk.yellow('Please check the IPFS hash and try again.'));
-          }
-        }
+        spinner.succeed(chalk.green('✅ File downloaded successfully!'));
+        console.log(chalk.blue('🔗 IPFS Hash:'), downloadHash);
+        console.log(chalk.blue('📁 Output Path:'), outputPath);
+        console.log(chalk.blue('📊 File Size:'), `${(arrayBuffer.byteLength / 1024).toFixed(2)} KB`);
+        console.log(chalk.blue('🌐 Network:'), options.testnet ? 'Rootstock Testnet' : 'Rootstock Mainnet');
       }
 
     } catch (error: any) {
@@ -356,6 +171,32 @@ export const ipfsStorage = new Command()
         console.log(chalk.yellow('2. Thirdweb service being temporarily unavailable'));
         console.log(chalk.yellow('3. IPFS gateway being slow to respond'));
         console.log(chalk.yellow('\nPlease try again in a few minutes.'));
+      } else if (error.message?.includes('could not detect network')) {
+        console.log(chalk.yellow('\n⚠️ Network detection failed. This could be due to:'));
+        console.log(chalk.yellow('1. Network connectivity issues'));
+        console.log(chalk.yellow('2. Thirdweb service being temporarily unavailable'));
+        console.log(chalk.yellow('3. RPC endpoint issues'));
+        console.log(chalk.yellow('\nPlease check your internet connection and try again.'));
+      } else if (error.message?.includes('No wallets found')) {
+        console.log(chalk.yellow('\n⚠️ No stored wallets found. Please create or import a wallet first using:'));
+        console.log(chalk.blue('rsk-cli wallet'));
+      } else if (error.message?.includes('No valid wallet found')) {
+        console.log(chalk.yellow('\n⚠️ No valid wallet found. Please create or import a wallet first using:'));
+        console.log(chalk.blue('rsk-cli wallet'));
+      } else if (error.message?.includes('Wallet with the provided name does not exist')) {
+        console.log(chalk.yellow('\n⚠️ The specified wallet name does not exist.'));
+        console.log(chalk.yellow('Please check the wallet name or use a different wallet.'));
+      } else if (error.message?.includes('Failed to decrypt')) {
+        console.log(chalk.yellow('\n⚠️ Failed to decrypt the wallet. Please check your password and try again.'));
+      } else if (error.message?.includes('File not found')) {
+        console.log(chalk.yellow('\n⚠️ The specified IPFS hash was not found.'));
+        console.log(chalk.yellow('Please verify the IPFS hash is correct.'));
+      } else if (error.message?.includes('Invalid IPFS hash')) {
+        console.log(chalk.yellow('\n⚠️ The provided IPFS hash is invalid.'));
+        console.log(chalk.yellow('Please provide a valid IPFS hash.'));
+      } else if (error.message?.includes('File too large')) {
+        console.log(chalk.yellow('\n⚠️ The file is too large to upload.'));
+        console.log(chalk.yellow('Please try with a smaller file.'));
       } else {
         console.error(chalk.red('❌ Error details:'), error.message || error);
       }

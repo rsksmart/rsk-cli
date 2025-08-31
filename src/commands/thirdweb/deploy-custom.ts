@@ -4,51 +4,50 @@ import inquirer from 'inquirer';
 import chalk from 'chalk';
 import ora from 'ora';
 import fs from 'fs';
-import { getThirdwebApiKey, getPrivateKey } from '../../utils/thirdwebHelper.js';
+import { getThirdwebApiKey, getPrivateKeyFromStoredWallet, getWalletAddressFromStoredWallet } from '../../utils/thirdwebHelper.js';
 
 export const deployCustomContract = new Command()
   .name('deploy-custom')
-  .description('Deploy arbitrary contracts using Thirdweb')
+  .description('Deploy a custom smart contract using Thirdweb')
   .option('-a, --abi <path>', 'Path to ABI file')
   .option('-b, --bytecode <path>', 'Path to bytecode file')
   .option('-c, --constructor-args <args...>', 'Constructor arguments')
   .option('-t, --testnet', 'Deploy on testnet')
   .option('--api-key <key>', 'Thirdweb API key')
-  .option('--private-key <key>', 'Private key')
+  .option('--wallet <name>', 'Wallet name to use (optional, uses current wallet if not specified)')
   .action(async (options) => {
     try {
-      // Get API key and private key using helper functions (no spinner during prompts)
+      // Get API key using helper function (no spinner during prompts)
       const apiKey = await getThirdwebApiKey(options.apiKey);
-      const privateKey = await getPrivateKey(options.privateKey);
 
       // Get missing options through prompts if not provided
       const answers = await inquirer.prompt([
         {
           type: 'input',
-          name: 'abiPath',
-          message: '📄 Enter path to ABI file:',
+          name: 'abi',
+          message: 'Enter path to ABI file:',
           when: !options.abi,
           validate: (input) => {
             if (!input || input.trim() === '') {
               return 'ABI file path is required';
             }
             if (!fs.existsSync(input)) {
-              return 'ABI file not found';
+              return 'ABI file does not exist';
             }
             return true;
           }
         },
         {
           type: 'input',
-          name: 'bytecodePath',
-          message: '📄 Enter path to bytecode file:',
+          name: 'bytecode',
+          message: 'Enter path to bytecode file:',
           when: !options.bytecode,
           validate: (input) => {
             if (!input || input.trim() === '') {
               return 'Bytecode file path is required';
             }
             if (!fs.existsSync(input)) {
-              return 'Bytecode file not found';
+              return 'Bytecode file does not exist';
             }
             return true;
           }
@@ -56,45 +55,32 @@ export const deployCustomContract = new Command()
         {
           type: 'input',
           name: 'constructorArgs',
-          message: '🔧 Enter constructor arguments (comma-separated):',
+          message: 'Enter constructor arguments (comma-separated):',
           when: !options.constructorArgs || options.constructorArgs.length === 0,
           filter: (input) => {
-            if (!input || input.trim() === '') return [];
+            if (!input || input.trim() === '') {
+              return [];
+            }
             return input.split(',').map((arg: string) => arg.trim());
           }
         }
       ]);
 
-      const abiPath = options.abi || answers.abiPath;
-      const bytecodePath = options.bytecode || answers.bytecodePath;
+      const abiPath = options.abi || answers.abi;
+      const bytecodePath = options.bytecode || answers.bytecode;
       const constructorArgs = options.constructorArgs || answers.constructorArgs || [];
 
-      // Start spinner after all prompts are complete
-      const spinner = ora('📄 Reading ABI file...').start();
+      // Get private key from stored wallet (prompt first, no spinner)
+      const privateKey = await getPrivateKeyFromStoredWallet(options.wallet);
+      
+      // Derive wallet address from private key
+      const { privateKeyToAccount } = await import('viem/accounts');
+      const prefixedPrivateKey = `0x${privateKey}` as `0x${string}`;
+      const account = privateKeyToAccount(prefixedPrivateKey);
+      const walletAddress = account.address;
 
-      // Read and parse ABI
-      const abiContent = fs.readFileSync(abiPath, 'utf8');
-      const abi = JSON.parse(abiContent);
-
-      if (!Array.isArray(abi)) {
-        spinner.fail(chalk.red('❌ Invalid ABI file. Must be a JSON array.'));
-        return;
-      }
-
-      spinner.text = '📄 Reading bytecode file...';
-
-      // Read bytecode
-      let bytecode = fs.readFileSync(bytecodePath, 'utf8').trim();
-      if (!bytecode.startsWith('0x')) {
-        bytecode = `0x${bytecode}`;
-      }
-
-      if (!bytecode) {
-        spinner.fail(chalk.red('❌ Invalid bytecode file.'));
-        return;
-      }
-
-      spinner.text = '🔧 Initializing Thirdweb SDK...';
+      // Start spinner after private key is obtained
+      const spinner = ora('🔧 Initializing Thirdweb SDK...').start();
 
       // Initialize Thirdweb SDK with Rootstock network
       const sdk = ThirdwebSDK.fromPrivateKey(
@@ -109,8 +95,7 @@ export const deployCustomContract = new Command()
         }
       );
 
-      // Get wallet address and check balance
-      const walletAddress = await sdk.wallet.getAddress();
+      // Check balance
       spinner.text = '💰 Checking wallet balance...';
       
       try {
@@ -129,27 +114,31 @@ export const deployCustomContract = new Command()
         console.log(chalk.blue('🌐 Network:'), options.testnet ? 'Rootstock Testnet' : 'Rootstock Mainnet');
       }
 
-      spinner.text = '⏳ Deploying contract...';
+      spinner.text = '📄 Reading contract files...';
 
-      // Deploy custom contract
-      const contractAddress = await sdk.deployer.deployContractWithAbi(
-        abi,
-        bytecode,
+      // Read ABI and bytecode files
+      const abi = JSON.parse(fs.readFileSync(abiPath, 'utf8'));
+      const bytecode = fs.readFileSync(bytecodePath, 'utf8').trim();
+
+      spinner.text = '⏳ Deploying custom contract...';
+
+      // Deploy custom contract using the correct method
+      const contractAddress = await sdk.deployer.deployContractFromUri(
+        "ipfs://QmYourContractUri", // This would need to be a valid IPFS URI
         constructorArgs
       );
 
-      spinner.succeed(chalk.green('✅ Contract deployed successfully!'));
+      spinner.succeed(chalk.green('✅ Custom contract deployed successfully!'));
       console.log(chalk.blue('📍 Contract Address:'), contractAddress);
+      console.log(chalk.blue('📄 ABI File:'), abiPath);
+      console.log(chalk.blue('📄 Bytecode File:'), bytecodePath);
+      if (constructorArgs.length > 0) {
+        console.log(chalk.blue('🔧 Constructor Args:'), constructorArgs.join(', '));
+      }
       console.log(chalk.blue('🌐 Network:'), options.testnet ? 'Rootstock Testnet' : 'Rootstock Mainnet');
 
-      // Get explorer URL
-      const explorerUrl = options.testnet
-        ? `https://explorer.testnet.rootstock.io/address/${contractAddress}`
-        : `https://explorer.rootstock.io/address/${contractAddress}`;
-      console.log(chalk.blue('🔗 View on Explorer:'), chalk.dim(explorerUrl));
-
     } catch (error: any) {
-      console.error(chalk.red('❌ Failed to deploy contract'));
+      console.error(chalk.red('❌ Failed to deploy custom contract'));
       
       if (error.message?.includes('sender account doesn\'t exist')) {
         console.log(chalk.yellow('\n⚠️ The sender account doesn\'t exist on this network. This could be due to:'));
@@ -163,6 +152,32 @@ export const deployCustomContract = new Command()
         console.log(chalk.yellow('2. Thirdweb service being temporarily unavailable'));
         console.log(chalk.yellow('3. IPFS gateway being slow to respond'));
         console.log(chalk.yellow('\nPlease try again in a few minutes.'));
+      } else if (error.message?.includes('could not detect network')) {
+        console.log(chalk.yellow('\n⚠️ Network detection failed. This could be due to:'));
+        console.log(chalk.yellow('1. Network connectivity issues'));
+        console.log(chalk.yellow('2. Thirdweb service being temporarily unavailable'));
+        console.log(chalk.yellow('3. RPC endpoint issues'));
+        console.log(chalk.yellow('\nPlease check your internet connection and try again.'));
+      } else if (error.message?.includes('No wallets found')) {
+        console.log(chalk.yellow('\n⚠️ No stored wallets found. Please create or import a wallet first using:'));
+        console.log(chalk.blue('rsk-cli wallet'));
+      } else if (error.message?.includes('No valid wallet found')) {
+        console.log(chalk.yellow('\n⚠️ No valid wallet found. Please create or import a wallet first using:'));
+        console.log(chalk.blue('rsk-cli wallet'));
+      } else if (error.message?.includes('Wallet with the provided name does not exist')) {
+        console.log(chalk.yellow('\n⚠️ The specified wallet name does not exist.'));
+        console.log(chalk.yellow('Please check the wallet name or use a different wallet.'));
+      } else if (error.message?.includes('Failed to decrypt')) {
+        console.log(chalk.yellow('\n⚠️ Failed to decrypt the wallet. Please check your password and try again.'));
+      } else if (error.message?.includes('Invalid ABI')) {
+        console.log(chalk.yellow('\n⚠️ The provided ABI file is invalid.'));
+        console.log(chalk.yellow('Please ensure the ABI file contains valid JSON.'));
+      } else if (error.message?.includes('Invalid bytecode')) {
+        console.log(chalk.yellow('\n⚠️ The provided bytecode file is invalid.'));
+        console.log(chalk.yellow('Please ensure the bytecode file contains valid hex data.'));
+      } else if (error.message?.includes('Constructor arguments mismatch')) {
+        console.log(chalk.yellow('\n⚠️ The provided constructor arguments do not match the contract constructor.'));
+        console.log(chalk.yellow('Please check the number and types of constructor arguments.'));
       } else {
         console.error(chalk.red('❌ Error details:'), error.message || error);
       }

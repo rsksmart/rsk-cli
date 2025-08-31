@@ -1,6 +1,7 @@
 import chalk from "chalk";
 import fs from "fs";
 import inquirer from "inquirer";
+import crypto from "crypto";
 import { walletFilePath } from "./constants.js";
 
 export async function getThirdwebApiKey(apiKey?: string): Promise<string> {
@@ -169,4 +170,89 @@ export async function writePrivateKey(privateKey: string) {
       chalk.yellow(error.message || error)
     );
   }
+}
+
+// Function to get private key from CLI prompt with confirmation
+export async function getPrivateKeyFromStoredWallet(name?: string): Promise<string> {
+  // First prompt for private key
+  const firstAnswer = await inquirer.prompt([
+    {
+      type: 'password',
+      name: 'privateKey',
+      message: '🔑 Enter your private key:',
+      mask: '*',
+      validate: (input) => {
+        if (!input || input.trim() === '') {
+          return 'Private key is required';
+        }
+        // Accept 0x-prefixed or non-prefixed 64-char hex
+        const hex = input.startsWith('0x') ? input.slice(2) : input;
+        if (!/^[a-fA-F0-9]{64}$/.test(hex)) {
+          return 'Private key must be a 32-byte hex string (64 hex chars, with or without 0x)';
+        }
+        return true;
+      }
+    }
+  ]);
+
+  // Second prompt for confirmation
+  const secondAnswer = await inquirer.prompt([
+    {
+      type: 'password',
+      name: 'confirmPrivateKey',
+      message: '🔑 Confirm your private key:',
+      mask: '*',
+      validate: (input) => {
+        if (!input || input.trim() === '') {
+          return 'Private key confirmation is required';
+        }
+        const original = firstAnswer.privateKey.startsWith('0x') ? firstAnswer.privateKey.slice(2) : firstAnswer.privateKey;
+        const confirm = input.startsWith('0x') ? input.slice(2) : input;
+        if (original !== confirm) {
+          return 'Private keys do not match';
+        }
+        return true;
+      }
+    }
+  ]);
+
+  // Return without 0x prefix for Thirdweb SDK compatibility
+  const normalized = firstAnswer.privateKey.startsWith('0x') ? firstAnswer.privateKey.slice(2) : firstAnswer.privateKey;
+  return normalized;
+}
+
+// Function to get wallet address from private key (reuses the private key from above)
+export async function getWalletAddressFromStoredWallet(name?: string): Promise<string> {
+  const { privateKeyToAccount } = await import('viem/accounts');
+  
+  // Get private key (this will prompt if not already provided)
+  const privateKey = await getPrivateKeyFromStoredWallet(name);
+  
+  // Convert to account and get address
+  const prefixedPrivateKey = `0x${privateKey}` as `0x${string}`;
+  const account = privateKeyToAccount(prefixedPrivateKey);
+  
+  return account.address;
+}
+
+// Function to get wallet address from CLI prompt (for read-only operations)
+export async function getWalletAddressFromPrompt(): Promise<string> {
+  const answers = await inquirer.prompt([
+    {
+      type: 'input',
+      name: 'walletAddress',
+      message: '👤 Enter wallet address:',
+      validate: (input) => {
+        if (!input || input.trim() === '') {
+          return 'Wallet address is required';
+        }
+        if (!input.startsWith('0x') || input.length !== 42) {
+          return 'Wallet address must be a valid Ethereum address (0x followed by 40 hex chars)';
+        }
+        return true;
+      }
+    }
+  ]);
+
+  return answers.walletAddress;
 } 
