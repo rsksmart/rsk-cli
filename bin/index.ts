@@ -14,8 +14,7 @@ import { bridgeCommand } from "../src/commands/bridge.js";
 import { batchTransferCommand } from "../src/commands/batchTransfer.js";
 import { historyCommand } from "../src/commands/history.js";
 import { selectAddress } from "../src/commands/selectAddress.js";
-import { transactionCommand } from "../src/commands/transaction.js";
-import { parseEther } from "viem";
+import { thirdwebCommand } from "../src/commands/thirdweb/index.js";
 
 interface CommandOptions {
   testnet?: boolean;
@@ -35,9 +34,6 @@ interface CommandOptions {
   file?: string;
   interactive?: boolean;
   token?: Address;
-  gasLimit?: string;
-  gasPrice?: string;
-  data?: string;
 }
 
 const orange = chalk.rgb(255, 165, 0);
@@ -57,7 +53,7 @@ const program = new Command();
 program
   .name("rsk-cli")
   .description("CLI tool for interacting with Rootstock blockchain")
-  .version("1.2.1", "-v, --version", "Display the current version");
+  .version("1.1.0", "-v, --version", "Display the current version");
 
 program
   .command("wallet")
@@ -73,11 +69,9 @@ program
   .description("Check the balance of the saved wallet")
   .option("-t, --testnet", "Check the balance on the testnet")
   .option("--wallet <wallet>", "Name of the wallet")
+  .option("-a ,--address <address>", "Token holder address")
   .action(async (options: CommandOptions) => {
-    await balanceCommand({
-      testnet: !!options.testnet,
-      walletName: options.wallet!,
-    });
+    await balanceCommand(!!options.testnet, options.wallet!, options.address);
   });
 
 program
@@ -87,21 +81,9 @@ program
   .option("--wallet <wallet>", "Name of the wallet")
   .option("-a, --address <address>", "Recipient address")
   .option("--token <address>", "ERC20 token contract address (optional, for token transfers)")
-  .option("--value <value>", "Amount to transfer")
-  .option("-i, --interactive", "Execute interactively and input transactions")
-  .option("--gas-limit <limit>", "Custom gas limit")
-  .option("--gas-price <price>", "Custom gas price in RBTC")
-  .option("--data <data>", "Custom transaction data (hex)")
+  .requiredOption("--value <value>", "Amount to transfer")
   .action(async (options: CommandOptions) => {
     try {
-      if (options.interactive) {
-        await batchTransferCommand({
-          testnet: !!options.testnet,
-          interactive: true,
-        });
-        return;
-      }
-
       if (!options.value) {
         throw new Error("Value is required for the transfer.");
       }
@@ -116,20 +98,12 @@ program
         ? (`0x${options.address.replace(/^0x/, "")}` as `0x${string}`)
         : await selectAddress();
 
-      const txOptions = {
-        ...(options.gasLimit && { gasLimit: BigInt(options.gasLimit) }),
-        ...(options.gasPrice && { gasPrice: parseEther(options.gasPrice.toString()) }),
-        ...(options.data && { data: options.data as `0x${string}` })
-      };
-
       await transferCommand(
-        {
-          testnet: !!options.testnet,
-          toAddress: address,
-          value: value,
-          name: options.wallet!,
-          tokenAddress: options.token as `0x${string}` | undefined,
-        }
+        !!options.testnet,
+        address,
+        value,
+        options.wallet!,
+        options.token as `0x${string}` | undefined
       );
     } catch (error: any) {
       console.error(
@@ -149,10 +123,7 @@ program
       ? options.txid
       : `0x${options.txid}`;
 
-    await txCommand({
-      testnet: !!options.testnet,
-      txid: formattedTxId as `0x${string}`,
-    });
+    await txCommand(!!options.testnet, formattedTxId as `0x${string}`);
   });
 
 program
@@ -166,13 +137,11 @@ program
   .action(async (options: CommandOptions) => {
     const args = options.args || [];
     await deployCommand(
-      {
-        abiPath: options.abi!,
-        bytecodePath: options.bytecode!,
-        testnet: !!options.testnet,
-        args: args,
-        name: options.wallet!,
-      }
+      options.abi!,
+      options.bytecode!,
+      !!options.testnet,
+      args,
+      options.wallet!
     );
   });
 
@@ -190,13 +159,12 @@ program
   .action(async (options: CommandOptions) => {
     const args = options.decodedArgs || [];
     await verifyCommand(
-      {
-        jsonPath: options.json!,
-        address: options.address!,
-        name: options.name!,
-        testnet: !!options.testnet,
-        args: args,
-      }
+      options.json!,
+      options.address!,
+      options.name!,
+      !!options.testnet,
+
+      args
     );
   });
 
@@ -206,10 +174,7 @@ program
   .requiredOption("-a, --address <address>", "Address of a verified contract")
   .option("-t, --testnet", "Deploy on the testnet")
   .action(async (options: CommandOptions) => {
-    await ReadContract({
-      address: options.address! as `0x${string}`,
-      testnet: !!options.testnet,
-    });
+    await ReadContract(options.address! as `0x${string}`, !!options.testnet);
   });
 
 program
@@ -218,10 +183,7 @@ program
   .option("-t, --testnet", "Deploy on the testnet")
   .option("--wallet <wallet>", "Name of the wallet")
   .action(async (options: CommandOptions) => {
-    await bridgeCommand({
-      testnet: !!options.testnet,
-      name: options.wallet!,
-    });
+    await bridgeCommand(!!options.testnet, options.wallet!);
   });
 
 program
@@ -231,11 +193,7 @@ program
   .option("--number <number>", "Number of transactions to fetch")
   .option("-t, --testnet", "History of wallet on the testnet")
   .action(async (options: CommandOptions) => {
-    await historyCommand({
-      testnet: !!options.testnet,
-      apiKey: options.apiKey!,
-      number: options.number!,
-    });
+    await historyCommand(!!options.testnet, options.apiKey!, options.number!);
   });
 
 program
@@ -259,11 +217,7 @@ program
         return;
       }
 
-      await batchTransferCommand({
-        filePath: file,
-        testnet: testnet,
-        interactive: interactive,
-      });
+      await batchTransferCommand(file, testnet, interactive);
     } catch (error: any) {
       console.error(
         chalk.red("🚨 Error during batch transfer:"),
@@ -271,5 +225,8 @@ program
       );
     }
   });
+
+// Add Thirdweb commands
+program.addCommand(thirdwebCommand);
 
 program.parse(process.argv);

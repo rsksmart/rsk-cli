@@ -1,0 +1,71 @@
+{
+  "testnet": {
+    "enabled": true,
+    "description": "Testnet configuration for Thirdweb commands testing"
+  },
+  "mainnet": {
+    "enabled": false,
+    "description": "Mainnet configuration (disabled for safety)"
+  },
+  "tokens": {
+    "erc20": {
+      "name": "TestToken",
+      "symbol": "TTK",
+      "description": "Test ERC20 token for automated testing"
+    },
+    "erc721": {
+      "name": "TestNFTCollection",
+      "symbol": "TNFT",
+      "description": "A test NFT collection for comprehensive testing"
+    }
+  },
+  "addresses": {
+    "recipient": "0xEb7Db5a60c45b86DFac4d22b540DbC088943f387",
+    "description": "Test recipient address for transfers"
+  },
+  "nft": {
+    "name": "Test NFT",
+    "description": "This is a test NFT",
+    "image": "https://placekitten.com/200/300"
+  },
+  "ipfs": {
+    "test_file": "test_file.txt",
+    "download_file": "downloaded_test_file.txt",
+    "content": "This is a test file for IPFS operations"
+  },
+  "amounts": {
+    "mint": 1000,
+    "transfer": 100,
+    "description": "Token amounts for testing"
+  },
+  "test_commands": [
+    "erc20",
+    "erc721", 
+    "mint",
+    "balance",
+    "transfer",
+    "mint-nft",
+    "nft-balance",
+    "transfer-nft",
+    "ipfs",
+    "deploy-custom"
+  ],
+  "error_tests": [
+    "invalid_address",
+    "invalid_nft_address",
+    "mainnet_without_setup"
+  ],
+  "help_tests": [
+    "thirdweb",
+    "erc20",
+    "erc721",
+    "balance",
+    "mint",
+    "transfer",
+    "nft-balance",
+    "mint-nft",
+    "transfer-nft",
+    "ipfs",
+    "deploy-custom"
+  ]
+}
