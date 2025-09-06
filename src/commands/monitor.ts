@@ -33,12 +33,25 @@ function logInfo(message: string) {
   logMessage(message, chalk.blue);
 }
 
+function startSpinner(spinner: any, message: string) {
+  spinner.start(message);
+}
+
+function stopSpinner(spinner: any) {
+  spinner.stop();
+}
+
+function succeedSpinner(spinner: any, message: string) {
+  spinner.succeed(message);
+}
+
 export async function monitorCommand(options: MonitorCommandOptions): Promise<void> {
   try {
-    const spinner = ora('Initializing monitor...').start();
+    const spinner = ora();
+    startSpinner(spinner, '⏳ Initializing monitor...');
     const monitorManager = new MonitorManager(options.testnet);
     await monitorManager.initialize();
-    spinner.stop();
+    succeedSpinner(spinner, '✅ Monitor initialized successfully');
 
     if (options.tx) {
       return await handleTransactionMonitoring(options, monitorManager);
@@ -59,14 +72,14 @@ export async function monitorCommand(options: MonitorCommandOptions): Promise<vo
       logMessage(`Monitor transactions: ${options.monitorTransactions ? 'Yes' : 'No'}`, chalk.gray);
       logMessage('');
 
-      spinner.start('Starting monitoring...');
+      startSpinner(spinner, '⏳ Starting address monitoring...');
       const sessionId = await monitorManager.startAddressMonitoring(
         options.address,
         options.monitorBalance ?? true,
         options.monitorTransactions ?? false,
         options.testnet
       );
-      spinner.stop();
+      succeedSpinner(spinner, '✅ Address monitoring started successfully');
 
       logSuccess(`\n🎯 Monitoring started successfully!`);
       logInfo(`Press Ctrl+C to stop monitoring`);
@@ -145,33 +158,41 @@ async function handleTransactionMonitoring(
   logMessage(`Required confirmations: ${confirmations}`, chalk.gray);
   logMessage('');
 
-  const spinner = ora('Starting transaction monitoring...').start();
-  const sessionId = await monitorManager.startTransactionMonitoring(
-    options.tx,
-    confirmations,
-    options.testnet
-  );
-  spinner.stop();
+  const spinner = ora();
+  try {
+    startSpinner(spinner, '⏳ Starting transaction monitoring...');
+    const sessionId = await monitorManager.startTransactionMonitoring(
+      options.tx,
+      confirmations,
+      options.testnet
+    );
+    succeedSpinner(spinner, '✅ Transaction monitoring started successfully');
 
-  logSuccess(`\n🎯 Monitoring started successfully!`);
-  logInfo(`Press Ctrl+C to stop monitoring`);
-  logMessage('');
+    logSuccess(`\n🎯 Monitoring started successfully!`);
+    logInfo(`Press Ctrl+C to stop monitoring`);
+    logMessage('');
 
-  process.on('SIGINT', async () => {
-    logWarning(`\n⏹️  Stopping monitoring...`);
-    await monitorManager.stopMonitoring(sessionId);
-    process.exit(0);
-  });
+    process.on('SIGINT', async () => {
+      logWarning(`\n⏹️  Stopping monitoring...`);
+      await monitorManager.stopMonitoring(sessionId);
+      process.exit(0);
+    });
 
-  setInterval(() => {}, 1000);
+    setInterval(() => {}, 1000);
+  } catch (error: any) {
+    stopSpinner(spinner);
+    logError(`Error in monitoring: ${error.message || error}`);
+    return;
+  }
 }
 
 export async function listMonitoringSessions(testnet: boolean): Promise<void> {
   try {
-    const spinner = ora('Initializing monitor...').start();
+    const spinner = ora();
+    startSpinner(spinner, '⏳ Initializing monitor...');
     const monitorManager = new MonitorManager(testnet);
     await monitorManager.initialize();
-    spinner.stop();
+    succeedSpinner(spinner, '✅ Monitor initialized successfully');
     
     const activeSessions = monitorManager.getActiveSessions();
     
@@ -218,16 +239,19 @@ export async function stopMonitoringSession(sessionId: string, testnet: boolean)
       return;
     }
 
-    const spinner = ora('Initializing monitor...').start();
+    const spinner = ora();
+    startSpinner(spinner, '⏳ Initializing monitor...');
     const monitorManager = new MonitorManager(testnet);
     await monitorManager.initialize();
-    spinner.stop();
+    succeedSpinner(spinner, '✅ Monitor initialized successfully');
     
+    startSpinner(spinner, '⏳ Stopping monitoring session...');
     const success = await monitorManager.stopMonitoring(sessionId);
-    
     if (success) {
-      logSuccess(`✅ Successfully stopped monitoring session: ${sessionId}`);
+      succeedSpinner(spinner, '✅ Monitoring session stopped successfully');
+      logSuccess(`Session ${sessionId} stopped successfully`);
     } else {
+      stopSpinner(spinner);
       logError(`Failed to stop monitoring session: ${sessionId}`);
       logMessage('Session not found or already stopped.', chalk.gray);
     }

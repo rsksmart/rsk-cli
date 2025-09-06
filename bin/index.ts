@@ -15,9 +15,7 @@ import { batchTransferCommand } from "../src/commands/batchTransfer.js";
 import { historyCommand } from "../src/commands/history.js";
 import { selectAddress } from "../src/commands/selectAddress.js";
 import { monitorCommand, listMonitoringSessions, stopMonitoringSession } from "../src/commands/monitor.js";
-import { transactionCommand } from "../src/commands/transaction.js";
 import { parseEther } from "viem";
-import { MonitorManager } from "../src/utils/monitoring/MonitorManager.js";
 
 interface CommandOptions {
   testnet?: boolean;
