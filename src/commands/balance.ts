@@ -20,7 +20,7 @@ import { WalletData } from "../utils/types.js";
 import { getConfig } from "./config.js";
 
 type BalanceCommandOptions = {
-  testnet: boolean;
+  testnet?: boolean;
   walletName?: string;
   isExternal?: boolean;
   token?: string;

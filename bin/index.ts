@@ -76,7 +76,7 @@ program
   .option("--wallet <wallet>", "Name of the wallet")
   .action(async (options: CommandOptions) => {
     await balanceCommand({
-      testnet: !!options.testnet,
+      testnet: options.testnet,
       walletName: options.wallet!,
     });
   });
@@ -170,7 +170,7 @@ program
       {
         abiPath: options.abi!,
         bytecodePath: options.bytecode!,
-        testnet: !!options.testnet,
+        testnet: options.testnet,
         args: args,
         name: options.wallet!,
       }

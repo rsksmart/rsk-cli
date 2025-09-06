@@ -8,7 +8,7 @@ import { getConfig } from "./config.js";
 type DeployCommandOptions = {
   abiPath: string;
   bytecodePath: string;
-  testnet: boolean;
+  testnet?: boolean;
   args?: any[];
   name?: string;
   isExternal?: boolean;
@@ -75,7 +75,7 @@ export async function deployCommand(
 ): Promise<DeployResult | void> {
   try {
     const config = getConfig();
-    const isTestnet = params.testnet ?? (config.defaultNetwork === 'testnet');
+    const isTestnet = params.testnet !== undefined ? params.testnet : (config.defaultNetwork === 'testnet');
     
     logInfo(params, `🔧 Initializing ViemProvider for ${isTestnet ? "testnet" : "mainnet"}...`);
     
@@ -275,8 +275,8 @@ export async function deployCommand(
       bytecode: bytecode as `0x${string}`,
       account: walletClient.account,
       args: params.args || [],
-      gas: BigInt(config.defaultGasLimit), 
-      ...(config.defaultGasPrice > 0 && { maxFeePerGas: BigInt(config.defaultGasPrice) }),
+      ...(config.defaultGasLimit > 0 ? { gas: BigInt(config.defaultGasLimit) } : {}),
+      ...(config.defaultGasPrice > 0 ? { maxFeePerGas: BigInt(config.defaultGasPrice * 1e9) } : {}),
     };
 
     const spinner = params.isExternal ? ora({isEnabled: false}) : ora();
