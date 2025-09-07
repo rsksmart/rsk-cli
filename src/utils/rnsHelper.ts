@@ -1,9 +1,6 @@
-import { Address } from "viem";
+import { Address, isAddress } from "viem";
 import chalk from "chalk";
 import { ZERO_ADDRESS } from "./constants.js";
-
-const RNSResolverModule = await import("@rsksmart/rns-resolver.js");
-const Resolver = (RNSResolverModule as any).default.default || (RNSResolverModule as any).default;
 
 type ResolveRNSOptions = {
   name: string;
@@ -26,7 +23,7 @@ type ResolveToAddressOptions = {
 function logMessage(
   isExternal: boolean | undefined,
   message: string,
-  color: any = chalk.white
+  color: typeof chalk.white = chalk.white
 ) {
   if (!isExternal) {
     console.log(color(message));
@@ -49,6 +46,11 @@ export function isRNSDomain(input: string): boolean {
   return input.endsWith(".rsk") || (!input.startsWith("0x") && input.includes("."));
 }
 
+async function getResolver() {
+  const RNSResolverModule = await import("@rsksmart/rns-resolver.js");
+  return (RNSResolverModule as any).default.default || (RNSResolverModule as any).default;
+}
+
 export async function resolveRNSToAddress(
   params: ResolveRNSOptions
 ): Promise<Address | null> {
@@ -58,6 +60,7 @@ export async function resolveRNSToAddress(
       name = name + ".rsk";
     }
 
+    const Resolver = await getResolver();
     const resolver = params.testnet 
       ? Resolver.forRskTestnet({})
       : Resolver.forRskMainnet({});
@@ -84,6 +87,7 @@ export async function resolveAddressToRNS(
   params: ResolveAddressOptions
 ): Promise<string | null> {
   try {
+    const Resolver = await getResolver();
     const resolver = params.testnet 
       ? Resolver.forRskTestnet({})
       : Resolver.forRskMainnet({});
@@ -109,9 +113,9 @@ export async function resolveToAddress(
   params: ResolveToAddressOptions
 ): Promise<Address | null> {
   if (params.input.startsWith("0x") && params.input.length === 42) {
-    try {
+    if (isAddress(params.input)) {
       return params.input as Address;
-    } catch {
+    } else {
       logError(params.isExternal, "Invalid address format");
       return null;
     }
