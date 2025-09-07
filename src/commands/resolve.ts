@@ -1,15 +1,7 @@
-import ViemProvider from "../utils/viemProvider.js";
 import chalk from "chalk";
 import ora from "ora";
-import { Address, namehash, isAddress } from "viem";
-import { 
-  RNS_REGISTRY_MAINNET, 
-  RNS_RESOLVER_MAINNET,
-  RNS_REGISTRY_TESTNET,
-  RNS_RESOLVER_TESTNET,
-  ZERO_ADDRESS
-} from "../utils/constants.js";
-import { RNS_REGISTRY_ABI, RNS_RESOLVER_ABI } from "../utils/rnsHelper.js";
+import { isAddress } from "viem";
+import { resolveRNSToAddress, resolveAddressToRNS } from "../utils/rnsHelper.js";
 
 type ResolveCommandOptions = {
   name: string;
@@ -38,16 +30,8 @@ function logMessage(
   }
 }
 
-function logError(params: ResolveCommandOptions, message: string) {
-  logMessage(params, `❌ ${message}`, chalk.red);
-}
-
 function logInfo(params: ResolveCommandOptions, message: string) {
   logMessage(params, message, chalk.blue);
-}
-
-function logWarning(params: ResolveCommandOptions, message: string) {
-  logMessage(params, message, chalk.yellow);
 }
 
 function startSpinner(
@@ -92,9 +76,6 @@ export async function resolveCommand(
   const spinner = ora();
 
   try {
-    const provider = new ViemProvider(params.testnet);
-    const client = await provider.getPublicClient();
-
     if (params.reverse) {
       if (!isAddress(params.name)) {
         const errorMessage = "Invalid address format for reverse lookup";
@@ -104,50 +85,36 @@ export async function resolveCommand(
 
       startSpinner(params, spinner, chalk.white("🔍 Looking up name for address..."));
       
-      try {
-        const address = params.name;
-        const resolverAddress = params.testnet ? RNS_RESOLVER_TESTNET : RNS_RESOLVER_MAINNET;
-        
-        const resolverName = await client.readContract({
-          address: resolverAddress,
-          abi: RNS_RESOLVER_ABI,
-          functionName: "name",
-          args: [address as Address],
-        }) as string;
+      const resolverName = await resolveAddressToRNS({
+        address: params.name as `0x${string}`,
+        testnet: params.testnet,
+        isExternal: params.isExternal
+      });
 
-        if (resolverName && resolverName !== "") {
-          succeedSpinner(params, spinner, chalk.green("✅ Name found successfully"));
-          logMessage(params, chalk.white(`📄 Address:`) + " " + chalk.green(address));
-          logMessage(params, chalk.white(`🏷️  Name:`) + " " + chalk.green(resolverName));
-          
-          if (params.isExternal) {
-            return {
-              success: true,
-              data: {
-                address,
-                name: resolverName,
-                network: params.testnet ? "Rootstock Testnet" : "Rootstock Mainnet"
-              }
-            };
-          }
-        } else {
-          failSpinner(params, spinner, chalk.yellow("⚠️ No name found for this address"));
-          
-          if (params.isExternal) {
-            return {
-              success: false,
-              error: "No name found for this address"
-            };
-          }
+      stopSpinner(params, spinner);
+
+      if (resolverName) {
+        succeedSpinner(params, spinner, chalk.green("✅ Name found successfully"));
+        logMessage(params, chalk.white(`📄 Address:`) + " " + chalk.green(params.name));
+        logMessage(params, chalk.white(`🏷️  Name:`) + " " + chalk.green(resolverName));
+        
+        if (params.isExternal) {
+          return {
+            success: true,
+            data: {
+              address: params.name,
+              name: resolverName,
+              network: params.testnet ? "Rootstock Testnet" : "Rootstock Mainnet"
+            }
+          };
         }
-      } catch (error) {
-        failSpinner(params, spinner, chalk.red("❌ Failed to reverse resolve address"));
-        logWarning(params, "This address may not have a reverse record set");
+      } else {
+        failSpinner(params, spinner, chalk.yellow("⚠️ No name found for this address"));
         
         if (params.isExternal) {
           return {
             success: false,
-            error: "Failed to reverse resolve address"
+            error: "No name found for this address"
           };
         }
       }
@@ -159,69 +126,45 @@ export async function resolveCommand(
 
       startSpinner(params, spinner, chalk.white(`🔍 Resolving ${domainName}...`));
 
-      const node = namehash(domainName);
+      const resolvedAddress = await resolveRNSToAddress({
+        name: domainName,
+        testnet: params.testnet,
+        isExternal: params.isExternal
+      });
 
-      const registryAddress = params.testnet ? RNS_REGISTRY_TESTNET : RNS_REGISTRY_MAINNET;
-      const resolverAddress = await client.readContract({
-        address: registryAddress,
-        abi: RNS_REGISTRY_ABI,
-        functionName: "resolver",
-        args: [node],
-      }) as Address;
+      stopSpinner(params, spinner);
 
-      if (resolverAddress === ZERO_ADDRESS) {
-        failSpinner(params, spinner, chalk.yellow(`⚠️ No resolver found for ${domainName}`));
-        logInfo(params, "💡 This domain may not be registered");
+      if (resolvedAddress) {
+        succeedSpinner(params, spinner, chalk.green("✅ Domain resolved successfully"));
+        logMessage(params, chalk.white(`🏷️  Domain:`) + " " + chalk.green(domainName));
+        logMessage(params, chalk.white(`📄 Address:`) + " " + chalk.green(resolvedAddress));
+        logMessage(params, chalk.white(`🌐 Network:`) + " " + chalk.green(params.testnet ? "Rootstock Testnet" : "Rootstock Mainnet"));
+        
+        if (params.isExternal) {
+          return {
+            success: true,
+            data: {
+              name: domainName,
+              address: resolvedAddress,
+              network: params.testnet ? "Rootstock Testnet" : "Rootstock Mainnet"
+            }
+          };
+        }
+      } else {
+        failSpinner(params, spinner, chalk.yellow(`⚠️ No address found for ${domainName}`));
+        logInfo(params, "💡 This domain may not be registered or has no address configured");
         
         if (params.isExternal) {
           return {
             success: false,
-            error: `No resolver found for ${domainName}`
+            error: `No address found for ${domainName}`
           };
         }
-        return;
-      }
-
-      const resolvedAddress = await client.readContract({
-        address: resolverAddress,
-        abi: RNS_RESOLVER_ABI,
-        functionName: "addr",
-        args: [node],
-      }) as Address;
-
-      if (resolvedAddress === ZERO_ADDRESS) {
-        failSpinner(params, spinner, chalk.yellow(`⚠️ No address set for ${domainName}`));
-        logInfo(params, "💡 This domain exists but has no address configured");
-        
-        if (params.isExternal) {
-          return {
-            success: false,
-            error: `No address set for ${domainName}`
-          };
-        }
-        return;
-      }
-
-      succeedSpinner(params, spinner, chalk.green("✅ Domain resolved successfully"));
-      logMessage(params, chalk.white(`🏷️  Domain:`) + " " + chalk.green(domainName));
-      logMessage(params, chalk.white(`📄 Address:`) + " " + chalk.green(resolvedAddress));
-      logMessage(params, chalk.white(`🌐 Network:`) + " " + chalk.green(params.testnet ? "Rootstock Testnet" : "Rootstock Mainnet"));
-      
-      if (params.isExternal) {
-        return {
-          success: true,
-          data: {
-            name: domainName,
-            address: resolvedAddress,
-            network: params.testnet ? "Rootstock Testnet" : "Rootstock Mainnet"
-          }
-        };
       }
     }
   } catch (error) {
     stopSpinner(params, spinner);
     const errorMessage = error instanceof Error ? error.message : "An unknown error occurred";
-    logError(params, `Error resolving name: ${errorMessage}`);
     
     if (params.isExternal) {
       return {

@@ -134,12 +134,10 @@ export async function batchTransferCommand(params: BatchTransferCommandOptions) 
         };
       }
 
-      // Resolve RNS domain if needed
       let recipientAddress: Address;
       if (params.resolveRNS && isRNSDomain(to)) {
         logMessage(params, `🔍 Resolving RNS domain: ${to}`);
         const resolved = await resolveRNSToAddress({
-          client: publicClient,
           name: to,
           testnet: params.testnet,
           isExternal: params.isExternal

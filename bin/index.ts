@@ -82,13 +82,8 @@ program
     let holderAddress = options.address;
     if (options.rns) {
       const { resolveRNSToAddress } = await import("../src/utils/rnsHelper.js");
-      const ViemProvider = (await import("../src/utils/viemProvider.js")).default;
-      
-      const provider = new ViemProvider(!!options.testnet);
-      const client = await provider.getPublicClient();
       
       const resolvedAddress = await resolveRNSToAddress({
-        client,
         name: options.rns,
         testnet: !!options.testnet,
         isExternal: false
@@ -143,17 +138,12 @@ program
       let address: `0x${string}`;
       if (options.rns) {
         const { resolveRNSToAddress } = await import("../src/utils/rnsHelper.js");
-        const ViemProvider = (await import("../src/utils/viemProvider.js")).default;
-        
-        const provider = new ViemProvider(!!options.testnet);
-        const client = await provider.getPublicClient();
         
         const resolvedAddress = await resolveRNSToAddress({
-        client,
-        name: options.rns,
-        testnet: !!options.testnet,
-        isExternal: false
-      });
+          name: options.rns,
+          testnet: !!options.testnet,
+          isExternal: false
+        });
         if (!resolvedAddress) {
           throw new Error(`Failed to resolve RNS domain: ${options.rns}`);
         }

@@ -14,7 +14,7 @@ export type WalletItem = {
 };
 
 export type FileTx = {
-  to: Address | string;  // Can be address or RNS domain
+  to: Address | string;
   value: number;
 };
 
