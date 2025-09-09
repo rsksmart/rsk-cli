@@ -18,7 +18,7 @@ interface PasswordValidationResult {
   crackTime: string;
 }
 
-const PASSWORD_CONFIG = {
+const CONFIG = {
   minLength: 6,
   maxLength: 128,
   minScore: 3,
@@ -30,17 +30,17 @@ const PASSWORD_CONFIG = {
 function validatePassword(password: string): PasswordValidationResult {
   const errors: string[] = [];
   
-  if (password.length < PASSWORD_CONFIG.minLength) {
-    errors.push(`Password must be at least ${PASSWORD_CONFIG.minLength} characters long`);
+  if (password.length < CONFIG.minLength) {
+    errors.push(`Password must be at least ${CONFIG.minLength} characters long`);
   }
   
-  if (password.length > PASSWORD_CONFIG.maxLength) {
-    errors.push(`Password must be no more than ${PASSWORD_CONFIG.maxLength} characters long`);
+  if (password.length > CONFIG.maxLength) {
+    errors.push(`Password must be no more than ${CONFIG.maxLength} characters long`);
   }
   
   const result = zxcvbn(password);
   
-  if (result.score < PASSWORD_CONFIG.minScore) {
+  if (result.score < CONFIG.minScore) {
     const scoreLabels = [
       "too guessable (risky password)",
       "very guessable (protection from throttled online attacks)",
@@ -49,7 +49,7 @@ function validatePassword(password: string): PasswordValidationResult {
       "very unguessable (strong protection from offline attacks)"
     ];
     
-    errors.push(`Password strength: ${scoreLabels[result.score]} - score ${result.score}/4 (minimum required: ${PASSWORD_CONFIG.minScore}/4)`);
+    errors.push(`Password strength: ${scoreLabels[result.score]} - score ${result.score}/4 (minimum required: ${CONFIG.minScore}/4)`);
     
     if (result.feedback.warning) {
       errors.push(`⚠️  Warning: ${result.feedback.warning}`);
@@ -375,8 +375,8 @@ export async function processOption(params: WalletCommandOptions) {
       let finalPassword: string | undefined = params.password;
       if (!params.isExternal) {
         logInfo(params, "🔐 Password Requirements:");
-        logInfo(params, `• At least ${PASSWORD_CONFIG.minLength} characters long`);
-        logInfo(params, `• At most ${PASSWORD_CONFIG.maxLength} characters long`);
+        logInfo(params, `• At least ${CONFIG.minLength} characters long`);
+        logInfo(params, `• At most ${CONFIG.maxLength} characters long`);
         logInfo(params, 'Use a strong password with a mix of uppercase and lowercase letters, numbers, and special characters.');
 
         let isValidPassword = false;
@@ -898,8 +898,8 @@ async function createPassword(
     logSuccess(params, "🎉 Wallet created successfully on Rootstock!");
 
     logInfo(params, "🔐 Password Requirements:");
-    logInfo(params, `• At least ${PASSWORD_CONFIG.minLength} characters long`);
-    logInfo(params, `• At most ${PASSWORD_CONFIG.maxLength} characters long`);
+    logInfo(params, `• At least ${CONFIG.minLength} characters long`);
+    logInfo(params, `• At most ${CONFIG.maxLength} characters long`);
     logInfo(params, 'Use a strong password with a mix of uppercase and lowercase letters, numbers, and special characters.');
 
     let isValidPassword = false;
