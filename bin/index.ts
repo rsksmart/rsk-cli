@@ -57,7 +57,7 @@ const program = new Command();
 program
   .name("rsk-cli")
   .description("CLI tool for interacting with Rootstock blockchain")
-  .version("1.2.1", "-v, --version", "Display the current version");
+  .version("1.3.0", "-v, --version", "Display the current version");
 
 program
   .command("wallet")
