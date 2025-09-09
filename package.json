@@ -47,6 +47,7 @@
     "@openzeppelin/contracts": "^5.0.2",
     "@rsksmart/rsk-precompiled-abis": "^6.0.0-ARROWHEAD",
     "@types/fs-extra": "^11.0.4",
+    "@types/zxcvbn": "^4.4.5",
     "chalk": "^5.3.0",
     "cli-table3": "^0.6.5",
     "commander": "^13.1.0",
@@ -54,6 +55,7 @@
     "fs-extra": "^11.2.0",
     "inquirer": "^12.1.0",
     "ora": "^8.0.1",
-    "viem": "^2.19.4"
+    "viem": "^2.19.4",
+    "zxcvbn": "^4.4.2"
   }
 }
