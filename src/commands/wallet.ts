@@ -895,7 +895,6 @@ async function createPassword(
     password: _password,
   };
   if (!_isExternal) {
-    logSuccess(params, "🎉 Wallet created successfully on Rootstock!");
 
     logInfo(params, "🔐 Password Requirements:");
     logInfo(params, `• At least ${CONFIG.minLength} characters long`);
@@ -953,7 +952,7 @@ async function createPassword(
       error: "No password provided"
     };
   }
-
+  logSuccess(params, "🎉 Wallet created successfully on Rootstock!");
   return {
     success: true,
     password: finalPassword
