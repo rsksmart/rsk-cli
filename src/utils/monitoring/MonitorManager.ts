@@ -1,7 +1,6 @@
-import { PublicClient, TransactionReceipt, Address, isAddress } from 'viem';
+import { PublicClient, Address, isAddress } from 'viem';
 import ViemProvider from '../viemProvider.js';
 import {
-  MonitoringConfig,
   MonitoringSession,
   TransactionMonitoringConfig,
   AddressMonitoringConfig,
@@ -9,8 +8,28 @@ import {
 } from '../types.js';
 import fs from 'fs';
 import path from 'path';
-import chalk from 'chalk';
 import { v4 } from 'uuid';
+import chalk from 'chalk';
+
+function logMessage(message: string, color: any = chalk.white) {
+  console.log(color(message));
+}
+
+function logError(message: string) {
+  logMessage(`❌ ${message}`, chalk.red);
+}
+
+function logSuccess(message: string) {
+  logMessage(`✅ ${message}`, chalk.green);
+}
+
+function logWarning(message: string) {
+  logMessage(`⚠️  ${message}`, chalk.yellow);
+}
+
+function logInfo(message: string) {
+  logMessage(`📊 ${message}`, chalk.blue);
+}
 
 export class MonitorManager {
   private sessions: Map<string, MonitoringSession> = new Map();
@@ -33,7 +52,7 @@ export class MonitorManager {
       await this.loadState();
       this.isInitialized = true;
     } catch (error) {
-      console.error(chalk.red('❌ Failed to initialize monitoring:'), error);
+      logError(`Failed to initialize monitoring: ${error}`);
       throw error;
     }
   }
@@ -71,8 +90,8 @@ export class MonitorManager {
     this.startPolling(sessionId);
     await this.saveState();
 
-    console.log(chalk.green(`✅ Started monitoring transaction: ${txHash}`));
-    console.log(chalk.blue(`📊 Session ID: ${sessionId}`));
+    logSuccess(`Started monitoring transaction: ${txHash}`);
+    logInfo(`Session ID: ${sessionId}`);
     
     return sessionId;
   }
@@ -112,8 +131,8 @@ export class MonitorManager {
     this.startPolling(sessionId);
     await this.saveState();
 
-    console.log(chalk.green(`✅ Started monitoring address: ${address}`));
-    console.log(chalk.blue(`📊 Session ID: ${sessionId}`));
+    logSuccess(`Started monitoring address: ${address}`);
+    logInfo(`Session ID: ${sessionId}`);
     
     return sessionId;
   }
@@ -121,7 +140,7 @@ export class MonitorManager {
   async stopMonitoring(sessionId: string): Promise<boolean> {
     const session = this.sessions.get(sessionId);
     if (!session) {
-      console.log(chalk.red(`❌ Session ${sessionId} not found`));
+      logError(`Session ${sessionId} not found`);
       return false;
     }
 
@@ -135,7 +154,7 @@ export class MonitorManager {
     }
 
     await this.saveState();
-    console.log(chalk.yellow(`⏹️  Stopped monitoring session: ${sessionId}`));
+    logWarning(`Stopped monitoring session: ${sessionId}`);
 
     const activeSessions = this.getActiveSessions();
     if (activeSessions.length === 0) {
@@ -151,7 +170,7 @@ export class MonitorManager {
     for (const [sessionId] of this.sessions) {
       await this.stopMonitoring(sessionId);
     }
-    console.log(chalk.yellow(`⏹️  Stopped all monitoring sessions`));
+    logWarning(`Stopped all monitoring sessions`);
   }
 
   getActiveSessions(): MonitoringSession[] {
@@ -166,12 +185,11 @@ export class MonitorManager {
       try {
         await this.checkSession(sessionId);
       } catch (error) {
-        console.error(chalk.red(`❌ Error checking session ${sessionId}:`), error);
+        logError(`Error checking session ${sessionId}: ${error}`);
         
-     
         const session = this.sessions.get(sessionId);
         if (session && session.checkCount > 10) {
-          console.log(chalk.yellow(`⚠️  Too many errors, stopping session ${sessionId}`));
+          logWarning(`Too many errors, stopping session ${sessionId}`);
           await this.stopMonitoring(sessionId);
         }
       }
@@ -200,31 +218,30 @@ export class MonitorManager {
     const config = session.config as TransactionMonitoringConfig;
     
     try {
-      const tx = await this.publicClient.getTransaction({ hash: config.txHash as `0x${string}` });
       const receipt = await this.publicClient.getTransactionReceipt({ hash: config.txHash as `0x${string}` });
       const currentBlock = await this.publicClient.getBlockNumber();
       
       const confirmations = receipt ? Number(currentBlock - receipt.blockNumber) : 0;
       const status = receipt ? (receipt.status === 'success' ? 'confirmed' : 'failed') : 'pending';
 
-      console.log(chalk.blue(`📊 TX ${config.txHash.slice(0, 10)}... - Status: ${status}, Confirmations: ${confirmations}`));
+      logInfo(`TX ${config.txHash.slice(0, 10)}... - Status: ${status}, Confirmations: ${confirmations}`);
 
       if (receipt && (status === 'failed' || confirmations >= (config.confirmations || 12))) {
         if (status === 'failed') {
-          console.log(chalk.red(`❌ Transaction ${config.txHash.slice(0, 10)}... failed`));
+          logError(`Transaction ${config.txHash.slice(0, 10)}... failed`);
         } else {
-          console.log(chalk.green(`✅ Transaction ${config.txHash.slice(0, 10)}... confirmed with ${confirmations} confirmations`));
+          logSuccess(`Transaction ${config.txHash.slice(0, 10)}... confirmed with ${confirmations} confirmations`);
         }
         await this.stopMonitoring(session.id);
       }
 
     } catch (error: any) {
       if (error.message?.includes('not found') || error.message?.includes('pending')) {
-        console.log(chalk.yellow(`⚠️  Transaction ${config.txHash.slice(0, 10)}... not found or pending`));
+        logWarning(`Transaction ${config.txHash.slice(0, 10)}... not found or pending`);
       } else {
-        console.error(chalk.red(`❌ Error checking transaction ${config.txHash.slice(0, 10)}...:`), error.message || error);
+        logError(`Error checking transaction ${config.txHash.slice(0, 10)}...: ${error.message || error}`);
         if (session.checkCount > 10) {
-          console.log(chalk.yellow(`⚠️  Too many errors, stopping monitoring`));
+          logWarning(`Too many errors, stopping monitoring`);
           await this.stopMonitoring(session.id);
         }
       }
@@ -237,22 +254,22 @@ export class MonitorManager {
     try {
       if (config.monitorBalance) {
         const currentBalance = await this.publicClient.getBalance({ address: config.address });
-        console.log(chalk.blue(`💰 Address ${config.address.slice(0, 10)}... - Balance: ${currentBalance} wei`));
+        logInfo(`Address ${config.address.slice(0, 10)}... - Balance: ${currentBalance} wei`);
       }
 
       if (config.monitorTransactions) {
-        console.log(chalk.blue(`📝 Checking transactions for ${config.address.slice(0, 10)}...`));
+        logInfo(`Checking transactions for ${config.address.slice(0, 10)}...`);
       }
 
     } catch (error: any) {
       if (error.message?.includes('Invalid address')) {
-        console.error(chalk.red(`❌ Invalid address format: ${config.address}`));
-        console.log(chalk.yellow(`⚠️  Stopping monitoring for invalid address`));
+        logError(`Invalid address format: ${config.address}`);
+        logWarning(`Stopping monitoring for invalid address`);
         await this.stopMonitoring(session.id);
       } else if (error.message?.includes('rate limit') || error.message?.includes('too many requests')) {
-        console.log(chalk.yellow(`⚠️  Rate limited, will retry later`));
+        logWarning(`Rate limited, will retry later`);
       } else {
-        console.error(chalk.red(`❌ Error checking address ${config.address.slice(0, 10)}...:`), error.message || error);
+        logError(`Error checking address ${config.address.slice(0, 10)}...: ${error.message || error}`);
       }
     }
   }
@@ -271,7 +288,7 @@ export class MonitorManager {
         }
       }
     } catch (error) {
-      console.log(chalk.yellow(`⚠️  Could not load monitoring state: ${error}`));
+      logWarning(`Could not load monitoring state: ${error}`);
     }
   }
 
@@ -288,7 +305,7 @@ export class MonitorManager {
 
       fs.writeFileSync(this.stateFilePath, JSON.stringify(state, null, 2));
     } catch (error) {
-      console.error(chalk.red(`❌ Could not save monitoring state: ${error}`));
+      logError(`Could not save monitoring state: ${error}`);
     }
   }
 } 
