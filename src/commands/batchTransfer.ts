@@ -219,7 +219,7 @@ async function promptForTransactions(allowRNS: boolean = false) {
     
     let to: Address | string;
     if (allowRNS && isRNSDomain(input)) {
-      to = input; // Keep as string for later resolution
+      to = input;
     } else {
       try {
         to = validateAddress(input);

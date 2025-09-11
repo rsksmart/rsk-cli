@@ -135,7 +135,7 @@ program
 
       let address: `0x${string}`;
       if (options.rns) {
-          const resolvedAddress = await resolveRNSToAddress({
+        const resolvedAddress = await resolveRNSToAddress({
           name: options.rns,
           testnet: !!options.testnet,
           isExternal: false
