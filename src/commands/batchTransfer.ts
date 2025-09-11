@@ -5,6 +5,7 @@ import readline from "readline";
 import ViemProvider from "../utils/viemProvider.js";
 import { Address } from "viem";
 import { FileTx, WalletData } from "../utils/types.js";
+import { resolveRNSToAddress, isRNSDomain } from "../utils/rnsHelper.js";
 
 type BatchTransferCommandOptions = {
   testnet: boolean;
@@ -15,9 +16,11 @@ type BatchTransferCommandOptions = {
   name?: string;
   password?: string;
   walletsData?: WalletData;
+  resolveRNS?: boolean;
 };
+
 type BatchData = {
-  to: Address;
+  to: Address | string;
   value: number;
 };
 
@@ -34,9 +37,11 @@ function logMessage(
 function logSuccess(params: BatchTransferCommandOptions, message: string) {
   logMessage(params, message, chalk.green);
 }
+
 function logError(params: BatchTransferCommandOptions, message: string) {
   logMessage(params, `❌ ${message}`, chalk.red);
 }
+
 function logInfo(params: BatchTransferCommandOptions, message: string) {
   logMessage(params, message, chalk.blue);
 }
@@ -129,10 +134,27 @@ export async function batchTransferCommand(params: BatchTransferCommandOptions) 
         };
       }
 
+      let recipientAddress: Address;
+      if (params.resolveRNS && isRNSDomain(to)) {
+        logMessage(params, `🔍 Resolving RNS domain: ${to}`);
+        const resolved = await resolveRNSToAddress({
+          name: to,
+          testnet: params.testnet,
+          isExternal: params.isExternal
+        });
+        if (!resolved) {
+          logError(params, `Failed to resolve RNS domain: ${to}. Skipping transaction.`);
+          continue;
+        }
+        recipientAddress = resolved;
+      } else {
+        recipientAddress = validateAddress(to as string);
+      }
+
       const txHash = await walletClient.sendTransaction({
         account,
         chain: provider.chain,
-        to,
+        to: recipientAddress,
         value: BigInt(Math.floor(value * 10 ** 18)),
       });
 
@@ -181,16 +203,32 @@ export async function batchTransferCommand(params: BatchTransferCommandOptions) 
   }
 }
 
-async function promptForTransactions() {
+async function promptForTransactions(allowRNS: boolean = false) {
   const rl = readline.createInterface({
     input: process.stdin,
     output: process.stdout,
   });
 
-  const transactions: { to: Address; value: number }[] = [];
+  const transactions: { to: Address | string; value: number }[] = [];
 
   while (true) {
-    const to = validateAddress(await askQuestion(rl, "Enter address: "));
+    const prompt = allowRNS 
+      ? "Enter address or RNS domain (e.g., alice.rsk): "
+      : "Enter address: ";
+    const input = await askQuestion(rl, prompt);
+    
+    let to: Address | string;
+    if (allowRNS && isRNSDomain(input)) {
+      to = input;
+    } else {
+      try {
+        to = validateAddress(input);
+      } catch (error) {
+        console.log(chalk.red("⚠️ Invalid address. Please try again."));
+        continue;
+      }
+    }
+    
     const value = parseFloat(await askQuestion(rl, "Enter amount: "));
 
     if (isNaN(value)) {
@@ -228,7 +266,7 @@ async function getBatchData(params: BatchTransferCommandOptions): Promise<BatchD
     return params.batchData;
   } else {
     if (params.interactive) {
-      return await promptForTransactions();;
+      return await promptForTransactions(params.resolveRNS);
     } else if (params.filePath) {
       if (!fs.existsSync(params.filePath)) {
         console.log(
@@ -238,7 +276,7 @@ async function getBatchData(params: BatchTransferCommandOptions): Promise<BatchD
       }
       const fileContent = JSON.parse(fs.readFileSync(params.filePath, "utf8"));
       batchData = fileContent.map((tx: FileTx) => ({
-        to: validateAddress(tx.to),
+        to: tx.to,
         value: tx.value,
       }));
       return batchData;

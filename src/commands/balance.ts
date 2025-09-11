@@ -21,6 +21,7 @@ import { WalletData } from "../utils/types.js";
 type BalanceCommandOptions = {
   testnet: boolean;
   walletName?: string;
+  address?: Address;
   isExternal?: boolean;
   token?: string;
   customTokenAddress?: Address;
@@ -122,7 +123,10 @@ export async function balanceCommand(params: BalanceCommandOptions): Promise<Bal
       }
     }
 
-    const { address } = wallet;
+    let address = params.address;
+    if (!address) {
+      address = wallet.address;
+    }
 
     if (!address) {
       const errorMessage = "No valid address found in the saved wallet.";
