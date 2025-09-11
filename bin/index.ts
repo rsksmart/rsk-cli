@@ -17,6 +17,7 @@ import { selectAddress } from "../src/commands/selectAddress.js";
 import { resolveCommand } from "../src/commands/resolve.js";
 import { transactionCommand } from "../src/commands/transaction.js";
 import { parseEther } from "viem";
+import { resolveRNSToAddress } from "../src/utils/rnsHelper.js";
 
 interface CommandOptions {
   testnet?: boolean;
@@ -81,16 +82,13 @@ program
   .action(async (options: CommandOptions) => {
     let holderAddress = options.address;
     if (options.rns) {
-      const { resolveRNSToAddress } = await import("../src/utils/rnsHelper.js");
-      
       const resolvedAddress = await resolveRNSToAddress({
         name: options.rns,
         testnet: !!options.testnet,
         isExternal: false
       });
       if (!resolvedAddress) {
-        console.error(chalk.red(`Failed to resolve RNS domain: ${options.rns}`));
-        return;
+        throw new Error(`Failed to resolve RNS domain: ${options.rns}`);
       }
       holderAddress = resolvedAddress;
     }
@@ -137,9 +135,7 @@ program
 
       let address: `0x${string}`;
       if (options.rns) {
-        const { resolveRNSToAddress } = await import("../src/utils/rnsHelper.js");
-        
-        const resolvedAddress = await resolveRNSToAddress({
+          const resolvedAddress = await resolveRNSToAddress({
           name: options.rns,
           testnet: !!options.testnet,
           isExternal: false

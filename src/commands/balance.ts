@@ -123,7 +123,6 @@ export async function balanceCommand(params: BalanceCommandOptions): Promise<Bal
       }
     }
 
-    // Use provided address or wallet address
     let address = params.address;
     if (!address) {
       address = wallet.address;
