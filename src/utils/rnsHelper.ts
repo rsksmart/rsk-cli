@@ -43,7 +43,16 @@ function logSuccess(isExternal: boolean | undefined, message: string) {
 }
 
 export function isRNSDomain(input: string): boolean {
-  return input.endsWith(".rsk") || (!input.startsWith("0x") && input.includes("."));
+  if (input.endsWith(".rsk")) {
+    const domainName = input.replace(".rsk", "");
+    return domainName.length >= 5 && /^[a-z0-9-]+$/i.test(domainName);
+  }
+  
+  if (!input.startsWith("0x") && !input.includes(".")) {
+    return input.length >= 5 && /^[a-z0-9-]+$/i.test(input);
+  }
+  
+  return false;
 }
 
 async function getResolver() {
