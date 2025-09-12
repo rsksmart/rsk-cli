@@ -14,6 +14,7 @@ import { bridgeCommand } from "../src/commands/bridge.js";
 import { batchTransferCommand } from "../src/commands/batchTransfer.js";
 import { historyCommand } from "../src/commands/history.js";
 import { selectAddress } from "../src/commands/selectAddress.js";
+import { configCommand } from "../src/commands/config.js";
 import { transactionCommand } from "../src/commands/transaction.js";
 import { parseEther } from "viem";
 
@@ -75,7 +76,7 @@ program
   .option("--wallet <wallet>", "Name of the wallet")
   .action(async (options: CommandOptions) => {
     await balanceCommand({
-      testnet: !!options.testnet,
+      testnet: options.testnet,
       walletName: options.wallet!,
     });
   });
@@ -169,7 +170,7 @@ program
       {
         abiPath: options.abi!,
         bytecodePath: options.bytecode!,
-        testnet: !!options.testnet,
+        testnet: options.testnet,
         args: args,
         name: options.wallet!,
       }
@@ -194,7 +195,7 @@ program
         jsonPath: options.json!,
         address: options.address!,
         name: options.name!,
-        testnet: !!options.testnet,
+        testnet:  options.testnet === undefined ? undefined : !!options.testnet,
         args: args,
       }
     );
@@ -219,7 +220,7 @@ program
   .option("--wallet <wallet>", "Name of the wallet")
   .action(async (options: CommandOptions) => {
     await bridgeCommand({
-      testnet: !!options.testnet,
+      testnet: options.testnet === undefined ? undefined : !!options.testnet,
       name: options.wallet!,
     });
   });
@@ -270,6 +271,13 @@ program
         chalk.yellow(error.message || "Unknown error")
       );
     }
+  });
+
+program
+  .command("config")
+  .description("Manage CLI configuration settings")
+  .action(async () => {
+    await configCommand();
   });
 
 program.parse(process.argv);
