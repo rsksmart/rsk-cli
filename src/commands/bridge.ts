@@ -14,7 +14,7 @@ type InquirerAnswers = {
   args?: string[];
 };
 type BridgeCommandOptions = {
-  testnet: boolean;
+  testnet?: boolean | undefined; 
   name: string;
   isExternal?: boolean;
   selectedType?: FunctionType;
@@ -77,14 +77,41 @@ function succeedSpinner(
 
 export async function bridgeCommand(params: BridgeCommandOptions) {
   try {
-    const config = getConfig();
-    const isTestnet = params.testnet ?? (config.defaultNetwork === 'testnet');
+    let config;
+    try {
+      config = getConfig();
+      
+      if (!config || !config.defaultNetwork || !config.displayPreferences) {
+        logError(params, "Invalid configuration detected. Please run 'rsk-cli config' to set up your configuration.");
+        return {
+          error: "Invalid configuration",
+          success: false,
+        };
+      }
+    } catch (error: any) {
+      logError(params, `Failed to load configuration: ${error.message}`);
+      return {
+        error: "Configuration loading failed",
+        success: false,
+      };
+    }
+    
+    const isTestnet = params.testnet === undefined ? (config.defaultNetwork === 'testnet') : params.testnet;
+    
+    if (!params.isExternal) {
+      logInfo(
+        params,
+        `Using network: ${isTestnet ? 'testnet' : 'mainnet'} (${params.testnet === undefined ? 'from config' : 'from parameter'})`
+      );
+    }
     
     const spinner = params.isExternal ? ora({ isEnabled: false }) : ora();
-    logInfo(
-      params,
-      `🔧 Initializing bridge for ${isTestnet ? "testnet" : "mainnet"}...`
-    );
+    if (!config.displayPreferences.compactMode) {
+      logInfo(
+        params,
+        `🔧 Initializing bridge for ${isTestnet ? "testnet" : "mainnet"}...`
+      );
+    }
 
     const bridge = {
       address: precompiled.bridge.address,
@@ -92,19 +119,30 @@ export async function bridgeCommand(params: BridgeCommandOptions) {
     };
     let finalSelectedType: FunctionType | undefined = params.selectedType;
     if (!params.isExternal) {
-      const readOrWriteQuestion: any = [
-        {
-          type: "list",
-          name: "selectedType",
-          message: "Select the type of function you want to call:",
-          choices: [FunctionType.READ, FunctionType.WRITE],
-        },
-      ];
+      try {
+        const readOrWriteQuestion: any = [
+          {
+            type: "list",
+            name: "selectedType",
+            message: "Select the type of function you want to call:",
+            choices: [FunctionType.READ, FunctionType.WRITE],
+          },
+        ];
 
-      const { selectedType } = await inquirer.prompt<InquirerAnswers>(
-        readOrWriteQuestion
-      );
-      finalSelectedType = selectedType!;
+        const { selectedType } = await inquirer.prompt<InquirerAnswers>(
+          readOrWriteQuestion
+        );
+        finalSelectedType = selectedType!;
+      } catch (error: any) {
+        if (error.isTtyError) {
+          logError(params, "Interactive prompts are not supported in this environment. Please use the --help flag to see available options.");
+          return {
+            error: "Interactive prompts not supported",
+            success: false,
+          };
+        }
+        throw error;
+      }
     }
 
     if (!finalSelectedType) {
@@ -126,19 +164,30 @@ export async function bridgeCommand(params: BridgeCommandOptions) {
 
     let finalSelectedFunction: string | undefined = params.functionName;
     if (!params.isExternal) {
-      const functionQuestion: any = [
-        {
-          type: "list",
-          name: "selectedFunction",
-          message: `Select a ${finalSelectedType} function to call:`,
-          choices: [...functions.map((item) => item)],
-        },
-      ];
+      try {
+        const functionQuestion: any = [
+          {
+            type: "list",
+            name: "selectedFunction",
+            message: `Select a ${finalSelectedType} function to call:`,
+            choices: [...functions.map((item) => item)],
+          },
+        ];
 
-      const { selectedFunction } = await inquirer.prompt<InquirerAnswers>(
-        functionQuestion
-      );
-      finalSelectedFunction = selectedFunction!;
+        const { selectedFunction } = await inquirer.prompt<InquirerAnswers>(
+          functionQuestion
+        );
+        finalSelectedFunction = selectedFunction!;
+      } catch (error: any) {
+        if (error.isTtyError) {
+          logError(params, "Interactive prompts are not supported in this environment. Please use the --help flag to see available options.");
+          return {
+            error: "Interactive prompts not supported",
+            success: false,
+          };
+        }
+        throw error;
+      }
     }
     if (!finalSelectedFunction) {
       logError(params, "Selected function is required.");
@@ -166,18 +215,29 @@ export async function bridgeCommand(params: BridgeCommandOptions) {
       selectedAbiFunction.inputs &&
       selectedAbiFunction.inputs.length > 0
     ) {
-      const argQuestions = selectedAbiFunction.inputs.map((input: any) => ({
-        type: "input",
-        name: input.name,
-        message: `Enter the value for argument ${chalk.yellow(
-          input.name
-        )} (${chalk.yellow(input.type)}):`,
-      }));
+      try {
+        const argQuestions = selectedAbiFunction.inputs.map((input: any) => ({
+          type: "input",
+          name: input.name,
+          message: `Enter the value for argument ${chalk.yellow(
+            input.name
+          )} (${chalk.yellow(input.type)}):`,
+        }));
 
-      const answers = await inquirer.prompt(argQuestions);
-      args = selectedAbiFunction.inputs.map(
-        (input: any) => answers[input.name]
-      );
+        const answers = await inquirer.prompt(argQuestions);
+        args = selectedAbiFunction.inputs.map(
+          (input: any) => answers[input.name]
+        );
+      } catch (error: any) {
+        if (error.isTtyError) {
+          logError(params, "Interactive prompts are not supported in this environment. Please provide arguments via command line options.");
+          return {
+            error: "Interactive prompts not supported",
+            success: false,
+          };
+        }
+        throw error;
+      }
     }
     try {
       if (finalSelectedType === FunctionType.READ) {
@@ -250,7 +310,9 @@ export async function bridgeCommand(params: BridgeCommandOptions) {
         }
         const account = finalWalletClient.account;
 
-        logInfo(params, `🔑 Wallet account: ${account?.address}`);
+        if (!config.displayPreferences.compactMode) {
+          logInfo(params, `🔑 Wallet account: ${account?.address}`);
+        }
 
         startSpinner(
           params,
@@ -258,44 +320,55 @@ export async function bridgeCommand(params: BridgeCommandOptions) {
           `⏳ Calling ${finalSelectedFunction} function...`
         );
 
-        const { request, result } = await publicClient.simulateContract({
+       
+        const gasConfig: any = {
+          gas: config.defaultGasLimit ? BigInt(config.defaultGasLimit) : undefined
+        };
+        
+        if (config.defaultGasPrice && config.defaultGasPrice > 0) {
+          gasConfig.maxFeePerGas = BigInt(config.defaultGasPrice);
+        }
+
+        
+        const contractParams = {
           account,
           address: bridge.address as `0x${string}`,
           abi: bridge.abi,
           functionName: finalSelectedFunction,
           args,
-          gas: BigInt(config.defaultGasLimit), // Use default gas limit from config
-          ...(config.defaultGasPrice > 0 && { maxFeePerGas: BigInt(config.defaultGasPrice) }), // Use default gas price if set
-        });
+          ...gasConfig
+        };
 
-        await finalWalletClient.writeContract(request);
+        const { request } = await publicClient.simulateContract(contractParams);
+
+        const hash = await finalWalletClient.writeContract(contractParams);
 
         stopSpinner(params, spinner);
         logSuccess(
           params,
           `✅ Function ${finalSelectedFunction} called successfully!`
         );
-        if (result) {
-          if (config.displayPreferences.compactMode) {
-            succeedSpinner(
-              params,
-              spinner,
-              chalk.green(`${result}`)
-            );
-          } else {
-            succeedSpinner(
-              params,
-              spinner,
-              chalk.white(`🔧 Result: `) + chalk.green(result)
-            );
-          }
-          return {
-            success: true,
-            result,
-          };
+        
+        if (config.displayPreferences.compactMode) {
+          succeedSpinner(
+            params,
+            spinner,
+            chalk.green(`Transaction Hash: ${hash}`)
+          );
+        } else {
+          succeedSpinner(
+            params,
+            spinner,
+            chalk.white(`🔧 Transaction Hash: `) + chalk.green(hash)
+          );
         }
+        
+        return {
+          success: true,
+          result: hash,
+        };
       }
-      if (config.displayPreferences.showExplorerLinks) {
+      if (!config.displayPreferences.compactMode && config.displayPreferences.showExplorerLinks) {
         logInfo(params, `🔗 View on Explorer: ${explorerUrl}`);
       }
     } catch (error) {

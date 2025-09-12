@@ -195,7 +195,7 @@ program
         jsonPath: options.json!,
         address: options.address!,
         name: options.name!,
-        testnet: !!options.testnet,
+        testnet:  options.testnet === undefined ? undefined : !!options.testnet,
         args: args,
       }
     );
@@ -220,7 +220,7 @@ program
   .option("--wallet <wallet>", "Name of the wallet")
   .action(async (options: CommandOptions) => {
     await bridgeCommand({
-      testnet: !!options.testnet,
+      testnet: options.testnet === undefined ? undefined : !!options.testnet,
       name: options.wallet!,
     });
   });

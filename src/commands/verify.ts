@@ -8,7 +8,7 @@ type VerifyCommandOptions = {
   jsonPath: string;
   address: string;
   name: string;
-  testnet: boolean;
+  testnet?: boolean;
   args?: any[];
   isExternal?: boolean;
 };

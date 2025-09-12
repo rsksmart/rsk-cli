@@ -94,7 +94,7 @@ type BalanceResult = {
 
 export async function balanceCommand(params: BalanceCommandOptions): Promise<BalanceResult | void> {
   const config = getConfig();
-  const isTestnet = params.testnet ?? (config.defaultNetwork === 'testnet');
+  const isTestnet = params.testnet !== undefined ? params.testnet : (config.defaultNetwork === 'testnet');
   
   const spinner = params.isExternal ? ora({isEnabled: false}) : ora();
 

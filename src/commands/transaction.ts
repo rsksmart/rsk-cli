@@ -27,7 +27,7 @@ export async function transactionCommand(
   options?: AdvancedTransactionOptions
 ) {
   const config = getConfig();
-  const isTestnet = testnet ?? (config.defaultNetwork === 'testnet');
+  const isTestnet = testnet !== undefined ? testnet : (config.defaultNetwork === 'testnet');
   try {
     if (!fs.existsSync(walletFilePath)) {
       console.log(chalk.red("🚫 No saved wallet found. Please create a wallet first."));
