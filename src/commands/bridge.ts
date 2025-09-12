@@ -339,8 +339,6 @@ export async function bridgeCommand(params: BridgeCommandOptions) {
           ...gasConfig
         };
 
-        const { request } = await publicClient.simulateContract(contractParams);
-
         const hash = await finalWalletClient.writeContract(contractParams);
 
         stopSpinner(params, spinner);
