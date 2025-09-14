@@ -8,6 +8,70 @@ import { walletFilePath } from "../utils/constants.js";
 import path from "path";
 import { addressBookCommand } from "./addressbook.js";
 import { WalletData, WalletItem } from "../utils/types.js";
+import zxcvbn from "zxcvbn";
+
+interface PasswordValidationResult {
+  isValid: boolean;
+  errors: string[];
+  entropy: number;
+  score: number;
+  crackTime: string;
+}
+
+const CONFIG = {
+  minLength: 6,
+  maxLength: 128,
+  minScore: 3,
+};
+
+/**
+ * Validates password using zxcvbn library
+ */
+function validatePassword(password: string): PasswordValidationResult {
+  const errors: string[] = [];
+  
+  if (password.length < CONFIG.minLength) {
+    errors.push(`Password must be at least ${CONFIG.minLength} characters long`);
+  }
+  
+  if (password.length > CONFIG.maxLength) {
+    errors.push(`Password must be no more than ${CONFIG.maxLength} characters long`);
+  }
+  
+  const result = zxcvbn(password);
+  
+  if (result.score < CONFIG.minScore) {
+    const scoreLabels = [
+      "too guessable (risky password)",
+      "very guessable (protection from throttled online attacks)",
+      "somewhat guessable (protection from unthrottled online attacks)",
+      "safely unguessable (moderate protection from offline attacks)",
+      "very unguessable (strong protection from offline attacks)"
+    ];
+    
+    errors.push(`Password strength: ${scoreLabels[result.score]} - score ${result.score}/4 (minimum required: ${CONFIG.minScore}/4)`);
+    
+    if (result.feedback.warning) {
+      errors.push(`⚠️  Warning: ${result.feedback.warning}`);
+    }
+    
+    if (result.feedback.suggestions && result.feedback.suggestions.length > 0) {
+      result.feedback.suggestions.forEach((suggestion: string) => {
+        errors.push(`💡 Suggestion: ${suggestion}`);
+      });
+    }
+  }
+  const entropy = Math.log2(result.guesses);
+  const crackTime = String(result.crack_times_display.offline_fast_hashing_1e10_per_second);
+  
+  return {
+    isValid: errors.length === 0,
+    errors,
+    entropy,
+    score: result.score,
+    crackTime
+  };
+}
 
 type InquirerAnswers = {
   action?: string;
@@ -104,7 +168,7 @@ function encryptPrivateKey(
 export async function walletCommand(params: WalletCommandOptions = {}) {
   try {
     if (!params.action && fs.existsSync(walletFilePath)) {
-      console.log(chalk.grey("📁 Wallet data file found."));
+      logInfo(params, "📁 Wallet data file found.");
 
       const walletsDataString = loadWallets();
 
@@ -112,9 +176,7 @@ export async function walletCommand(params: WalletCommandOptions = {}) {
         const walletsData = JSON.parse(walletsDataString);
 
         if (walletsData.currentWallet) {
-          console.log(
-            chalk.yellow(`\n🔑 Current wallet: ${walletsData.currentWallet}`)
-          );
+          logWarning(params, `\n🔑 Current wallet: ${walletsData.currentWallet}`);
         }
       }
     }
@@ -163,14 +225,23 @@ export async function processOption(params: WalletCommandOptions) {
 
       const existingWalletsData: any = getWalletsData(params);
 
-      const finalPassword = await createPassword(
+      const passwordResult = await createPassword(
         params.isExternal ?? false,
         params.password
       );
 
+      if (!passwordResult.success) {
+        return {
+          error: passwordResult.error || "Error creating wallet, password required contains an error.",
+          success: false,
+        };
+      }
+
+      const finalPassword = passwordResult.password;
+
       if (!finalPassword) {
         return {
-          error: "Error creating wallet, password required contains an error.",
+          error: "No valid password received.",
           success: false,
         };
       }
@@ -224,7 +295,7 @@ export async function processOption(params: WalletCommandOptions) {
         params.replaceCurrentWallet ?? false,
         finalWalletName,
         walletData,
-        prefixedPrivateKey
+        finalPassword
       );
     }
     case "🔑 Import existing wallet": {
@@ -303,19 +374,56 @@ export async function processOption(params: WalletCommandOptions) {
       }
       let finalPassword: string | undefined = params.password;
       if (!params.isExternal) {
-        const passwordQuestion: any = [
-          {
-            type: "password",
-            name: "password",
-            message: "🔒 Enter a password to encrypt your wallet:",
-            mask: "*",
-          },
-        ];
+        logInfo(params, "🔐 Password Requirements:");
+        logInfo(params, `• At least ${CONFIG.minLength} characters long`);
+        logInfo(params, `• At most ${CONFIG.maxLength} characters long`);
+        logInfo(params, 'Use a strong password with a mix of uppercase and lowercase letters, numbers, and special characters.');
 
-        const { password } = await inquirer.prompt<InquirerAnswers>(
-          passwordQuestion
-        );
-        finalPassword = password;
+        let isValidPassword = false;
+        while (!isValidPassword) {
+          const passwordQuestion: any = [
+            {
+              type: "password",
+              name: "password",
+              message: "🔒 Enter a secure password to encrypt your wallet:",
+              mask: "*",
+            },
+          ];
+
+          const { password } = await inquirer.prompt<InquirerAnswers>(
+            passwordQuestion
+          );
+          
+          if (!password) {
+            logError(params, "❌ Password cannot be empty. Please try again.");
+            continue;
+          }
+
+          const validation = validatePassword(password);
+          
+          if (validation.isValid) {
+            logSuccess(params, "✅ Password is secure!");
+            finalPassword = password;
+            isValidPassword = true;
+          } else {
+            logError(params, "❌ Password validation failed:");
+            validation.errors.forEach(error => {
+              logError(params, `   ${error}`);
+            });
+            logWarning(params, "Please try again with a stronger password.\n");
+          }
+        }
+      } else {
+        if (params.password) {
+          const validation = validatePassword(params.password);
+          if (!validation.isValid) {
+            const errorMessage = `Password validation failed: ${validation.errors.join("; ")}`;
+            return {
+              error: errorMessage,
+              success: false,
+            };
+          }
+        }
       }
 
       if (!finalPassword) {
@@ -367,10 +475,8 @@ export async function processOption(params: WalletCommandOptions) {
 
       if (!params.isExternal) {
         logSuccess(params, "✅ Wallet validated successfully!");
-        console.log(
-          chalk.white(`📄 Address:`),
-          chalk.green(`${chalk.bold(account.address)}`)
-        );
+        logInfo(params, "📄 Address:");
+        logInfo(params, `${chalk.bold(account.address)}`);
         writeWalletData(walletFilePath, existingWalletsData);
       }
       return {
@@ -576,17 +682,13 @@ export async function processOption(params: WalletCommandOptions) {
 
       let prevWalletName: string | undefined = params.previousWallet;
       if (!params.isExternal) {
-        console.log(chalk.green("📜 Available wallets:"));
+        logSuccess(params, "📜 Available wallets:");
         walletNames.forEach((walletName) => {
           const isCurrent =
             walletName === existingWalletsData.currentWallet
               ? chalk.yellow(" (Current)")
               : "";
-          console.log(
-            chalk.blue(
-              `- ${walletName}: ${existingWalletsData.wallets[walletName].address}${isCurrent}`
-            )
-          );
+          logInfo(params, `- ${walletName}: ${existingWalletsData.wallets[walletName].address}${isCurrent}`);
         });
 
         const selectWalletQuestion: any = [
@@ -606,7 +708,7 @@ export async function processOption(params: WalletCommandOptions) {
 
       if (!prevWalletName) {
         if (!params.isExternal)
-          console.log(chalk.red("❌ No wallet selected."));
+          logError(params, "❌ No wallet selected.");
         return {
           error: "No wallet selected.",
           success: false,
@@ -615,7 +717,7 @@ export async function processOption(params: WalletCommandOptions) {
 
       if (!existingWalletsData.wallets[prevWalletName]) {
         if (!params.isExternal)
-          console.log(chalk.red(`❌ Wallet "${prevWalletName}" not found.`));
+          logError(params, `❌ Wallet "${prevWalletName}" not found.`);
         return {
           error: `Wallet "${prevWalletName}" not found.`,
           success: false,
@@ -639,7 +741,7 @@ export async function processOption(params: WalletCommandOptions) {
 
       if (!newWalletName) {
         if (!params.isExternal)
-          console.log(chalk.red("❌ No new wallet name provided."));
+          logError(params, "❌ No new wallet name provided.");
         return {
           error: "No new wallet name provided.",
           success: false,
@@ -648,11 +750,7 @@ export async function processOption(params: WalletCommandOptions) {
 
       if (existingWalletsData.wallets[newWalletName]) {
         if (!params.isExternal) {
-          console.log(
-            chalk.red(
-              `❌ A wallet with the name "${newWalletName}" already exists.`
-            )
-          );
+          logError(params, `❌ A wallet with the name "${newWalletName}" already exists.`);
         }
         return {
           error: `A wallet with the name "${newWalletName}" already exists.`,
@@ -669,11 +767,7 @@ export async function processOption(params: WalletCommandOptions) {
       }
 
       if (!params.isExternal) {
-        console.log(
-          chalk.green(
-            `✅ Wallet name updated from "${prevWalletName}" to "${newWalletName}".`
-          )
-        );
+        logSuccess(params, `✅ Wallet name updated from "${prevWalletName}" to "${newWalletName}".`);
         writeWalletData(walletFilePath, existingWalletsData);
       }
 
@@ -703,7 +797,7 @@ export async function processOption(params: WalletCommandOptions) {
       );
 
       if (!backupPath) {
-        console.log(chalk.red("⚠️ Backup path is required!"));
+        logError(params, "⚠️ Backup path is required!");
         return;
       }
       await backupCommand(backupPath);
@@ -721,7 +815,7 @@ export async function processOption(params: WalletCommandOptions) {
     }
     default: {
       if (!params.isExternal)
-        console.log(chalk.red("❌ Invalid option selected."));
+        logError(params, "❌ Invalid option selected.");
       return {
         error: "Invalid option selected.",
         success: false,
@@ -794,27 +888,75 @@ async function backupCommand(backupPath: string) {
 async function createPassword(
   _isExternal: boolean,
   _password: string | undefined
-): Promise<string | undefined> {
+): Promise<{ success: boolean; password?: string; error?: string }> {
   let finalPassword: string | undefined = _password;
+  const params: WalletCommandOptions = {
+    isExternal: _isExternal,
+    password: _password,
+  };
   if (!_isExternal) {
-    console.log(
-      chalk.rgb(255, 165, 0)(`🎉 Wallet created successfully on Rootstock!`)
-    );
 
-    const passwordQuestion: any = [
-      {
-        type: "password",
-        name: "password",
-        message: "🔒 Enter a password to encrypt your wallet:",
-        mask: "*",
-      },
-    ];
-    const { password } = await inquirer.prompt<InquirerAnswers>(
-      passwordQuestion
-    );
-    finalPassword = password;
+    logInfo(params, "🔐 Password Requirements:");
+    logInfo(params, `• At least ${CONFIG.minLength} characters long`);
+    logInfo(params, `• At most ${CONFIG.maxLength} characters long`);
+    logInfo(params, 'Use a strong password with a mix of uppercase and lowercase letters, numbers, and special characters.');
+
+    let isValidPassword = false;
+    while (!isValidPassword) {
+      const passwordQuestion: any = [
+        {
+          type: "password",
+          name: "password",
+          message: "🔒 Enter a secure password to encrypt your wallet:",
+          mask: "*",
+        },
+      ];
+      
+      const { password } = await inquirer.prompt<InquirerAnswers>(passwordQuestion);
+      
+      if (!password) {
+        logError(params, "❌ Password cannot be empty. Please try again.");
+        continue;
+      }
+
+      const validation = validatePassword(password);
+      
+      if (validation.isValid) {
+        logSuccess(params, "✅ Password is secure!");
+        finalPassword = password;
+        isValidPassword = true;
+      } else {
+        logError(params, "❌ Password validation failed:");
+        validation.errors.forEach(error => {
+          logError(params, `   ${error}`);
+        });
+        logWarning(params, "Please try again with a stronger password.\n");
+      }
+    }
+  } else {
+    if (_password) {
+      const validation = validatePassword(_password);
+      if (!validation.isValid) {
+        const errorMessage = `Password validation failed: ${validation.errors.join("; ")}`;
+        return {
+          success: false,
+          error: errorMessage
+        };
+      }
+    }
   }
-  return finalPassword;
+  
+  if (!finalPassword) {
+    return {
+      success: false,
+      error: "No password provided"
+    };
+  }
+  logSuccess(params, "🎉 Wallet created successfully on Rootstock!");
+  return {
+    success: true,
+    password: finalPassword
+  };
 }
 
 async function saveWalletData(
@@ -825,6 +967,9 @@ async function saveWalletData(
   walletData: WalletItem,
   prefixedPrivateKey: string
 ) {
+  const params: WalletCommandOptions = {
+    isExternal: isExternal
+  };
   if (existingWalletsData?.currentWallet) {
     if (isExternal) {
       existingWalletsData.currentWallet = replaceCurrentWallet
@@ -846,7 +991,7 @@ async function saveWalletData(
 
       if (setCurrentWallet) {
         existingWalletsData.currentWallet = finalWalletName;
-        console.log(chalk.green("✅ Wallet set as current!"));
+        logSuccess(params, "✅ Wallet set as current!");
       }
     }
   } else {
@@ -856,17 +1001,11 @@ async function saveWalletData(
   existingWalletsData.wallets[finalWalletName] = walletData;
 
   if (!isExternal) {
-    console.log(
-      chalk.white(`📄 Address:`),
-      chalk.green(`${chalk.bold(walletData.address)}`)
-    );
-    console.log(
-      chalk.white(`🔑 Private Key:`),
-      chalk.green(`${chalk.bold(prefixedPrivateKey)}`)
-    );
-    console.log(
-      chalk.gray("🔒 Please save the private key in a secure location.")
-    );
+    logInfo(params, "📄 Address:");
+    logInfo(params, `${chalk.bold(walletData.address)}`);
+    logInfo(params, "🔑 Private Key:");
+    logInfo(params, `${chalk.bold(prefixedPrivateKey)}`);
+    logInfo(params, "🔒 Please save the private key in a secure location.");
     writeWalletData(walletFilePath, existingWalletsData);
     return;
   }
