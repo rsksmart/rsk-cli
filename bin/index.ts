@@ -72,7 +72,12 @@ program
   .option("--wallet <wallet>", "Name of the wallet")
   .option("-a ,--address <address>", "Token holder address")
   .action(async (options: CommandOptions) => {
-    await balanceCommand(!!options.testnet, options.wallet!, options.address);
+    await balanceCommand({
+      testnet: !!options.testnet,
+      walletName: options.wallet,
+      isExternal: false,
+      customTokenAddress: options.address as Address | undefined,
+    });
   });
 
 program
@@ -99,13 +104,14 @@ program
         ? (`0x${options.address.replace(/^0x/, "")}` as `0x${string}`)
         : await selectAddress();
 
-      await transferCommand(
-        !!options.testnet,
-        address,
+      await transferCommand({
+        testnet: !!options.testnet,
+        toAddress: address,
         value,
-        options.wallet!,
-        options.token as `0x${string}` | undefined
-      );
+        name: options.wallet,
+        tokenAddress: options.token as `0x${string}` | undefined,
+        isExternal: false,
+      });
     } catch (error: any) {
       console.error(
         chalk.red("Error during transfer:"),
@@ -124,7 +130,7 @@ program
       ? options.txid
       : `0x${options.txid}`;
 
-    await txCommand(!!options.testnet, formattedTxId as `0x${string}`);
+    await txCommand({ testnet: !!options.testnet, txid: formattedTxId as `0x${string}` });
   });
 
 program
@@ -137,13 +143,14 @@ program
   .option("-t, --testnet", "Deploy on the testnet")
   .action(async (options: CommandOptions) => {
     const args = options.args || [];
-    await deployCommand(
-      options.abi!,
-      options.bytecode!,
-      !!options.testnet,
+    await deployCommand({
+      abiPath: options.abi!,
+      bytecodePath: options.bytecode!,
+      testnet: !!options.testnet,
       args,
-      options.wallet!
-    );
+      name: options.wallet,
+      isExternal: false,
+    });
   });
 
 program
@@ -159,14 +166,14 @@ program
   )
   .action(async (options: CommandOptions) => {
     const args = options.decodedArgs || [];
-    await verifyCommand(
-      options.json!,
-      options.address!,
-      options.name!,
-      !!options.testnet,
-
-      args
-    );
+    await verifyCommand({
+      jsonPath: options.json!,
+      address: options.address!,
+      name: options.name!,
+      testnet: !!options.testnet,
+      args,
+      isExternal: false,
+    });
   });
 
 program
@@ -175,7 +182,11 @@ program
   .requiredOption("-a, --address <address>", "Address of a verified contract")
   .option("-t, --testnet", "Deploy on the testnet")
   .action(async (options: CommandOptions) => {
-    await ReadContract(options.address! as `0x${string}`, !!options.testnet);
+    await ReadContract({
+      address: options.address! as `0x${string}`,
+      testnet: !!options.testnet,
+      isExternal: false,
+    });
   });
 
 program
@@ -184,7 +195,11 @@ program
   .option("-t, --testnet", "Deploy on the testnet")
   .option("--wallet <wallet>", "Name of the wallet")
   .action(async (options: CommandOptions) => {
-    await bridgeCommand(!!options.testnet, options.wallet!);
+    await bridgeCommand({
+      testnet: !!options.testnet,
+      name: options.wallet!,
+      isExternal: false,
+    });
   });
 
 program
@@ -194,7 +209,12 @@ program
   .option("--number <number>", "Number of transactions to fetch")
   .option("-t, --testnet", "History of wallet on the testnet")
   .action(async (options: CommandOptions) => {
-    await historyCommand(!!options.testnet, options.apiKey!, options.number!);
+    await historyCommand({
+      testnet: !!options.testnet,
+      apiKey: options.apiKey!,
+      number: options.number!,
+      isExternal: false,
+    });
   });
 
 program
@@ -218,7 +238,12 @@ program
         return;
       }
 
-      await batchTransferCommand(file, testnet, interactive);
+      await batchTransferCommand({
+        filePath: file,
+        testnet,
+        interactive,
+        isExternal: false,
+      });
     } catch (error: any) {
       console.error(
         chalk.red("🚨 Error during batch transfer:"),

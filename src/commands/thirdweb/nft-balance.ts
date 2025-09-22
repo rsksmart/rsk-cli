@@ -10,7 +10,7 @@ export const checkNFTBalance = new Command()
   .description('Check NFT balance of an address')
   .option('-c, --address <address>', 'NFT contract address')
   .option('-w, --wallet <name>', 'Wallet name to use (optional, uses current wallet if not specified)')
-  .option('--testnet', 'Use testnet')
+  .option('-t, --testnet', 'Use testnet')
   .option('--api-key <key>', 'Thirdweb API key')
   .action(async (options) => {
     try {

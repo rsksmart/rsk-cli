@@ -9,9 +9,9 @@ export const transferNFT = new Command()
   .name('transfer-nft')
   .description('Transfer an NFT to another address')
   .option('-c, --address <address>', 'NFT contract address')
-  .option('-t, --to <address>', 'Recipient address')
+  .option('-r, --to <address>', 'Recipient address')
   .option('-i, --token-id <id>', 'Token ID to transfer')
-  .option('--testnet', 'Use testnet')
+  .option('-t, --testnet', 'Use testnet')
   .option('--api-key <key>', 'Thirdweb API key')
   .option('--wallet <name>', 'Wallet name to use (optional, uses current wallet if not specified)')
   .action(async (options) => {
@@ -75,10 +75,11 @@ export const transferNFT = new Command()
 
       // Get private key from stored wallet (prompt first, no spinner)
       const privateKey = await getPrivateKeyFromStoredWallet(options.wallet);
+      const privateKeyPrefixed = privateKey.startsWith('0x') ? privateKey : `0x${privateKey}`;
       
       // Derive wallet address from private key
       const { privateKeyToAccount } = await import('viem/accounts');
-      const prefixedPrivateKey = `0x${privateKey}` as `0x${string}`;
+      const prefixedPrivateKey = privateKeyPrefixed as `0x${string}`;
       const account = privateKeyToAccount(prefixedPrivateKey);
       const walletAddress = account.address;
 
@@ -87,7 +88,7 @@ export const transferNFT = new Command()
 
       // Initialize Thirdweb SDK with Rootstock network
       const sdk = ThirdwebSDK.fromPrivateKey(
-        privateKey,
+        privateKeyPrefixed,
         options.testnet ? 'rootstock-testnet' : 'rootstock',
         {
           clientId: apiKey,

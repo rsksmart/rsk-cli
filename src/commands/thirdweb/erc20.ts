@@ -54,10 +54,11 @@ export const deployERC20 = new Command()
 
       // Get private key from stored wallet (prompt first, no spinner)
       const privateKey = await getPrivateKeyFromStoredWallet(options.wallet);
+      const privateKeyPrefixed = privateKey.startsWith('0x') ? privateKey : `0x${privateKey}`;
       
       // Derive wallet address from private key
       const { privateKeyToAccount } = await import('viem/accounts');
-      const prefixedPrivateKey = `0x${privateKey}` as `0x${string}`;
+      const prefixedPrivateKey = privateKeyPrefixed as `0x${string}`;
       const account = privateKeyToAccount(prefixedPrivateKey);
       const walletAddress = account.address;
 
@@ -66,7 +67,7 @@ export const deployERC20 = new Command()
 
       // Initialize Thirdweb SDK with Rootstock network
       const sdk = ThirdwebSDK.fromPrivateKey(
-        privateKey,
+        privateKeyPrefixed,
         options.testnet ? 'rootstock-testnet' : 'rootstock',
         {
           clientId: apiKey,
