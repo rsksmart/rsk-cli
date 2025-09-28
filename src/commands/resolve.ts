@@ -1,7 +1,8 @@
 import chalk from "chalk";
 import ora from "ora";
-import { isAddress } from "viem";
+import { Address } from "viem";
 import { resolveRNSToAddress, resolveAddressToRNS } from "../utils/rnsHelper.js";
+import { validateAndFormatAddressRSK, toEip1191ChecksumAddress } from "../utils/index.js";
 
 type ResolveCommandOptions = {
   name: string;
@@ -77,16 +78,16 @@ export async function resolveCommand(
 
   try {
     if (params.reverse) {
-      if (!isAddress(params.name)) {
+      const formattedAddress = validateAndFormatAddressRSK(params.name, params.testnet);
+      if (!formattedAddress) {
         const errorMessage = "Invalid address format for reverse lookup";
         failSpinner(params, spinner, chalk.red(`❌ ${errorMessage}`));
         return params.isExternal ? { success: false, error: errorMessage } : undefined;
       }
 
       startSpinner(params, spinner, chalk.white("🔍 Looking up name for address..."));
-      
       const resolverName = await resolveAddressToRNS({
-        address: params.name as `0x${string}`,
+        address: formattedAddress as `0x${string}`,
         testnet: params.testnet,
         isExternal: params.isExternal
       });
@@ -95,14 +96,15 @@ export async function resolveCommand(
 
       if (resolverName) {
         succeedSpinner(params, spinner, chalk.green("✅ Name found successfully"));
-        logMessage(params, chalk.white(`📄 Address:`) + " " + chalk.green(params.name));
+        const displayAddress = toEip1191ChecksumAddress(formattedAddress as string, params.testnet) as Address;
+        logMessage(params, chalk.white(`📄 Address:`) + " " + chalk.green(displayAddress));
         logMessage(params, chalk.white(`🏷️  Name:`) + " " + chalk.green(resolverName));
         
         if (params.isExternal) {
           return {
             success: true,
             data: {
-              address: params.name,
+              address: displayAddress,
               name: resolverName,
               network: params.testnet ? "Rootstock Testnet" : "Rootstock Mainnet"
             }

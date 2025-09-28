@@ -6,6 +6,7 @@ import ViemProvider from "../utils/viemProvider.js";
 import { Address } from "viem";
 import { FileTx, WalletData } from "../utils/types.js";
 import { resolveRNSToAddress, isRNSDomain } from "../utils/rnsHelper.js";
+import { validateAndFormatAddressRSK } from "../utils/index.js";
 
 type BatchTransferCommandOptions = {
   testnet: boolean;
@@ -146,9 +147,14 @@ export async function batchTransferCommand(params: BatchTransferCommandOptions) 
           logError(params, `Failed to resolve RNS domain: ${to}. Skipping transaction.`);
           continue;
         }
-        recipientAddress = resolved;
+        const formatted = validateAndFormatAddressRSK(resolved as string, params.testnet);
+        if (!formatted) {
+          logError(params, `Resolved address is invalid for: ${to}. Skipping transaction.`);
+          continue;
+        }
+        recipientAddress = formatted as Address;
       } else {
-        recipientAddress = validateAddress(to as string);
+        recipientAddress = validateAddress(to as string, params.testnet);
       }
 
       const txHash = await walletClient.sendTransaction({
@@ -249,11 +255,12 @@ async function promptForTransactions(allowRNS: boolean = false) {
   return transactions;
 }
 
-function validateAddress(address: string): Address {
-  if (!/^0x[a-fA-F0-9]{40}$/.test(address)) {
-    throw new Error(`Invalid Ethereum address: ${address}`);
+function validateAddress(address: string, testnet?: boolean): Address {
+  const formatted = validateAndFormatAddressRSK(address, !!testnet);
+  if (!formatted) {
+    throw new Error(`Invalid address: ${address}`);
   }
-  return address as Address;
+  return formatted as Address;
 }
 
 async function getBatchData(params: BatchTransferCommandOptions): Promise<BatchData[] | []> {

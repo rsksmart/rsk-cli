@@ -18,6 +18,7 @@ import { resolveCommand } from "../src/commands/resolve.js";
 import { transactionCommand } from "../src/commands/transaction.js";
 import { parseEther } from "viem";
 import { resolveRNSToAddress } from "../src/utils/rnsHelper.js";
+import { validateAndFormatAddressRSK } from "../src/utils/index.js";
 
 interface CommandOptions {
   testnet?: boolean;
@@ -143,9 +144,17 @@ program
         if (!resolvedAddress) {
           throw new Error(`Failed to resolve RNS domain: ${options.rns}`);
         }
-        address = resolvedAddress;
+        const formatted = validateAndFormatAddressRSK(resolvedAddress as string, !!options.testnet);
+        if (!formatted) {
+          throw new Error(`Invalid resolved address for domain: ${options.rns}`);
+        }
+        address = formatted as `0x${string}`;
       } else if (options.address) {
-        address = `0x${options.address.replace(/^0x/, "")}` as `0x${string}`;
+        const formatted = validateAndFormatAddressRSK(String(options.address), !!options.testnet);
+        if (!formatted) {
+          throw new Error("Invalid recipient address");
+        }
+        address = formatted as `0x${string}`;
       } else {
         address = await selectAddress();
       }

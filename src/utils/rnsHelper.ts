@@ -1,6 +1,7 @@
 import { Address, isAddress } from "viem";
 import chalk from "chalk";
 import { ZERO_ADDRESS } from "./constants.js";
+import { validateAndFormatAddressRSK } from "./index.js";
 
 type ResolveRNSOptions = {
   name: string;
@@ -81,8 +82,13 @@ export async function resolveRNSToAddress(
       return null;
     }
 
-    logSuccess(params.isExternal, `✅ Resolved ${name} to ${resolvedAddress}`);
-    return resolvedAddress;
+    const formatted = validateAndFormatAddressRSK(resolvedAddress, !!params.testnet);
+    if (!formatted) {
+      logError(params.isExternal, `Failed to validate resolved address for ${name}`);
+      return null;
+    }
+    logSuccess(params.isExternal, `✅ Resolved ${name} to ${formatted}`);
+    return formatted;
   } catch (error) {
     logError(params.isExternal, `Failed to resolve RNS name: ${params.name}`);
     if (error instanceof Error && !params.isExternal) {
