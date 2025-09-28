@@ -1,4 +1,4 @@
-import { Address, isAddress, PublicClient } from "viem";
+import { Address, isAddress, PublicClient, keccak256, stringToHex } from "viem";
 import chalk from "chalk";
 import fs from "fs";
 import {
@@ -20,6 +20,71 @@ export function validateAndFormatAddress(address: string): Address | undefined {
     return undefined;
   }
   return formattedAddress as Address;
+}
+
+export function getRootstockChainId(testnet: boolean): 30 | 31 {
+  return testnet ? 31 : 30;
+}
+
+export function validateAndFormatAddressRSK(
+  address: string,
+  testnet: boolean = false
+): Address | undefined {
+  if (!address) return undefined;
+  const lower = `0x${address.replace(/^0x/, "").toLowerCase()}`;
+  const hex = lower.replace(/^0x/, "");
+  if (!/^([a-f0-9]{40})$/.test(hex)) return undefined;
+
+  const input = address.startsWith("0x") ? address : `0x${address}`;
+  const hasUpper = /[A-F]/.test(input);
+  const hasLower = /[a-f]/.test(input);
+  const isMixedCase = hasUpper && hasLower;
+
+  if (isMixedCase) {
+    const eip1191 = toEip1191ChecksumAddress(lower, testnet);
+    const eip55 = toEip55ChecksumAddress(lower);
+    if (input !== eip1191 && input !== eip55) {
+      return undefined;
+    }
+  }
+
+  // Accept all-lowercase or valid checksummed (EIP-55 or EIP-1191). Return lowercase for internal use.
+  return lower as Address;
+}
+
+export function toEip1191ChecksumAddress(
+  address: string,
+  testnet: boolean = false
+): Address {
+  const chainId = getRootstockChainId(testnet);
+  const clean = address.replace(/^0x/, "");
+  if (!/^([a-fA-F0-9]{40})$/.test(clean)) {
+    return (`0x${clean.toLowerCase()}`) as Address;
+  }
+  const lower = clean.toLowerCase();
+  const input = `${chainId}0x${lower}`;
+  const hash = keccak256(stringToHex(input)).slice(2);
+  let checksummed = "";
+  for (let i = 0; i < lower.length; i++) {
+    const h = parseInt(hash[i], 16);
+    checksummed += h >= 8 ? lower[i].toUpperCase() : lower[i];
+  }
+  return (`0x${checksummed}`) as Address;
+}
+
+export function toEip55ChecksumAddress(address: string): Address {
+  const clean = address.replace(/^0x/, "");
+  if (!/^([a-fA-F0-9]{40})$/.test(clean)) {
+    return (`0x${clean.toLowerCase()}`) as Address;
+  }
+  const lower = clean.toLowerCase();
+  const hash = keccak256(stringToHex(lower)).slice(2);
+  let checksummed = "";
+  for (let i = 0; i < lower.length; i++) {
+    const h = parseInt(hash[i], 16);
+    checksummed += h >= 8 ? lower[i].toUpperCase() : lower[i];
+  }
+  return (`0x${checksummed}`) as Address;
 }
 
 export async function isValidContract(
