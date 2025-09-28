@@ -96,48 +96,51 @@ export async function balanceCommand(params: BalanceCommandOptions): Promise<Bal
   const spinner = params.isExternal ? ora({isEnabled: false}) : ora();
 
   try {
-    const walletsData = params.isExternal && params.walletsData ? params.walletsData : JSON.parse(fs.readFileSync(walletFilePath, "utf8"));
+    let targetAddress: Address | undefined;
 
-    if (!walletsData.currentWallet || !walletsData.wallets) {
-      const errorMessage = "No valid wallet found. Please create or import a wallet first.";
-      logError(params, errorMessage);
-      return {
-        error: errorMessage,
-        success: false,
-      };
-    }
+    if (params.address) {
+      targetAddress = getAddress(params.address);
+    } else {
+      const walletsData = params.isExternal && params.walletsData
+        ? params.walletsData
+        : JSON.parse(fs.readFileSync(walletFilePath, "utf8"));
 
-    const { currentWallet, wallets } = walletsData;
-    let wallet = wallets[currentWallet];
-
-    if (params.walletName) {
-      if (!wallets[params.walletName]) {
-        const errorMessage = "Wallet with the provided name does not exist.";
+      if (!walletsData.currentWallet || !walletsData.wallets) {
+        const errorMessage = "No valid wallet found. Please create or import a wallet first.";
         logError(params, errorMessage);
         return {
           error: errorMessage,
           success: false,
         };
-      } else {
-        wallet = wallets[params.walletName];
       }
-    }
 
-    let address = params.address;
-    if (!address) {
-      address = wallet.address;
-    }
+      const { currentWallet, wallets } = walletsData;
+      let wallet = wallets[currentWallet];
 
-    if (!address) {
-      const errorMessage = "No valid address found in the saved wallet.";
-      logError(params, errorMessage);
-      return {
-        error: errorMessage,
-        success: false,
-      };
-    }
+      if (params.walletName) {
+        if (!wallets[params.walletName]) {
+          const errorMessage = "Wallet with the provided name does not exist.";
+          logError(params, errorMessage);
+          return {
+            error: errorMessage,
+            success: false,
+          };
+        } else {
+          wallet = wallets[params.walletName];
+        }
+      }
 
-    const targetAddress = getAddress(address);
+      const address = wallet.address;
+      if (!address) {
+        const errorMessage = "No valid address found in the saved wallet.";
+        logError(params, errorMessage);
+        return {
+          error: errorMessage,
+          success: false,
+        };
+      }
+      targetAddress = getAddress(address);
+    }
 
     if (!targetAddress) {
       const errorMessage = "Invalid address format.";
@@ -151,23 +154,26 @@ export async function balanceCommand(params: BalanceCommandOptions): Promise<Bal
     const provider = new ViemProvider(params.testnet);
     const client = await provider.getPublicClient();
 
-    let token: string;
-    
-    if (params.isExternal && params.token) {
+    let token: string | undefined;
+    if (params.token) {
       token = params.token;
-    } else if (params.isExternal && !params.token) {
+    } else if (params.isExternal) {
       return {
         error: "Token parameter is required when using external mode.",
         success: false,
       };
     } else {
-      const { token: selectedToken } = await inquirer.prompt({
-        type: "list",
-        name: "token",
-        message: "Select token to check balance:",
-        choices: ["rBTC", ...Object.keys(TOKENS), "Custom Token"],
-      });
-      token = selectedToken;
+      try {
+        const { token: selectedToken } = await inquirer.prompt({
+          type: "list",
+          name: "token",
+          message: "Select token to check balance:",
+          choices: ["rBTC", ...Object.keys(TOKENS), "Custom Token"],
+        });
+        token = selectedToken;
+      } catch {
+        token = "rBTC";
+      }
     }
 
     if (token === "rBTC") {
@@ -250,7 +256,7 @@ export async function balanceCommand(params: BalanceCommandOptions): Promise<Bal
         tokenAddress = address.toLowerCase() as Address;
       }
     } else {
-      tokenAddress = resolveTokenAddress(token, params.testnet);
+      tokenAddress = resolveTokenAddress(token as string, params.testnet);
     }
 
     startSpinner(
