@@ -1,25 +1,30 @@
-name: Publish library on NPM
+name: Deploy library on NPM
 
 on:
   release:
     types: [published]
-      
+
+# Declare default permissions as read only.
 permissions: read-all
 
 jobs:
   publish:
+    permissions:
+      id-token: write
+      contents: read
+
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
-        
+
       - name: "Check file existence"
         id: check_files
         uses: andstor/file-existence-action@076e0072799f4942c8bc574a82233e1e4d13e9d6 # v3.0.0
         with:
           files: "package.json, README.md"
-            
+          
       - name: File exists
         if: steps.check_files.outputs.files_exists != 'true'
         # Only runs if all of the files exists
@@ -50,35 +55,37 @@ jobs:
         if: github.ref != steps.get_package_info.outputs.PACKAGE_VERSION
         # Fail if package version not properly setted
         run: exit 1
-        
+      
       - name: Check if package repository matches with repository
         if: github.repositoryUrl != steps.get_package_info.outputs.PACKAGE_REPOSITORY
         # Fail if package repository doesn't match with repository
         run: exit 1
 
       - name: Setup Node.js
-        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 #v4.4.0
+        uses: actions/setup-node@39370e3970a6d050c480ffad4ff0ed4d3fdee5af #v4.1.0
         with:
           node-version: 20
           registry-url: https://registry.npmjs.org
 
-      - name: Install pnpm
-        run: npm install -g pnpm
+      - name: Clean install dependencies
+        run: |
+          rm -rf dist
+          npm ci
 
-      - name: Install dependencies
-        run: pnpm install
+      - name: Update npm
+        run: npm install -g npm@latest
 
       - name: Build
-        run: pnpm build
+        run: npm run build
 
       - name: Pre upload validation
         id: pack
         run: | 
-          npm pack --dry-run > output 2>&1
-          PRE_UPLOAD_HASH=$(grep 'shasum' output | awk '{print $NF}')
+          rm -f *.tgz
+          PRE_UPLOAD_HASH=$(npm pack --dry-run 2>&1 | grep 'shasum:' | awk '{print $NF}')
           echo "PRE_UPLOAD_HASH=$PRE_UPLOAD_HASH" >> $GITHUB_OUTPUT
           echo "PRE_UPLOAD_HASH: $PRE_UPLOAD_HASH"
-
+        
       - name: Check if version is already published
         run: |
           PACKAGE_NAME=$(cat package.json | jq -r .name)
@@ -92,11 +99,8 @@ jobs:
           echo "Version $PACKAGE_VERSION of $PACKAGE_NAME is not published. Proceeding with publishing..."
 
       - name: Upload package
-        run: npm publish --access public
-        env:
-          NODE_AUTH_TOKEN: ${{secrets.NPM_TOKEN}}
-
-
+        run: npm publish
+      
       - name: Post upload validation
         id: unpack
         run: |
@@ -113,7 +117,7 @@ jobs:
           POST_UPLOAD_HASH=$(npm view $FULL_PACKAGE_NAME dist.shasum)
           echo "POST_UPLOAD_HASH=$POST_UPLOAD_HASH" >> $GITHUB_OUTPUT
           echo "POST_UPLOAD_HASH: $POST_UPLOAD_HASH"
-      
+
       - name: Pre and Post Upload validation
         run: |
           echo "Comparing hashes..."
@@ -125,3 +129,4 @@ jobs:
             exit 1
           fi
           echo "Hashes match successfully!"
+
