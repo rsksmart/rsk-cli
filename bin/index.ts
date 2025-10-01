@@ -280,4 +280,37 @@ program
     await configCommand();
   });
 
+program
+  .command("transaction")
+  .description("Create and send transactions (simple, advanced, or raw)")
+  .option("-t, --testnet", "Execute on the testnet")
+  .option("--wallet <wallet>", "Name of the wallet")
+  .option("-a, --address <address>", "Recipient address")
+  .option("--token <address>", "ERC20 token contract address (optional, for token transfers)")
+  .option("--value <value>", "Amount to transfer")
+  .option("--gas-limit <limit>", "Custom gas limit")
+  .option("--gas-price <price>", "Custom gas price in RBTC")
+  .option("--data <data>", "Custom transaction data (hex)")
+  .action(async (options: CommandOptions) => {
+    try {
+      await transactionCommand(
+        options.testnet,
+        options.address as `0x${string}` | undefined,
+        options.value ? parseFloat(options.value) : undefined,
+        options.wallet,
+        options.token as `0x${string}` | undefined,
+        {
+          ...(options.gasLimit && { gasLimit: BigInt(options.gasLimit) }),
+          ...(options.gasPrice && { gasPrice: parseEther(options.gasPrice.toString()) }),
+          ...(options.data && { data: options.data as `0x${string}` })
+        }
+      );
+    } catch (error: any) {
+      console.error(
+        chalk.red("Error during transaction:"),
+        error.message || error
+      );
+    }
+  });
+
 program.parse(process.argv);
