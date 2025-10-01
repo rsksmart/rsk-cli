@@ -162,6 +162,8 @@ program
       testnet: !!options.testnet,
       txid: formattedTxId as `0x${string}`,
       isExternal: false,
+      monitor: !!options.monitor,
+      confirmations: options.confirmations ? parseInt(options.confirmations.toString()) : undefined,
     });
   });
 
@@ -319,7 +321,8 @@ program
         monitorBalance: options.balance !== false,
         monitorTransactions: !!options.transactions,
         tx,
-        confirmations: options.confirmations ? parseInt(options.confirmations.toString()) : undefined
+        confirmations: options.confirmations ? parseInt(options.confirmations.toString()) : undefined,
+        isExternal: false
       });
     } catch (error: any) {
       console.error(
