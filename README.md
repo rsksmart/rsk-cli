@@ -294,13 +294,21 @@ The `tx` command allows you to check the status of a specific transaction on the
 #### Mainnet
 
 ```bash
+# Check transaction status
 rsk-cli tx --txid 0x86deb77e1d666ae6848630496d672da8b5f48292681bda33f8f04245c55dde26
+
+# Monitor transaction until confirmation
+rsk-cli tx --txid 0x86deb77e1d666ae6848630496d672da8b5f48292681bda33f8f04245c55dde26 --monitor
 ```
 
 #### Testnet
 
 ```bash
+# Check transaction status
 rsk-cli tx --testnet --txid 0x86deb77e1d666ae6848630496d672da8b5f48292681bda33f8f04245c55dde26
+
+# Monitor transaction until confirmation
+rsk-cli tx --testnet --txid 0x86deb77e1d666ae6848630496d672da8b5f48292681bda33f8f04245c55dde26 --monitor
 ```
 
 Output example:
@@ -310,7 +318,15 @@ Output example:
 🌐 Network: Rootstock Testnet
 💰 Current Balance: 0.5015859620415593 RBTC
 🔗 Ensure that transactions are being conducted on the correct network.
+
+# When using --monitor flag:
+📊 Monitoring transaction: 0x86deb77e1d666ae6848630496d672da8b5f48292681bda33f8f04245c55dde26
+⏳ Current status: pending, confirmations: 0
+⏳ Current status: pending, confirmations: 2
+✅ Transaction confirmed with 12 confirmations!
 ```
+
+The `--monitor` flag keeps listening to the transaction status until it reaches the required number of confirmations (default: 12) or fails. The monitoring will automatically stop once the transaction is confirmed or fails.
 
 ### 5. Deploy Smart Contract
 
