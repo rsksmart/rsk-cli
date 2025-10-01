@@ -14,8 +14,11 @@ import { bridgeCommand } from "../src/commands/bridge.js";
 import { batchTransferCommand } from "../src/commands/batchTransfer.js";
 import { historyCommand } from "../src/commands/history.js";
 import { selectAddress } from "../src/commands/selectAddress.js";
+import { resolveCommand } from "../src/commands/resolve.js";
 import { transactionCommand } from "../src/commands/transaction.js";
 import { parseEther } from "viem";
+import { resolveRNSToAddress } from "../src/utils/rnsHelper.js";
+import { validateAndFormatAddressRSK } from "../src/utils/index.js";
 
 interface CommandOptions {
   testnet?: boolean;
@@ -35,9 +38,11 @@ interface CommandOptions {
   file?: string;
   interactive?: boolean;
   token?: Address;
+  reverse?: boolean;
   gasLimit?: string;
   gasPrice?: string;
   data?: string;
+  rns?: string;
 }
 
 const orange = chalk.rgb(255, 165, 0);
@@ -73,10 +78,26 @@ program
   .description("Check the balance of the saved wallet")
   .option("-t, --testnet", "Check the balance on the testnet")
   .option("--wallet <wallet>", "Name of the wallet")
+  .option("-a ,--address <address>", "Token holder address")
+  .option("--rns <domain>", "Token holder RNS domain (e.g., alice.rsk)")
   .action(async (options: CommandOptions) => {
+    let holderAddress = options.address;
+    if (options.rns) {
+      const resolvedAddress = await resolveRNSToAddress({
+        name: options.rns,
+        testnet: !!options.testnet,
+        isExternal: false
+      });
+      if (!resolvedAddress) {
+        throw new Error(`Failed to resolve RNS domain: ${options.rns}`);
+      }
+      holderAddress = resolvedAddress;
+    }
+    
     await balanceCommand({
       testnet: !!options.testnet,
       walletName: options.wallet!,
+      address: holderAddress,
     });
   });
 
@@ -86,6 +107,7 @@ program
   .option("-t, --testnet", "Transfer on the testnet")
   .option("--wallet <wallet>", "Name of the wallet")
   .option("-a, --address <address>", "Recipient address")
+  .option("--rns <domain>", "Recipient RNS domain (e.g., alice.rsk)")
   .option("--token <address>", "ERC20 token contract address (optional, for token transfers)")
   .option("--value <value>", "Amount to transfer")
   .option("-i, --interactive", "Execute interactively and input transactions")
@@ -112,9 +134,30 @@ program
         throw new Error("Invalid value specified for transfer.");
       }
 
-      const address = options.address
-        ? (`0x${options.address.replace(/^0x/, "")}` as `0x${string}`)
-        : await selectAddress();
+      let address: `0x${string}`;
+      if (options.rns) {
+        const resolvedAddress = await resolveRNSToAddress({
+          name: options.rns,
+          testnet: !!options.testnet,
+          isExternal: false
+        });
+        if (!resolvedAddress) {
+          throw new Error(`Failed to resolve RNS domain: ${options.rns}`);
+        }
+        const formatted = validateAndFormatAddressRSK(resolvedAddress as string, !!options.testnet);
+        if (!formatted) {
+          throw new Error(`Invalid resolved address for domain: ${options.rns}`);
+        }
+        address = formatted as `0x${string}`;
+      } else if (options.address) {
+        const formatted = validateAndFormatAddressRSK(String(options.address), !!options.testnet);
+        if (!formatted) {
+          throw new Error("Invalid recipient address");
+        }
+        address = formatted as `0x${string}`;
+      } else {
+        address = await selectAddress();
+      }
 
       const txOptions = {
         ...(options.gasLimit && { gasLimit: BigInt(options.gasLimit) }),
@@ -244,11 +287,13 @@ program
   .option("-i, --interactive", "Execute interactively and input transactions")
   .option("-t, --testnet", "Execute on the testnet")
   .option("-f, --file <path>", "Execute transactions from a file")
+  .option("--rns", "Enable RNS domain resolution for recipient addresses")
   .action(async (options) => {
     try {
       const interactive = !!options.interactive;
       const testnet = !!options.testnet;
       const file = options.file;
+      const resolveRNS = !!options.rns;
 
       if (interactive && file) {
         console.error(
@@ -263,6 +308,7 @@ program
         filePath: file,
         testnet: testnet,
         interactive: interactive,
+        resolveRNS: resolveRNS,
       });
     } catch (error: any) {
       console.error(
@@ -270,6 +316,19 @@ program
         chalk.yellow(error.message || "Unknown error")
       );
     }
+  });
+
+program
+  .command("resolve <name>")
+  .description("Resolve RNS names to addresses or reverse lookup addresses to names")
+  .option("-t, --testnet", "Use testnet (currently mainnet only)")
+  .option("-r, --reverse", "Reverse lookup: address to name")
+  .action(async (name: string, options: CommandOptions) => {
+    await resolveCommand({
+      name,
+      testnet: !!options.testnet,
+      reverse: !!options.reverse
+    });
   });
 
 program.parse(process.argv);
