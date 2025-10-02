@@ -582,6 +582,367 @@ Output example:
 ⛽ Gas Used: 21000
 ```
 
+### 10. Thirdweb Integration
+
+The `rsk-cli` tool includes comprehensive Thirdweb integration for deploying and managing tokens and NFTs on the Rootstock blockchain. All Thirdweb commands now use the same secure wallet system as other commands - they automatically use your stored wallets instead of requiring private keys to be entered manually.
+
+#### Setup
+
+Before using Thirdweb commands, you'll need to:
+
+1. **Get a Thirdweb API Key**: Visit [Thirdweb Dashboard](https://thirdweb.com/create-api-key) to create your API key
+2. **Create or Import a Wallet**: Use the `wallet` command to create a new wallet or import an existing one
+
+The first time you run any Thirdweb command, you'll be prompted to enter your API key. This will be securely stored for future use. All commands will automatically use your current wallet or a specified wallet by name.
+
+#### Available Commands
+
+##### Deploy ERC20 Token
+
+Deploy a new ERC20 token on Rootstock.
+
+```bash
+# Deploy on mainnet
+rsk-cli thirdweb erc20 --name "My Token" --symbol "MTK"
+
+# Deploy on testnet
+rsk-cli thirdweb erc20 --testnet --name "My Token" --symbol "MTK"
+
+# Use a specific wallet
+rsk-cli thirdweb erc20 --wallet "myWallet" --name "My Token" --symbol "MTK"
+
+# Interactive mode (will prompt for missing parameters)
+rsk-cli thirdweb erc20
+```
+
+Output example:
+
+```
+✅ ERC20 token deployed successfully!
+📍 Token Address: 0x1234567890123456789012345678901234567890
+🌐 Network: Rootstock Mainnet
+📝 Note: Mint tokens to this contract after deployment as needed.
+```
+
+##### Deploy ERC721 NFT Collection
+
+Deploy a new ERC721 NFT collection on Rootstock.
+
+```bash
+# Deploy on mainnet
+rsk-cli thirdweb erc721 --name "My NFT Collection" --symbol "MNFT" --description "A collection of unique NFTs"
+
+# Deploy on testnet
+rsk-cli thirdweb erc721 --testnet --name "My NFT Collection" --symbol "MNFT" --description "A collection of unique NFTs"
+
+# Use a specific wallet
+rsk-cli thirdweb erc721 --wallet "myWallet" --name "My NFT Collection" --symbol "MNFT"
+
+# Interactive mode
+rsk-cli thirdweb erc721
+```
+
+Output example:
+
+```
+✅ ERC721 collection deployed successfully!
+📍 Contract Address: 0x1234567890123456789012345678901234567890
+📄 Collection Name: My NFT Collection
+🔤 Collection Symbol: MNFT
+📝 Description: A collection of unique NFTs
+🌐 Network: Rootstock Mainnet
+📝 Note: You can now mint NFTs to this collection using the mint-nft command.
+```
+
+##### Deploy Custom Contracts
+
+Deploy any custom smart contract using ABI and bytecode files.
+
+```bash
+# Deploy on mainnet
+rsk-cli thirdweb deploy-custom --abi path/to/abi.json --bytecode path/to/bytecode.bin --constructor-args "arg1" "arg2"
+
+# Deploy on testnet
+rsk-cli thirdweb deploy-custom --testnet --abi path/to/abi.json --bytecode path/to/bytecode.bin --constructor-args "arg1" "arg2"
+
+# Use a specific wallet
+rsk-cli thirdweb deploy-custom --wallet "myWallet" --abi path/to/abi.json --bytecode path/to/bytecode.bin
+
+# Interactive mode (will prompt for missing parameters)
+rsk-cli thirdweb deploy-custom
+```
+
+Output example:
+
+```
+✅ Custom contract deployed successfully!
+📍 Contract Address: 0x1234567890123456789012345678901234567890
+📄 ABI File: path/to/abi.json
+📄 Bytecode File: path/to/bytecode.bin
+🔧 Constructor Args: arg1, arg2
+🌐 Network: Rootstock Mainnet
+```
+
+##### Check ERC20 Token Balance
+
+Check the balance of ERC20 tokens for your wallet.
+
+```bash
+# Check balance on mainnet
+rsk-cli thirdweb balance --address 0x1234567890123456789012345678901234567890
+
+# Check balance on testnet
+rsk-cli thirdweb balance --testnet --address 0x1234567890123456789012345678901234567890
+
+# Use a specific wallet
+rsk-cli thirdweb balance --wallet "myWallet" --address 0x1234567890123456789012345678901234567890
+
+# Interactive mode
+rsk-cli thirdweb balance
+```
+
+Output example:
+
+```
+✅ Balance retrieved successfully!
+📍 Token Address: 0x1234567890123456789012345678901234567890
+👤 Wallet Address: 0x0987654321098765432109876543210987654321
+💰 Balance: 100.5 MTK
+🌐 Network: Rootstock Mainnet
+```
+
+##### Mint ERC20 Tokens
+
+Mint new ERC20 tokens to a specified address.
+
+```bash
+# Mint tokens on mainnet
+rsk-cli thirdweb mint --address 0x1234567890123456789012345678901234567890 --to 0x0987654321098765432109876543210987654321 --amount 1000
+
+# Mint tokens on testnet
+rsk-cli thirdweb mint --testnet --address 0x1234567890123456789012345678901234567890 --to 0x0987654321098765432109876543210987654321 --amount 1000
+
+# Use a specific wallet
+rsk-cli thirdweb mint --wallet "myWallet" --address 0x1234567890123456789012345678901234567890 --to 0x0987654321098765432109876543210987654321 --amount 1000
+
+# Interactive mode
+rsk-cli thirdweb mint
+```
+
+Output example:
+
+```
+✅ Tokens minted successfully!
+📍 Token Address: 0x1234567890123456789012345678901234567890
+👤 Minted To: 0x0987654321098765432109876543210987654321
+💸 Amount: 1000
+🔗 Transaction Hash: 0xabcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890
+🌐 Network: Rootstock Mainnet
+🔗 View on Explorer: https://explorer.rootstock.io/tx/0xabcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890
+```
+
+##### Transfer ERC20 Tokens
+
+Transfer ERC20 tokens from your wallet to another address.
+
+```bash
+# Transfer on mainnet
+rsk-cli thirdweb transfer --address 0x1234567890123456789012345678901234567890 --to 0x0987654321098765432109876543210987654321 --amount 100
+
+# Transfer on testnet
+rsk-cli thirdweb transfer --testnet --address 0x1234567890123456789012345678901234567890 --to 0x0987654321098765432109876543210987654321 --amount 100
+
+# Use a specific wallet
+rsk-cli thirdweb transfer --wallet "myWallet" --address 0x1234567890123456789012345678901234567890 --to 0x0987654321098765432109876543210987654321 --amount 100
+
+# Interactive mode
+rsk-cli thirdweb transfer
+```
+
+Output example:
+
+```
+✅ Transfer initiated successfully!
+📍 Token Address: 0x1234567890123456789012345678901234567890
+👤 From Address: 0x1234567890123456789012345678901234567890
+👤 To Address: 0x0987654321098765432109876543210987654321
+💸 Amount: 100
+🔗 Transaction Hash: 0xabcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890
+🌐 Network: Rootstock Mainnet
+🔗 View on Explorer: https://explorer.rootstock.io/tx/0xabcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890
+```
+
+##### Check NFT Balance
+
+Check the NFT balance and owned NFTs for your wallet.
+
+```bash
+# Check on mainnet
+rsk-cli thirdweb nft-balance --address 0x1234567890123456789012345678901234567890
+
+# Check on testnet
+rsk-cli thirdweb nft-balance --testnet --address 0x1234567890123456789012345678901234567890
+
+# Use a specific wallet
+rsk-cli thirdweb nft-balance --wallet "myWallet" --address 0x1234567890123456789012345678901234567890
+
+# Interactive mode
+rsk-cli thirdweb nft-balance
+```
+
+Output example:
+
+```
+✅ NFT balance retrieved successfully!
+📍 NFT Contract Address: 0x1234567890123456789012345678901234567890
+👤 Wallet Address: 0x0987654321098765432109876543210987654321
+💰 NFT Balance: 3
+🖼️ Owned NFTs: 3
+📋 Token IDs: My First NFT, My Second NFT, My Third NFT
+🌐 Network: Rootstock Mainnet
+```
+
+##### Mint NFT
+
+Mint a new NFT to an ERC721 collection.
+
+```bash
+# Mint on mainnet
+rsk-cli thirdweb mint-nft --address 0x1234567890123456789012345678901234567890 --to 0x0987654321098765432109876543210987654321 --name "My NFT" --description "A unique NFT" --image "https://example.com/image.png"
+
+# Mint on testnet
+rsk-cli thirdweb mint-nft --testnet --address 0x1234567890123456789012345678901234567890 --to 0x0987654321098765432109876543210987654321 --name "My NFT" --description "A unique NFT" --image "https://example.com/image.png"
+
+# Use a specific wallet
+rsk-cli thirdweb mint-nft --wallet "myWallet" --address 0x1234567890123456789012345678901234567890 --to 0x0987654321098765432109876543210987654321 --name "My NFT"
+
+# Interactive mode
+rsk-cli thirdweb mint-nft
+```
+
+Output example:
+
+```
+✅ NFT minted successfully!
+📍 NFT Contract Address: 0x1234567890123456789012345678901234567890
+👤 Minted To: 0x0987654321098765432109876543210987654321
+📄 NFT Name: My NFT
+📝 Description: A unique NFT
+🖼️ Image URL: https://example.com/image.png
+🔗 Transaction Hash: 0xabcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890
+🌐 Network: Rootstock Mainnet
+🔗 View on Explorer: https://explorer.rootstock.io/tx/0xabcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890
+```
+
+##### Transfer NFT
+
+Transfer an NFT from your wallet to another address.
+
+```bash
+# Transfer on mainnet
+rsk-cli thirdweb transfer-nft --address 0x1234567890123456789012345678901234567890 --to 0x0987654321098765432109876543210987654321 --token-id 1
+
+# Transfer on testnet
+rsk-cli thirdweb transfer-nft --testnet --address 0x1234567890123456789012345678901234567890 --to 0x0987654321098765432109876543210987654321 --token-id 1
+
+# Use a specific wallet
+rsk-cli thirdweb transfer-nft --wallet "myWallet" --address 0x1234567890123456789012345678901234567890 --to 0x0987654321098765432109876543210987654321 --token-id 1
+
+# Interactive mode
+rsk-cli thirdweb transfer-nft
+```
+
+Output example:
+
+```
+✅ NFT transferred successfully!
+📍 NFT Contract Address: 0x1234567890123456789012345678901234567890
+👤 From Address: 0x1234567890123456789012345678901234567890
+👤 To Address: 0x0987654321098765432109876543210987654321
+🆔 Token ID: 1
+🔗 Transaction Hash: 0xabcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890
+🌐 Network: Rootstock Mainnet
+🔗 View on Explorer: https://explorer.rootstock.io/tx/0xabcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890
+```
+
+##### IPFS Storage
+
+Upload and download files to/from IPFS using Thirdweb's storage.
+
+```bash
+# Upload a file to IPFS
+rsk-cli thirdweb ipfs --upload "My File.jpg"
+rsk-cli thirdweb ipfs --upload /path/to/file.jpg
+
+# Download a file from IPFS
+rsk-cli thirdweb ipfs --download QmHash1234567890abcdef --output downloaded-file.jpg
+
+# Use a specific wallet
+rsk-cli thirdweb ipfs --wallet "myWallet" --upload "My File.jpg"
+
+# Interactive mode
+rsk-cli thirdweb ipfs
+```
+
+Output example for upload:
+
+```
+✅ File uploaded successfully!
+📄 File Name: My File.jpg
+📁 File Path: /path/to/My File.jpg
+🔗 IPFS Hash: QmHash1234567890abcdef
+🔗 IPFS URL: ipfs://QmHash1234567890abcdef
+🌐 Network: Rootstock Mainnet
+```
+
+Output example for download:
+
+```
+✅ File downloaded successfully!
+🔗 IPFS Hash: QmHash1234567890abcdef
+📁 Output Path: downloaded-file.jpg
+📊 File Size: 727.50 KB
+🌐 Network: Rootstock Mainnet
+```
+
+#### Command Options
+
+All Thirdweb commands support the following options:
+
+- `--api-key <key>`: Provide Thirdweb API key directly (optional, will prompt if not provided)
+- `--wallet <name>`: Use a specific wallet by name (optional, uses current wallet if not specified)
+- `--testnet`: Use Rootstock testnet instead of mainnet
+
+#### Security Features
+
+- **Secure Wallet Integration**: All commands use the same encrypted wallet system as other commands
+- **No Private Key Exposure**: Private keys are never required as command-line parameters
+- **Password Protection**: Wallet access requires your password for decryption
+- **Input Validation**: All inputs are validated to ensure they meet the required format
+- **Comprehensive Error Handling**: Detailed error messages with helpful troubleshooting steps
+- **Network Confirmation**: Clear indication of which network (mainnet/testnet) is being used
+
+#### Error Handling
+
+The Thirdweb commands now include comprehensive error handling with specific messages for common issues:
+
+- **Network Detection Failures**: Clear guidance for connectivity issues
+- **Wallet Management**: Helpful messages for wallet creation and management
+- **Contract Issues**: Specific error messages for contract-related problems
+- **Authorization Errors**: Clear guidance for permission-related issues
+- **Balance and Gas Issues**: Helpful messages for insufficient funds
+
+#### Getting Help
+
+For each command, you can get help by adding the `--help` flag:
+
+```bash
+rsk-cli thirdweb erc20 --help
+rsk-cli thirdweb balance --help
+rsk-cli thirdweb mint --help
+# etc.
+```
+
 ## Contributing
 
 We welcome contributions from the community. Please fork the repository and submit pull requests with your changes. Ensure your code adheres to the project's main objective.

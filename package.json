@@ -37,7 +37,8 @@
   "devDependencies": {
     "@types/bun": "latest",
     "@types/figlet": "^1.5.8",
-    "solc": "0.8.28",
+    "@types/zxcvbn": "^4.4.5",
+    "solc": "^0.8.30",
     "typescript": "^5.0.0"
   },
   "peerDependencies": {
@@ -46,8 +47,8 @@
   "dependencies": {
     "@openzeppelin/contracts": "^5.0.2",
     "@rsksmart/rsk-precompiled-abis": "^6.0.0-ARROWHEAD",
+    "@thirdweb-dev/sdk": "^4.0.60",
     "@types/fs-extra": "^11.0.4",
-    "@types/zxcvbn": "^4.4.5",
     "chalk": "^5.3.0",
     "cli-table3": "^0.6.5",
     "commander": "^13.1.0",
@@ -57,5 +58,8 @@
     "ora": "^8.0.1",
     "viem": "^2.19.4",
     "zxcvbn": "^4.4.2"
+  },
+  "overrides": {
+    "tmp": "^0.2.1"
   }
 }
