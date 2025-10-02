@@ -1,5 +1,4 @@
 import chalk from "chalk";
-import { Command } from "commander";
 import { transferCommand } from "./transfer.js";
 import { txCommand } from "./tx.js";
 import { deployCommand } from "./deploy.js";
