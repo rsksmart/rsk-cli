@@ -7,6 +7,7 @@ type TxCommandOptions = {
   testnet: boolean;
   txid: string;
   isExternal?: boolean;
+  pipeInput?: any;
 };
 
 function logMessage(

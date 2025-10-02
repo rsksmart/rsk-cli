@@ -582,6 +582,65 @@ Output example:
 ⛽ Gas Used: 21000
 ```
 
+### 10. Pipe Commands
+
+The `pipe` command allows you to chain multiple commands together, enabling powerful workflows where the output of one command automatically becomes the input for the next command. This feature is particularly useful for automating common blockchain operations.
+
+#### Basic Syntax
+
+```bash
+rsk-cli pipe "command1 [options] | command2 [options]"
+```
+
+#### Examples
+
+**Transfer and Check Status**
+Execute a transfer and automatically check the transaction status:
+
+```bash
+rsk-cli pipe "transfer --testnet --address 0x8A0d290b2EE35eFde47810CA8fF057e109e4190B --value 0.001 | tx --testnet"
+```
+
+**Deploy and Verify Contract**
+Deploy a smart contract and automatically verify it:
+
+```bash
+rsk-cli pipe "deploy --abi contract.abi --bytecode contract.bin --testnet | verify --json input.json --name MyContract --testnet"
+```
+
+**Transfer Token and Check Status**
+Transfer an ERC20 token and check the transaction status:
+
+```bash
+rsk-cli pipe "transfer --testnet --token 0x32Cd6c5831531F96f57d1faf4DDdf0222c4Af8AB --address 0x8A0d290b2EE35eFde47810CA8fF057e109e4190B --value 0.001 | tx --testnet"
+```
+
+#### Supported Command Chains
+
+The pipe command currently supports the following command combinations:
+
+- **transfer → tx**: Transfer RBTC or tokens and check transaction status
+- **deploy → verify**: Deploy a contract and verify it on the explorer
+- **transfer → tx → verify**: Transfer, check status, and verify (if applicable)
+
+#### How It Works
+
+1. The pipe command parses the command string and splits it by the `|` character
+2. Each command is executed sequentially
+3. The output data from the first command is automatically passed to the second command
+4. For example, when using `transfer | tx`, the transaction hash from the transfer is automatically used as input for the tx command
+
+#### Data Flow
+
+- **transfer** outputs: `transactionHash`, `from`, `to`, `amount`, `token`, `network`
+- **deploy** outputs: `contractAddress`, `transactionHash`, `network`
+- **tx** accepts: `transactionHash` (from previous command or --txid option)
+- **verify** accepts: `contractAddress` (from previous command or --address option)
+
+#### Error Handling
+
+If any command in the pipe fails, the entire pipe execution stops and displays the error message. This ensures that subsequent commands don't execute with invalid data.
+
 ## Contributing
 
 We welcome contributions from the community. Please fork the repository and submit pull requests with your changes. Ensure your code adheres to the project's main objective.

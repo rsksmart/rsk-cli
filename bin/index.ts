@@ -15,6 +15,7 @@ import { batchTransferCommand } from "../src/commands/batchTransfer.js";
 import { historyCommand } from "../src/commands/history.js";
 import { selectAddress } from "../src/commands/selectAddress.js";
 import { transactionCommand } from "../src/commands/transaction.js";
+import { pipeCommand } from "../src/commands/pipe.js";
 import { parseEther } from "viem";
 
 interface CommandOptions {
@@ -267,6 +268,21 @@ program
     } catch (error: any) {
       console.error(
         chalk.red("🚨 Error during batch transfer:"),
+        chalk.yellow(error.message || "Unknown error")
+      );
+    }
+  });
+
+program
+  .command("pipe")
+  .description("Chain multiple commands together using pipe syntax")
+  .argument("<commands>", "Pipe command string (e.g., 'transfer --testnet --address 0x... --value 0.001 | tx --testnet')")
+  .action(async (commands: string) => {
+    try {
+      await pipeCommand(commands);
+    } catch (error: any) {
+      console.error(
+        chalk.red("🚨 Error during pipe execution:"),
         chalk.yellow(error.message || "Unknown error")
       );
     }
