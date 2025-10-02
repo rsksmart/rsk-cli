@@ -13,6 +13,7 @@ type DeployCommandOptions = {
   isExternal?: boolean;
   walletsData?: any;
   password?: string;
+  pipeInput?: any;
 };
 
 function logMessage(

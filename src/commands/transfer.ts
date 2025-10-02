@@ -15,6 +15,7 @@ type TransferCommandOptions = {
   isExternal?: boolean;
   walletsData?: any;
   password?: string;
+  pipeInput?: any;
 };
 
 type TransferResult = {

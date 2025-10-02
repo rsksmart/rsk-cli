@@ -10,6 +10,7 @@ type VerifyCommandOptions = {
   testnet: boolean;
   args?: any[];
   isExternal?: boolean;
+  pipeInput?: any;
 };
 
 function logMessage(
