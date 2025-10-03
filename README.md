@@ -287,7 +287,152 @@ The transfer command supports the following options:
 > 4. Enough RBTC to cover gas fees
 > 5. Appropriate gas parameters for your transaction type
 
-### 4. Check Transaction Status
+### 4. Simulate Transaction (Dry-Run)
+
+The `simulate` command allows you to simulate transactions without executing them, providing a safe way to test transactions and estimate costs before actually sending them. This command supports simulation of both RBTC and ERC20 token transfers on either mainnet or testnet.
+
+#### Mainnet
+
+```bash
+# Simulate RBTC transfer
+rsk-cli simulate --address 0xRecipientAddress --value 0.001
+
+# Simulate ERC20 token transfer
+rsk-cli simulate --token 0xTokenAddress --address 0xRecipientAddress --value 0.1
+```
+
+#### Testnet
+
+```bash
+# Simulate RBTC transfer on testnet
+rsk-cli simulate --testnet --address 0x1234567890123456789012345678901234567890 --value 0.001
+
+# Simulate ERC20 token transfer on testnet
+rsk-cli simulate --testnet --token 0x19f64674d8a5b4e652319f5e239efd3bc969a1fe --address 0x1234567890123456789012345678901234567890 --value 0.1
+```
+
+#### Dynamic Wallet Selection
+
+```bash
+rsk-cli simulate --wallet <name> --testnet --address 0x1234567890123456789012345678901234567890 --value 0.001
+```
+
+#### Advanced Simulation Options
+
+```bash
+# With custom gas settings
+rsk-cli simulate --testnet --address 0x1234567890123456789012345678901234567890 --value 0.001 --gas-limit 50000 --gas-price 0.00001
+
+# With custom transaction data
+rsk-cli simulate --testnet --address 0x1234567890123456789012345678901234567890 --value 0.001 --data "0x1234abcd"
+```
+
+Output example for RBTC simulation:
+
+```
+🔍 Starting transaction simulation...
+📄 From: 0x3C9614C9C8a4E966d3166857702fA8E8dC6eCd0f
+🎯 To: 0x1234567890123456789012345678901234567890
+💰 Amount: 0.001
+🌐 Network: Rootstock Testnet
+
+📄 RBTC Transfer:
+   Amount: 0.001 RBTC
+⏳ Simulating transaction...
+✅ Simulation completed successfully!
+
+📊 Simulation Results:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+📄 Transaction Details:
+   From: 0x3C9614C9C8a4E966d3166857702fA8E8dC6eCd0f
+   To: 0x1234567890123456789012345678901234567890
+   Value: 0.001 RBTC
+   Network: Rootstock Testnet
+
+⛽ Gas Information:
+   Gas Estimate: 21000
+   Gas Price: 0.000000000025804944 RBTC
+   Total Gas Cost: 0.000000541903824 RBTC
+
+🔍 Simulation Details:
+   Block Number: 6890128
+   Timestamp: 2025-10-03T17:27:26.397Z
+   Nonce: 0
+   Chain ID: 31
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+✅ This transaction would succeed if executed.
+💡 Use the actual transfer command to execute this transaction.
+```
+
+Output example for ERC20 token simulation:
+
+```
+🔍 Starting transaction simulation...
+📄 From: 0x3C9614C9C8a4E966d3166857702fA8E8dC6eCd0f
+🎯 To: 0x1234567890123456789012345678901234567890
+💰 Amount: 0.1
+🌐 Network: Rootstock Testnet
+
+📄 Token Information:
+   Name: tRIF Token
+   Symbol: tRIF
+   Contract: 0x19f64674d8a5b4e652319f5e239efd3bc969a1fe
+   Amount: 0.1 tRIF
+
+📊 Simulation Results:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+📄 Transaction Details:
+   From: 0x3C9614C9C8a4E966d3166857702fA8E8dC6eCd0f
+   To: 0x1234567890123456789012345678901234567890
+   Value: 0.1 tRIF
+   Network: Rootstock Testnet
+
+🪙 Token Information:
+   Name: tRIF Token
+   Symbol: tRIF
+   Contract: 0x19f64674d8a5b4e652319f5e239efd3bc969a1fe
+
+⛽ Gas Information:
+   Gas Estimate: 65000
+   Gas Price: 0.000000000025804944 RBTC
+   Total Gas Cost: 0.00167732136 RBTC
+
+🔍 Simulation Details:
+   Block Number: 6890128
+   Timestamp: 2025-10-03T17:27:26.397Z
+   Nonce: 0
+   Chain ID: 31
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+✅ This transaction would succeed if executed.
+💡 Use the actual transfer command to execute this transaction.
+```
+
+#### Available Options
+
+The simulate command supports the following options:
+
+- `-t, --testnet`: Simulate on Rootstock testnet network
+- `--wallet <wallet>`: Select a specific wallet to use
+- `-a, --address <address>`: Recipient address
+- `--token <address>`: ERC20 token contract address (for token transfers)
+- `--value <value>`: Amount to transfer
+- `--gas-limit <limit>`: Custom gas limit for the transaction
+- `--gas-price <price>`: Custom gas price in RBTC
+- `--data <data>`: Custom transaction data (hexadecimal format)
+
+> **ℹ️ Info:**
+>
+> The simulate command provides a safe way to test transactions without spending real gas or executing actual transfers. It helps you:
+>
+> - **Validate transactions** before execution
+> - **Estimate gas costs** accurately
+> - **Check transaction feasibility** 
+> - **Avoid costly mistakes** by testing first
+> - **Plan transaction costs** in advance
+>
+> If a simulation fails, it indicates the transaction would also fail if executed, helping you identify and fix issues beforehand.
+
+### 5. Check Transaction Status
 
 The `tx` command allows you to check the status of a specific transaction on the Rootstock blockchain by providing the transaction ID. You can check the status on either the mainnet or testnet using the appropriate flags.
 
@@ -312,7 +457,7 @@ Output example:
 🔗 Ensure that transactions are being conducted on the correct network.
 ```
 
-### 5. Deploy Smart Contract
+### 6. Deploy Smart Contract
 
 The deploy command allows you to deploy a smart contract on the Rootstock blockchain. This command supports deployment on both the mainnet and testnet.
 
@@ -349,7 +494,7 @@ Output example:
 🔗 View on Explorer: https://explorer.testnet.rootstock.io/address/0xf922e98776686ae39119bc3ea224f54bd0500d3f
 ```
 
-### 6. Verify Smart Contract
+### 7. Verify Smart Contract
 
 The verify command allows you to verify a smart contract on the Rootstock blockchain using JSON Standard Input via Rootstock Explorer API. This command supports contract verification on both the mainnet and testnet.
 
@@ -393,7 +538,7 @@ Output example:
 🔗 View on Explorer: https://explorer.testnet.rootstock.io/address/0x5E6Fad85585E857A76368dD0962D3B0CCf48Eb21
 ```
 
-### 7. Interact with verified smart contracts
+### 8. Interact with verified smart contracts
 
 The contract command allows you to interact with a smart contract on the Rootstock blockchain. This command lists all available read functions of a verified smart contract and allows you to call them. Write functions are excluded to ensure no state-changing operations are performed accidentally.
 
@@ -422,7 +567,7 @@ Output example:
 🔗 View on Explorer: https://explorer.testnet.rootstock.io/address/0x15c41c730b86d9a598bf00da2d27d963b6dd2318
 ```
 
-### 8. Interact with RSK bridge contract
+### 9. Interact with RSK bridge contract
 
 The bridge command allows you to interact with the RSK bridge contract on the Rootstock blockchain. This command lists all allowed read and write functions of the RSK bridge contract and allows you to call them.
 
@@ -455,7 +600,7 @@ Output example:
 🔗 View on Explorer: https://explorer.testnet.rootstock.io/address/0x0000000000000000000000000000000001000006
 ```
 
-### 9. Fetch Wallet History
+### 10. Fetch Wallet History
 
 The history command allows you to fetch the transaction history for a wallet on the Rootstock blockchain. This includes transactions such as ERC20, ERC721, and external transfers. You can specify whether to fetch the history from the Mainnet or Testnet by providing the appropriate flag. For this command to work, make sure to have an Alchemy API key you can get from [Alchemy Dashboard](https://dashboard.alchemy.com/).
 
@@ -501,7 +646,7 @@ Output example:
    Time: Tue Nov 12 2024 11:46:32 GMT+0700 (Indochina Time)
 ```
 
-### 9. Fetch Wallet History
+### 11. Batch Transfer
 
 The batch-transfer command allows you to send multiple transactions in one batch. This feature supports both interactive mode (manual input) and file-based batch processing, enabling you to transfer rBTC to multiple addresses in a single operation.
 

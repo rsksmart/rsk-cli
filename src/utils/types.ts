@@ -86,3 +86,44 @@ export type VerificationRequest = {
   settings: any;
   constructorArguments?: any[];
 };
+
+export type SimulationResult = {
+  success: boolean;
+  data?: SimulationData;
+  error?: string;
+};
+
+export type SimulationData = {
+  from: string;
+  to: string;
+  value: string;
+  gasEstimate: string;
+  gasPrice: string;
+  totalCost: string;
+  network: string;
+  tokenInfo?: {
+    name: string;
+    symbol: string;
+    decimals: number;
+    contract: string;
+  };
+  simulationDetails: {
+    blockNumber: string;
+    timestamp: string;
+    nonce: number;
+    chainId: number;
+  };
+};
+
+export type SimulationOptions = {
+  testnet: boolean;
+  toAddress: `0x${string}`;
+  value: number;
+  name?: string;
+  tokenAddress?: `0x${string}`;
+  txOptions?: {
+    gasLimit?: bigint;
+    gasPrice?: bigint;
+    data?: `0x${string}`;
+  };
+};
