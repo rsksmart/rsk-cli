@@ -15,6 +15,8 @@ import { batchTransferCommand } from "../src/commands/batchTransfer.js";
 import { historyCommand } from "../src/commands/history.js";
 import { selectAddress } from "../src/commands/selectAddress.js";
 import { transactionCommand } from "../src/commands/transaction.js";
+import { simulateCommand } from "../src/commands/simulate.js";
+import { gasCommand } from "../src/commands/gas.js";
 import { parseEther } from "viem";
 
 interface CommandOptions {
@@ -38,6 +40,8 @@ interface CommandOptions {
   gasLimit?: string;
   gasPrice?: string;
   data?: string;
+  speed?: string;
+  estimate?: boolean;
 }
 
 const orange = chalk.rgb(255, 165, 0);
@@ -268,6 +272,76 @@ program
       console.error(
         chalk.red("🚨 Error during batch transfer:"),
         chalk.yellow(error.message || "Unknown error")
+      );
+    }
+  });
+
+program
+  .command("simulate")
+  .description("Simulate a transaction without executing it (dry-run)")
+  .option("-t, --testnet", "Simulate on testnet")
+  .option("--wallet <wallet>", "Name of the wallet")
+  .option("-a, --address <address>", "Recipient address")
+  .option("--token <address>", "ERC20 token contract address (optional, for token transfers)")
+  .option("--value <value>", "Amount to transfer")
+  .option("--gas-limit <limit>", "Custom gas limit")
+  .option("--gas-price <price>", "Custom gas price in RBTC")
+  .option("--data <data>", "Custom transaction data (hex)")
+  .action(async (options: CommandOptions) => {
+    try {
+      if (!options.value) {
+        throw new Error("Value is required for simulation.");
+      }
+
+      const value = parseFloat(options.value);
+
+      if (isNaN(value) || value <= 0) {
+        throw new Error("Invalid value specified for simulation.");
+      }
+
+      const address = options.address
+        ? (`0x${options.address.replace(/^0x/, "")}` as `0x${string}`)
+        : await selectAddress();
+
+      const txOptions = {
+        ...(options.gasLimit && { gasLimit: BigInt(options.gasLimit) }),
+        ...(options.gasPrice && { gasPrice: parseEther(options.gasPrice.toString()) }),
+        ...(options.data && { data: options.data as `0x${string}` })
+      };
+
+      await simulateCommand({
+        testnet: !!options.testnet,
+        toAddress: address,
+        value: value,
+        name: options.wallet!,
+        tokenAddress: options.token as `0x${string}` | undefined,
+        txOptions: txOptions,
+      });
+    } catch (error: any) {
+      console.error(
+        chalk.red("Error during simulation:"),
+        error.message || error
+      );
+    }
+  });
+
+program
+  .command("gas")
+  .description("Get current gas prices and optimization recommendations")
+  .option("-t, --testnet", "Get gas prices on testnet")
+  .option("--speed <speed>", "Gas speed preference: slow|standard|fast")
+  .option("--estimate", "Estimate gas cost for a simple transfer")
+  .action(async (options: CommandOptions) => {
+    try {
+      await gasCommand({
+        testnet: !!options.testnet,
+        speed: options.speed as 'slow' | 'standard' | 'fast' | undefined,
+        estimate: !!options.estimate,
+      });
+    } catch (error: any) {
+      console.error(
+        chalk.red("Error getting gas information:"),
+        error.message || error
       );
     }
   });

@@ -86,3 +86,87 @@ export type VerificationRequest = {
   settings: any;
   constructorArguments?: any[];
 };
+
+export type SimulationResult = {
+  success: boolean;
+  data?: SimulationData;
+  error?: string;
+};
+
+export type SimulationData = {
+  from: string;
+  to: string;
+  value: string;
+  gasEstimate: string;
+  gasPrice: string;
+  totalCost: string;
+  network: string;
+  tokenInfo?: {
+    name: string;
+    symbol: string;
+    decimals: number;
+    contract: string;
+  };
+  simulationDetails: {
+    blockNumber: string;
+    timestamp: string;
+    nonce: number;
+    chainId: number;
+  };
+};
+
+export type SimulationOptions = {
+  testnet: boolean;
+  toAddress: `0x${string}`;
+  value: number;
+  name?: string;
+  tokenAddress?: `0x${string}`;
+  txOptions?: {
+    gasLimit?: bigint;
+    gasPrice?: bigint;
+    data?: `0x${string}`;
+  };
+};
+
+export type GasPriceInfo = {
+  slow: {
+    price: string;
+    time: string;
+    gwei: string;
+  };
+  standard: {
+    price: string;
+    time: string;
+    gwei: string;
+  };
+  fast: {
+    price: string;
+    time: string;
+    gwei: string;
+  };
+};
+
+export type GasEstimate = {
+  transactionType: string;
+  gasLimit: string;
+  estimatedCost: string;
+  recommendation: string;
+};
+
+export type GasResult = {
+  success: boolean;
+  data?: {
+    gasPrices: GasPriceInfo;
+    estimates?: GasEstimate[];
+    network: string;
+    blockNumber: string;
+    recommendation: string;
+  };
+  error?: string;
+};
+
+export type GasOptions = {
+  testnet: boolean;
+  speed?: 'slow' | 'standard' | 'fast';
+  estimate?: boolean;
+};
