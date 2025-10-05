@@ -432,7 +432,161 @@ The simulate command supports the following options:
 >
 > If a simulation fails, it indicates the transaction would also fail if executed, helping you identify and fix issues beforehand.
 
-### 5. Check Transaction Status
+### 5. Gas Price Optimization
+
+The `gas` command allows you to get current gas prices and optimization recommendations for the Rootstock blockchain. This command helps you choose the optimal gas price for your transactions, saving money while ensuring timely confirmation.
+
+#### Mainnet
+
+```bash
+# Get current gas prices
+rsk-cli gas
+
+# Get gas prices with cost estimates
+rsk-cli gas --estimate
+
+# Get fast gas recommendation
+rsk-cli gas --speed fast
+```
+
+#### Testnet
+
+```bash
+# Get current gas prices on testnet
+rsk-cli gas --testnet
+
+# Get gas prices with cost estimates on testnet
+rsk-cli gas --testnet --estimate
+
+# Get slow gas recommendation on testnet
+rsk-cli gas --testnet --speed slow
+```
+
+#### Gas Speed Options
+
+```bash
+# Slow gas (cheapest, 2-5 min confirmation)
+rsk-cli gas --speed slow
+
+# Standard gas (recommended, 30-60 sec confirmation)
+rsk-cli gas --speed standard
+
+# Fast gas (most expensive, 10-30 sec confirmation)
+rsk-cli gas --speed fast
+```
+
+Output example for mainnet:
+
+```
+⛽ Fetching current gas prices...
+🌐 Network: Rootstock Mainnet
+⏳ Getting gas price data...
+✅ Gas price data retrieved
+
+⛽ Current Gas Prices:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🌐 Network Information:
+   Network: Rootstock Mainnet
+   Block Number: 8066921
+
+💰 Gas Price Tiers:
+   🐌 Slow:    0.00000000002085248 RBTC (0.02 gwei) - 2-5 min
+   🚀 Standard: 0.0000000000260656 RBTC (0.03 gwei) - 30-60 sec
+   ⚡ Fast:     0.00000000003127872 RBTC (0.03 gwei) - 10-30 sec
+
+💡 Recommendation:
+   Use standard gas price (0.0000000000260656 RBTC) for most transactions
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+💡 Tips:
+   • Use slow gas for non-urgent transactions to save money
+   • Use standard gas for most transactions (recommended)
+   • Use fast gas only when you need quick confirmation
+   • Use --estimate flag to see cost estimates for different transaction types
+```
+
+Output example with cost estimates:
+
+```
+⛽ Fetching current gas prices...
+🌐 Network: Rootstock Testnet
+⏳ Getting gas price data...
+✅ Gas price data retrieved
+
+⛽ Current Gas Prices:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🌐 Network Information:
+   Network: Rootstock Testnet
+   Block Number: 6894887
+
+💰 Gas Price Tiers:
+   🐌 Slow:    0.000000000020429341 RBTC (0.02 gwei) - 2-5 min
+   🚀 Standard: 0.000000000025536677 RBTC (0.03 gwei) - 30-60 sec
+   ⚡ Fast:     0.000000000030644012 RBTC (0.03 gwei) - 10-30 sec
+
+📊 Gas Cost Estimates:
+   1. Simple RBTC Transfer
+      Gas Limit: 21000
+      Estimated Cost: 0.000000536270217 RBTC
+      Recommendation: Standard gas price recommended
+   2. ERC20 Token Transfer
+      Gas Limit: 65000
+      Estimated Cost: 0.000001659884005 RBTC
+      Recommendation: Standard gas price recommended
+   3. Contract Interaction
+      Gas Limit: 100000
+      Estimated Cost: 0.0000025536677 RBTC
+      Recommendation: Standard gas price recommended
+
+💡 Recommendation:
+   Use standard gas price (0.000000000025536677 RBTC) for most transactions
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+💡 Tips:
+   • Use slow gas for non-urgent transactions to save money
+   • Use standard gas for most transactions (recommended)
+   • Use fast gas only when you need quick confirmation
+   • Use --estimate flag to see cost estimates for different transaction types
+```
+
+#### Available Options
+
+The gas command supports the following options:
+
+- `-t, --testnet`: Get gas prices for Rootstock testnet
+- `--speed <speed>`: Gas speed preference (slow|standard|fast)
+- `--estimate`: Show cost estimates for different transaction types
+
+#### Gas Price Tiers
+
+The command displays three gas price tiers:
+
+- **🐌 Slow**: 80% of current price - Cheapest option, 2-5 minute confirmation
+- **🚀 Standard**: Current network price - Recommended for most transactions, 30-60 second confirmation
+- **⚡ Fast**: 120% of current price - Fastest option, 10-30 second confirmation
+
+#### Cost Estimates
+
+When using the `--estimate` flag, the command provides cost estimates for:
+
+- **Simple RBTC Transfer**: 21,000 gas units
+- **ERC20 Token Transfer**: 65,000 gas units  
+- **Contract Interaction**: 100,000 gas units
+
+> **ℹ️ Info:**
+>
+> The gas command helps you optimize transaction costs by:
+>
+> - **Real-time Prices**: Shows current network gas prices
+> - **Cost Optimization**: Helps choose the right gas price for your needs
+> - **Time Estimates**: Provides confirmation time estimates for each tier
+> - **Cost Estimates**: Shows estimated costs for different transaction types
+> - **Smart Recommendations**: Suggests optimal gas prices based on your preferences
+>
+> This command is particularly useful when combined with the simulate command:
+> 1. Use `rsk-cli gas` to check current prices
+> 2. Use `rsk-cli simulate` to test your transaction
+> 3. Execute your transaction with optimal gas settings
+
+### 6. Check Transaction Status
 
 The `tx` command allows you to check the status of a specific transaction on the Rootstock blockchain by providing the transaction ID. You can check the status on either the mainnet or testnet using the appropriate flags.
 
@@ -457,7 +611,7 @@ Output example:
 🔗 Ensure that transactions are being conducted on the correct network.
 ```
 
-### 6. Deploy Smart Contract
+### 7. Deploy Smart Contract
 
 The deploy command allows you to deploy a smart contract on the Rootstock blockchain. This command supports deployment on both the mainnet and testnet.
 

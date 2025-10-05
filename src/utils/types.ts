@@ -127,3 +127,46 @@ export type SimulationOptions = {
     data?: `0x${string}`;
   };
 };
+
+export type GasPriceInfo = {
+  slow: {
+    price: string;
+    time: string;
+    gwei: string;
+  };
+  standard: {
+    price: string;
+    time: string;
+    gwei: string;
+  };
+  fast: {
+    price: string;
+    time: string;
+    gwei: string;
+  };
+};
+
+export type GasEstimate = {
+  transactionType: string;
+  gasLimit: string;
+  estimatedCost: string;
+  recommendation: string;
+};
+
+export type GasResult = {
+  success: boolean;
+  data?: {
+    gasPrices: GasPriceInfo;
+    estimates?: GasEstimate[];
+    network: string;
+    blockNumber: string;
+    recommendation: string;
+  };
+  error?: string;
+};
+
+export type GasOptions = {
+  testnet: boolean;
+  speed?: 'slow' | 'standard' | 'fast';
+  estimate?: boolean;
+};

@@ -16,6 +16,7 @@ import { historyCommand } from "../src/commands/history.js";
 import { selectAddress } from "../src/commands/selectAddress.js";
 import { transactionCommand } from "../src/commands/transaction.js";
 import { simulateCommand } from "../src/commands/simulate.js";
+import { gasCommand } from "../src/commands/gas.js";
 import { parseEther } from "viem";
 
 interface CommandOptions {
@@ -39,6 +40,8 @@ interface CommandOptions {
   gasLimit?: string;
   gasPrice?: string;
   data?: string;
+  speed?: string;
+  estimate?: boolean;
 }
 
 const orange = chalk.rgb(255, 165, 0);
@@ -317,6 +320,27 @@ program
     } catch (error: any) {
       console.error(
         chalk.red("Error during simulation:"),
+        error.message || error
+      );
+    }
+  });
+
+program
+  .command("gas")
+  .description("Get current gas prices and optimization recommendations")
+  .option("-t, --testnet", "Get gas prices on testnet")
+  .option("--speed <speed>", "Gas speed preference: slow|standard|fast")
+  .option("--estimate", "Estimate gas cost for a simple transfer")
+  .action(async (options: CommandOptions) => {
+    try {
+      await gasCommand({
+        testnet: !!options.testnet,
+        speed: options.speed as 'slow' | 'standard' | 'fast' | undefined,
+        estimate: !!options.estimate,
+      });
+    } catch (error: any) {
+      console.error(
+        chalk.red("Error getting gas information:"),
         error.message || error
       );
     }
