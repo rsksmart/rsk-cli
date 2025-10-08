@@ -8,6 +8,14 @@ export async function getThirdwebApiKey(apiKey?: string): Promise<string> {
   // Check if API key exists in storage or passed as argument
   let storedApiKey = getThirdwebApiKeyFromStorage();
 
+  if (storedApiKey) {
+    if (!/^[a-f0-9]{32}$/i.test(storedApiKey)) {
+      console.log(chalk.red('❌ Stored Thirdweb API key is invalid (must be 32 hex characters). Removing it.'));
+      await removeThirdwebApiKey();
+      storedApiKey = undefined;
+    }
+  }
+
   if (apiKey && !storedApiKey) {
     await writeThirdwebApiKey(apiKey);
   }
@@ -32,6 +40,9 @@ export async function getThirdwebApiKey(apiKey?: string): Promise<string> {
         validate: (input) => {
           if (!input || input.trim() === '') {
             return 'API key is required';
+          }
+          if (!/^[a-f0-9]{32}$/i.test(input)) {
+            return 'API key must be 32 hexadecimal characters';
           }
           return true;
         }
@@ -83,6 +94,24 @@ export function getThirdwebApiKeyFromStorage(): string | undefined {
     );
   }
 }
+
+export async function removeThirdwebApiKey() {
+  try {
+    if (fs.existsSync(walletFilePath)) {
+      const configData = JSON.parse(fs.readFileSync(walletFilePath, "utf8"));
+      delete configData.thirdwebApiKey;
+      fs.writeFileSync(walletFilePath, JSON.stringify(configData, null, 2));
+      console.log(chalk.yellow("🔑 Invalid Thirdweb API key removed from storage."));
+    }
+  } catch (error: any) {
+    console.error(
+      chalk.red("❌ Error removing Thirdweb API key:"),
+      chalk.yellow(error.message || error)
+    );
+  }
+}
+
+
 
 export function getPrivateKeyFromStorage(): string | undefined {
   try {

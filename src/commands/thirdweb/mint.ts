@@ -3,7 +3,7 @@ import { ThirdwebSDK } from '@thirdweb-dev/sdk';
 import inquirer from 'inquirer';
 import chalk from 'chalk';
 import ora from 'ora';
-import { getThirdwebApiKey, getPrivateKeyFromStoredWallet, getWalletAddressFromStoredWallet } from '../../utils/thirdwebHelper.js';
+import { getThirdwebApiKey, getPrivateKeyFromStoredWallet, getWalletAddressFromStoredWallet, removeThirdwebApiKey } from '../../utils/thirdwebHelper.js';
 
 export const mintTokens = new Command()
   .name('mint')
@@ -131,11 +131,20 @@ export const mintTokens = new Command()
         console.log(chalk.yellow('3. IPFS gateway being slow to respond'));
         console.log(chalk.yellow('\nPlease try again in a few minutes.'));
       } else if (error.message?.includes('could not detect network')) {
-        console.log(chalk.yellow('\n⚠️ Network detection failed. This could be due to:'));
-        console.log(chalk.yellow('1. Network connectivity issues'));
-        console.log(chalk.yellow('2. Thirdweb service being temporarily unavailable'));
-        console.log(chalk.yellow('3. RPC endpoint issues'));
-        console.log(chalk.yellow('\nPlease check your internet connection and try again.'));
+        // Check if API key was from storage (not passed as option)
+        if (!options.apiKey) {
+          console.log(chalk.red('\n❌ Invalid Thirdweb API key.'));
+          console.log(chalk.yellow('The stored API key appears to be incorrect.'));
+          await removeThirdwebApiKey();
+          console.log(chalk.blue('\nPlease run the command again to enter a valid API key.'));
+          return;
+        } else {
+          console.log(chalk.yellow('\n⚠️ Network detection failed. This could be due to:'));
+          console.log(chalk.yellow('1. Network connectivity issues'));
+          console.log(chalk.yellow('2. Thirdweb service being temporarily unavailable'));
+          console.log(chalk.yellow('3. RPC endpoint issues'));
+          console.log(chalk.yellow('\nPlease check your internet connection and try again.'));
+        }
       } else if (error.message?.includes('No wallets found')) {
         console.log(chalk.yellow('\n⚠️ No stored wallets found. Please create or import a wallet first using:'));
         console.log(chalk.blue('rsk-cli wallet'));
