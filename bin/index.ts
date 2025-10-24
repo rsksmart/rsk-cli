@@ -16,6 +16,7 @@ import { historyCommand } from "../src/commands/history.js";
 import { selectAddress } from "../src/commands/selectAddress.js";
 import { configCommand } from "../src/commands/config.js";
 import { transactionCommand } from "../src/commands/transaction.js";
+import { monitorCommand, listMonitoringSessions, stopMonitoringSession } from "../src/commands/monitor.js";
 import { parseEther } from "viem";
 
 interface CommandOptions {
@@ -36,6 +37,13 @@ interface CommandOptions {
   file?: string;
   interactive?: boolean;
   token?: Address;
+  tx?: string;
+  confirmations?: number;
+  balance?: boolean;
+  transactions?: boolean;
+  list?: boolean;
+  stop?: string;
+  monitor?: boolean;
   gasLimit?: string;
   gasPrice?: string;
   data?: string;
@@ -58,7 +66,7 @@ const program = new Command();
 program
   .name("rsk-cli")
   .description("CLI tool for interacting with Rootstock blockchain")
-  .version("1.2.1", "-v, --version", "Display the current version");
+  .version("1.3.1", "-v, --version", "Display the current version");
 
 program
   .command("wallet")
@@ -145,6 +153,8 @@ program
   .description("Check the status of a transaction")
   .option("-t, --testnet", "Check the transaction status on the testnet")
   .requiredOption("-i, --txid <txid>", "Transaction ID")
+  .option("--monitor", "Keep monitoring the transaction until confirmation")
+  .option("--confirmations <number>", "Required confirmations for monitoring (default: 12)")
   .action(async (options: CommandOptions) => {
     const formattedTxId = options.txid!.startsWith("0x")
       ? options.txid
@@ -153,6 +163,9 @@ program
     await txCommand({
       testnet: !!options.testnet,
       txid: formattedTxId as `0x${string}`,
+      isExternal: false,
+      monitor: !!options.monitor,
+      confirmations: options.confirmations ? parseInt(options.confirmations.toString()) : undefined,
     });
   });
 
@@ -308,6 +321,54 @@ program
     } catch (error: any) {
       console.error(
         chalk.red("Error during transaction:"),
+        error.message || error
+      );
+    }
+  });
+
+program
+  .command("monitor")
+  .description("Monitor addresses or transactions with real-time updates")
+  .option("-t, --testnet", "Monitor on the testnet")
+  .option("-a, --address <address>", "Address to monitor")
+  .option("--tx <txid>", "Transaction ID to monitor")
+  .option("--confirmations <number>", "Required confirmations for transaction monitoring (default: 12)")
+  .option("--balance", "Monitor address balance changes")
+  .option("--transactions", "Monitor address transaction history")
+  .option("--list", "List active monitoring sessions")
+  .option("--stop <sessionId>", "Stop a specific monitoring session")
+  .action(async (options: CommandOptions) => {
+    try {
+      if (options.list) {
+        await listMonitoringSessions(!!options.testnet);
+        return;
+      }
+
+      if (options.stop) {
+        await stopMonitoringSession(options.stop, !!options.testnet);
+        return;
+      }
+
+      const address = options.address 
+        ? (`0x${options.address.replace(/^0x/, "")}` as `0x${string}`)
+        : undefined;
+
+      const tx = options.tx
+        ? (options.tx.startsWith("0x") ? options.tx : `0x${options.tx}`) as `0x${string}`
+        : undefined;
+
+      await monitorCommand({
+        testnet: !!options.testnet,
+        address: address as Address | undefined,
+        monitorBalance: options.balance !== false,
+        monitorTransactions: !!options.transactions,
+        tx,
+        confirmations: options.confirmations ? parseInt(options.confirmations.toString()) : undefined,
+        isExternal: false
+      });
+    } catch (error: any) {
+      console.error(
+        chalk.red("Error during monitoring:"),
         error.message || error
       );
     }
