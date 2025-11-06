@@ -43,8 +43,8 @@ export class GraphQLService {
 
   private getGraphQLEndpoint(): string {
     return this.testnet
-      ? 'https://easscan-testnet.rootstock.io/graphql'
-      : 'https://easscan.rootstock.io/graphql';
+      ? process.env.GRAPHQL_ENDPOINT_TESTNET || 'https://easscan-testnet.rootstock.io/graphql'
+      : process.env.GRAPHQL_ENDPOINT_MAINNET || 'https://easscan.rootstock.io/graphql';
   }
 
   async queryAttestations(filters: {
@@ -123,7 +123,97 @@ export class GraphQLService {
         throw new Error('No data returned from GraphQL query');
       }
 
-      return response.data.attestations.map(gqlAttestation => ({
+      // Transform GraphQL response to AttestationData format with safety checks
+      return response.data.attestations.map(gqlAttestation => {
+        const timeCreated = parseInt(gqlAttestation.timeCreated, 10);
+        const expirationTime = parseInt(gqlAttestation.expirationTime, 10);
+        const revocationTime = parseInt(gqlAttestation.revocationTime, 10);
+
+        if (isNaN(timeCreated) || isNaN(expirationTime) || isNaN(revocationTime)) {
+          throw new Error(`Invalid time value in attestation data for UID ${gqlAttestation.id}`);
+        }
+
+        return {
+          uid: gqlAttestation.id,
+          schema: gqlAttestation.schema.id,
+          recipient: gqlAttestation.recipient,
+          attester: gqlAttestation.attester,
+          revocable: gqlAttestation.revocable,
+          refUID: gqlAttestation.refUID,
+          data: gqlAttestation.data,
+          time: timeCreated <= Number.MAX_SAFE_INTEGER ? timeCreated : Number.MAX_SAFE_INTEGER,
+          expirationTime: expirationTime <= Number.MAX_SAFE_INTEGER ? expirationTime : Number.MAX_SAFE_INTEGER,
+          revocationTime: revocationTime <= Number.MAX_SAFE_INTEGER ? revocationTime : Number.MAX_SAFE_INTEGER
+        };
+      });
+
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown GraphQL error';
+      throw new Error(`GraphQL query failed: ${errorMessage}`);
+    }
+  }
+
+  async queryAttestationsByUID(uid: string): Promise<AttestationData | null> {
+    try {
+      const endpoint = this.getGraphQLEndpoint();
+
+      const query = `
+        query GetAttestation($uid: String!) {
+          attestation(id: $uid) {
+            id
+            attester
+            recipient
+            revoked
+            revocable
+            refUID
+            data
+            timeCreated
+            expirationTime
+            revocationTime
+            schema {
+              id
+            }
+          }
+        }
+      `;
+
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+
+      let httpResponse: Response;
+      try {
+        httpResponse = await fetch(endpoint, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ query, variables: { uid } }),
+          signal: controller.signal
+        });
+      } finally {
+        clearTimeout(timeoutId);
+      }
+
+      if (!httpResponse.ok) {
+        throw new Error(`HTTP ${httpResponse.status}: ${httpResponse.statusText}`);
+      }
+
+      const response: { data?: { attestation: GraphQLAttestation | null } } = await httpResponse.json();
+
+      if (!response.data?.attestation) {
+        return null;
+      }
+
+      const gqlAttestation = response.data.attestation;
+      const timeCreated = parseInt(gqlAttestation.timeCreated, 10);
+      const expirationTime = parseInt(gqlAttestation.expirationTime, 10);
+      const revocationTime = parseInt(gqlAttestation.revocationTime, 10);
+
+      if (isNaN(timeCreated) || isNaN(expirationTime) || isNaN(revocationTime)) {
+        throw new Error(`Invalid time value in attestation data for UID ${gqlAttestation.id}`);
+      }
+
+      return {
         uid: gqlAttestation.id,
         schema: gqlAttestation.schema.id,
         recipient: gqlAttestation.recipient,
@@ -131,14 +221,14 @@ export class GraphQLService {
         revocable: gqlAttestation.revocable,
         refUID: gqlAttestation.refUID,
         data: gqlAttestation.data,
-        time: parseInt(gqlAttestation.timeCreated, 10),
-        expirationTime: parseInt(gqlAttestation.expirationTime, 10),
-        revocationTime: parseInt(gqlAttestation.revocationTime, 10)
-      }));
+        time: timeCreated <= Number.MAX_SAFE_INTEGER ? timeCreated : Number.MAX_SAFE_INTEGER,
+        expirationTime: expirationTime <= Number.MAX_SAFE_INTEGER ? expirationTime : Number.MAX_SAFE_INTEGER,
+        revocationTime: revocationTime <= Number.MAX_SAFE_INTEGER ? revocationTime : Number.MAX_SAFE_INTEGER
+      };
 
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown GraphQL error';
-      throw new Error(`GraphQL query failed: ${errorMessage}`);
+      throw new Error(`GraphQL attestation query failed: ${errorMessage}`);
     }
   }
 }
