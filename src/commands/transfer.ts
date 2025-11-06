@@ -5,6 +5,8 @@ import fs from "fs";
 import { Address } from "viem";
 import { walletFilePath } from "../utils/constants.js";
 import { getTokenInfo, isERC20Contract } from "../utils/tokenHelper.js";
+import { createTransferAttestation, TransferAttestationData } from "../utils/attestation.js";
+import { createAttestationSigner } from "../utils/walletSigner.js";
 
 type TransferCommandOptions = {
   testnet: boolean;
@@ -15,6 +17,12 @@ type TransferCommandOptions = {
   isExternal?: boolean;
   walletsData?: any;
   password?: string;
+  attestation?: {
+    enabled: boolean;
+    schemaUID?: string;
+    recipient?: string;
+    reason?: string;
+  };
 };
 
 type TransferResult = {
@@ -29,6 +37,7 @@ type TransferResult = {
     explorerUrl: string;
     gasUsed?: string;
     blockNumber?: string;
+    attestationUID?: string;
   };
   error?: string;
 };
@@ -278,6 +287,58 @@ export async function transferCommand(
         logInfo(params, `⛽ Gas Used: ${receipt.gasUsed}`);
         logInfo(params, `🔗 View on Explorer: ${explorerUrl}`);
         
+        // Create transfer attestation if enabled
+        let attestationUID: string | null = null;
+        if (params.attestation?.enabled) {
+          try {
+            logInfo(params, "🔐 Creating transfer attestation...");
+            
+            // Create signer using the clean wallet service
+            const signer = await createAttestationSigner({
+              testnet: params.testnet,
+              walletName: params.name,
+              isExternal: params.isExternal,
+              walletsData: walletsData,
+              password: params.password
+            });
+
+            if (!signer) {
+              logInfo(params, "⚠️  Unable to create wallet signer for transfer attestation, skipping");
+            } else {
+              const attestationData: TransferAttestationData = {
+                sender: walletAddress,
+                recipient: params.toAddress,
+                amount: `${params.value}`,
+                tokenAddress: params.tokenAddress,
+                tokenSymbol: tokenSymbol as string,
+                transactionHash: txHash,
+                blockNumber: Number(receipt.blockNumber),
+                timestamp: Math.floor(Date.now() / 1000),
+                reason: params.attestation.reason || "",
+                transferType: "ERC20"
+              };
+
+              attestationUID = await createTransferAttestation(
+                signer,
+                attestationData,
+                {
+                  testnet: params.testnet,
+                  recipient: params.attestation.recipient || params.toAddress,
+                  schemaUID: params.attestation.schemaUID,
+                  enabled: true
+                }
+              );
+
+              if (attestationUID) {
+                logSuccess(params, `🎯 Transfer attestation created: ${attestationUID}`);
+              }
+            }
+          } catch (attestationError) {
+            logError(params, `⚠️  Transfer attestation creation failed: ${attestationError instanceof Error ? attestationError.message : 'Unknown error'}`);
+            // Don't fail the entire transfer if attestation fails
+          }
+        }
+        
         return {
           success: true,
           data: {
@@ -290,6 +351,7 @@ export async function transferCommand(
             explorerUrl,
             gasUsed: receipt.gasUsed.toString(),
             blockNumber: receipt.blockNumber.toString(),
+            attestationUID: attestationUID || undefined,
           },
         };
       } else {
@@ -346,6 +408,58 @@ export async function transferCommand(
         logInfo(params, `⛽ Gas Used: ${receipt.gasUsed.toString()}`);
         logInfo(params, `🔗 View on Explorer: ${explorerUrl}`);
         
+        // Create transfer attestation if enabled
+        let attestationUID: string | null = null;
+        if (params.attestation?.enabled) {
+          try {
+            logInfo(params, "🔐 Creating transfer attestation...");
+            
+            // Create signer using the wallet service
+            const signer = await createAttestationSigner({
+              testnet: params.testnet,
+              walletName: params.name,
+              isExternal: params.isExternal,
+              walletsData: walletsData,
+              password: params.password
+            });
+
+            if (!signer) {
+              logInfo(params, "⚠️  Unable to create wallet signer for transfer attestation, skipping");
+            } else {
+              const attestationData: TransferAttestationData = {
+                sender: walletAddress,
+                recipient: params.toAddress,
+                amount: `${params.value}`,
+                tokenAddress: undefined,
+                tokenSymbol: "RBTC",
+                transactionHash: txHash,
+                blockNumber: Number(receipt.blockNumber),
+                timestamp: Math.floor(Date.now() / 1000),
+                reason: params.attestation.reason || "",
+                transferType: "RBTC"
+              };
+
+              attestationUID = await createTransferAttestation(
+                signer,
+                attestationData,
+                {
+                  testnet: params.testnet,
+                  recipient: params.attestation.recipient || params.toAddress,
+                  schemaUID: params.attestation.schemaUID,
+                  enabled: true
+                }
+              );
+
+              if (attestationUID) {
+                logSuccess(params, `🎯 Transfer attestation created: ${attestationUID}`);
+              }
+            }
+          } catch (attestationError) {
+            logError(params, `⚠️  Transfer attestation creation failed: ${attestationError instanceof Error ? attestationError.message : 'Unknown error'}`);
+            // Don't fail the entire transfer if attestation fails
+          }
+        }
+        
         return {
           success: true,
           data: {
@@ -358,6 +472,7 @@ export async function transferCommand(
             explorerUrl,
             gasUsed: receipt.gasUsed.toString(),
             blockNumber: receipt.blockNumber.toString(),
+            attestationUID: attestationUID || undefined,
           },
         };
       } else {

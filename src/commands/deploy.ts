@@ -3,6 +3,8 @@ import chalk from "chalk";
 import fs from "fs";
 import ora from "ora";
 import { DeployResult } from "../utils/types.js";
+import { createDeploymentAttestation, DeploymentAttestationData, AttestationService } from "../utils/attestation.js";
+import { createAttestationSigner } from "../utils/walletSigner.js";
 
 type DeployCommandOptions = {
   abiPath: string;
@@ -13,6 +15,11 @@ type DeployCommandOptions = {
   isExternal?: boolean;
   walletsData?: any;
   password?: string;
+  attestation?: {
+    enabled: boolean;
+    schemaUID?: string;
+    recipient?: string;
+  };
 };
 
 function logMessage(
@@ -298,6 +305,56 @@ export async function deployCommand(
       logSuccess(params, `📍 Contract Address: ${receipt.contractAddress}`);
       logInfo(params, `🔗 View on Explorer: ${explorerUrl}`);
 
+      // Create deployment attestation if enabled
+      let attestationUID: string | null = null;
+      if (params.attestation?.enabled && receipt.contractAddress) {
+        try {
+          logInfo(params, "🔐 Creating deployment attestation...");
+          
+          // Create signer using the wallet service
+          const signer = await createAttestationSigner({
+            testnet: params.testnet,
+            walletName: params.name,
+            isExternal: params.isExternal,
+            walletsData: walletsData,
+            password: params.password
+          });
+
+          if (!signer) {
+            logInfo(params, "⚠️  Unable to create wallet signer for attestation, skipping");
+          } else {
+            const attestationData: DeploymentAttestationData = {
+              contractAddress: receipt.contractAddress,
+              contractName: params.abiPath.includes('/') ? params.abiPath.split('/').pop()?.replace('.json', '') || 'Unknown' : params.abiPath.replace('.json', ''),
+              deployer: walletClient.account.address,
+              blockNumber: Number(receipt.blockNumber),
+              transactionHash: hash,
+              timestamp: Math.floor(Date.now() / 1000),
+              abiHash: AttestationService.createHash(abiContent),
+              bytecodeHash: AttestationService.createHash(bytecode)
+            };
+
+            attestationUID = await createDeploymentAttestation(
+              signer,
+              attestationData,
+              {
+                testnet: params.testnet,
+                recipient: params.attestation.recipient || receipt.contractAddress,
+                schemaUID: params.attestation.schemaUID,
+                enabled: true
+              }
+            );
+
+            if (attestationUID) {
+              logSuccess(params, `🎯 Deployment attestation created: ${attestationUID}`);
+            }
+          }
+        } catch (attestationError) {
+          logError(params, `⚠️  Attestation creation failed: ${attestationError instanceof Error ? attestationError.message : 'Unknown error'}`);
+          // Don't fail the entire deployment if attestation fails
+        }
+      }
+
       return {
         success: true,
         data: {
@@ -305,6 +362,7 @@ export async function deployCommand(
           transactionHash: hash,
           network: params.testnet ? "Rootstock Testnet" : "Rootstock Mainnet",
           explorerUrl: explorerUrl,
+          attestationUID: attestationUID || undefined,
         },
       };
     } catch (error) {
