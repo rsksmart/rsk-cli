@@ -45,6 +45,7 @@
     "typescript": "^5.0.0"
   },
   "dependencies": {
+    "@ethereum-attestation-service/eas-sdk": "^2.7.0",
     "@openzeppelin/contracts": "^5.0.2",
     "@rsksmart/rsk-precompiled-abis": "^6.0.0-ARROWHEAD",
     "@types/fs-extra": "^11.0.4",
