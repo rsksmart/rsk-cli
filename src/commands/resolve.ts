@@ -112,7 +112,8 @@ export async function resolveCommand(
         }
       } else {
         failSpinner(params, spinner, chalk.yellow("⚠️ No name found for this address"));
-        
+        logInfo(params, "💡 To enable reverse lookup for your address, you need to set a reverse record in the RNS manager");
+
         if (params.isExternal) {
           return {
             success: false,
