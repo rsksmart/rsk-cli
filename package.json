@@ -19,7 +19,9 @@
     "transferToken": "pnpm run build && node dist/bin/index.js transfer --testnet --token 0x32Cd6c5831531F96f57d1faf4DDdf0222c4Af8AB --address 0x8A0d290b2EE35eFde47810CA8fF057e109e4190B --value 0.000001",
     "tx-status": "pnpm run build && node dist/bin/index.js tx --testnet --txid 0x876a0a9b167889350c41930a4204e5d9acf5704a7f201447a337094189af961c4",
     "batch-transfer": "pnpm run build && node dist/bin/index.js batch-transfer",
-    "history": "pnpm run build && node dist/bin/index.js history"
+    "history": "pnpm run build && node dist/bin/index.js history",
+    "gas": "pnpm run build && node dist/bin/index.js gas --testnet",
+    "gas:interactive": "pnpm run build && node dist/bin/index.js gas --testnet --interactive"
   },
   "keywords": [
     "rootstock",
