@@ -3,7 +3,7 @@ import chalk from "chalk";
 import ora from "ora";
 import fs from "fs";
 import inquirer from "inquirer";
-import { Address, formatEther, parseEther, parseAbi, formatGwei } from "viem";
+import { Address, formatEther, parseEther, formatGwei } from "viem";
 import { walletFilePath } from "../utils/constants.js";
 import Table from "cli-table3";
 
