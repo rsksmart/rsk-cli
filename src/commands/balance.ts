@@ -17,9 +17,10 @@ import { TOKENS } from "../constants/tokenAdress.js";
 import fs from "fs";
 import { walletFilePath } from "../utils/constants.js";
 import { WalletData } from "../utils/types.js";
+import { getConfig } from "./config.js";
 
 type BalanceCommandOptions = {
-  testnet: boolean;
+  testnet?: boolean;
   walletName?: string;
   address?: Address;
   isExternal?: boolean;
@@ -93,6 +94,9 @@ type BalanceResult = {
 };
 
 export async function balanceCommand(params: BalanceCommandOptions): Promise<BalanceResult | void> {
+  const config = getConfig();
+  const isTestnet = params.testnet !== undefined ? params.testnet : (config.defaultNetwork === 'testnet');
+  
   const spinner = params.isExternal ? ora({isEnabled: false}) : ora();
 
   try {
@@ -151,10 +155,10 @@ export async function balanceCommand(params: BalanceCommandOptions): Promise<Bal
       };
     }
 
-    const provider = new ViemProvider(params.testnet);
+    const provider = new ViemProvider(isTestnet);
     const client = await provider.getPublicClient();
 
-    let token: string | undefined;
+    let token: string;
     if (params.token) {
       token = params.token;
     } else if (params.isExternal) {
@@ -191,16 +195,20 @@ export async function balanceCommand(params: BalanceCommandOptions): Promise<Bal
         spinner,
         chalk.white("Balance retrieved successfully")
       );
-      logSuccess(params, `📄 Wallet Address: ${targetAddress}`);
-      logSuccess(params, `🌐 Network: ${params.testnet ? "Rootstock Testnet" : "Rootstock Mainnet"}`);
-      logSuccess(params, `💰 Current Balance: ${rbtcBalance} RBTC`);
-      logInfo(params, "🔗 Ensure that transactions are being conducted on the correct network.");
+      if (config.displayPreferences.compactMode) {
+        logSuccess(params, `${targetAddress}: ${rbtcBalance} RBTC`);
+      } else {
+        logSuccess(params, `📄 Wallet Address: ${targetAddress}`);
+        logSuccess(params, `🌐 Network: ${isTestnet ? "Rootstock Testnet" : "Rootstock Mainnet"}`);
+        logSuccess(params, `💰 Current Balance: ${rbtcBalance} RBTC`);
+        logInfo(params, "🔗 Ensure that transactions are being conducted on the correct network.");
+      }
       
       return {
         success: true,
         data: {
           walletAddress: targetAddress,
-          network: params.testnet ? "Rootstock Testnet" : "Rootstock Mainnet",
+          network: isTestnet ? "Rootstock Testnet" : "Rootstock Mainnet",
           balance: rbtcBalance,
           symbol: "RBTC",
           tokenType: "native",
@@ -256,7 +264,7 @@ export async function balanceCommand(params: BalanceCommandOptions): Promise<Bal
         tokenAddress = address.toLowerCase() as Address;
       }
     } else {
-      tokenAddress = resolveTokenAddress(token as string, params.testnet);
+      tokenAddress = resolveTokenAddress(token, isTestnet);
     }
 
     startSpinner(
@@ -279,21 +287,25 @@ export async function balanceCommand(params: BalanceCommandOptions): Promise<Bal
     );
 
 
-    logSuccess(params, `📄 Token Information:
-       Name: ${name}
-       Contract: ${tokenAddress}
-    👤 Holder Address: ${targetAddress}
-    💰 Balance: ${formattedBalance} ${symbol}
-    🌐 Network: ${params.testnet ? "Rootstock Testnet" : "Rootstock Mainnet"}`);
+    if (config.displayPreferences.compactMode) {
+      logSuccess(params, `${targetAddress}: ${formattedBalance} ${symbol}`);
+    } else {
+      logSuccess(params, `📄 Token Information:
+         Name: ${name}
+         Contract: ${tokenAddress}
+      👤 Holder Address: ${targetAddress}
+      💰 Balance: ${formattedBalance} ${symbol}
+      🌐 Network: ${isTestnet ? "Rootstock Testnet" : "Rootstock Mainnet"}`);
 
-    logInfo(params, "🔗 Ensure that transactions are being conducted on the correct network.");
+      logInfo(params, "🔗 Ensure that transactions are being conducted on the correct network.");
+    }
     
     if (params.isExternal) {
       return {
         success: true,
         data: {
           walletAddress: targetAddress,
-          network: params.testnet ? "Rootstock Testnet" : "Rootstock Mainnet",
+          network: isTestnet ? "Rootstock Testnet" : "Rootstock Mainnet",
           balance: formattedBalance,
           symbol: symbol,
           tokenType: "erc20",

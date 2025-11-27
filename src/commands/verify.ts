@@ -1,13 +1,14 @@
 import chalk from "chalk";
 import fs from "fs";
 import ora from "ora";
+import { getConfig } from "./config.js";
 import { VerifyResult, VerificationRequest } from "../utils/types.js";
 
 type VerifyCommandOptions = {
   jsonPath: string;
   address: string;
   name: string;
-  testnet: boolean;
+  testnet?: boolean;
   args?: any[];
   isExternal?: boolean;
 };
@@ -77,9 +78,12 @@ function failSpinner(
 export async function verifyCommand(
   params: VerifyCommandOptions
 ): Promise<VerifyResult | void> {
-  logInfo(params, `🔧 Initializing verification on ${params.testnet ? "testnet" : "mainnet"}...`);
+  const config = getConfig();
+  const isTestnet = params.testnet ?? (config.defaultNetwork === 'testnet');
+  
+  logInfo(params, `🔧 Initializing verification on ${isTestnet ? "testnet" : "mainnet"}...`);
 
-  const baseUrl = params.testnet
+  const baseUrl = isTestnet
     ? "https://be.explorer.testnet.rootstock.io"
     : "https://be.explorer.rootstock.io";
 
@@ -90,7 +94,7 @@ export async function verifyCommand(
   const resData = await response.json();
 
   if (resData.data !== null) {
-    const explorerUrl = params.testnet
+    const explorerUrl = isTestnet
       ? `https://explorer.testnet.rootstock.io/address/${params.address}`
       : `https://explorer.rootstock.io/address/${params.address}`;
 
@@ -101,7 +105,7 @@ export async function verifyCommand(
       data: {
         contractAddress: params.address,
         contractName: params.name,
-        network: params.testnet ? "Rootstock Testnet" : "Rootstock Mainnet",
+        network: isTestnet ? "Rootstock Testnet" : "Rootstock Mainnet",
         explorerUrl: explorerUrl,
         verified: true,
         alreadyVerified: true,
@@ -219,7 +223,7 @@ export async function verifyCommand(
       };
     }
 
-    const explorerUrl = params.testnet
+    const explorerUrl = isTestnet
       ? `https://explorer.testnet.rootstock.io/address/${params.address}`
       : `https://explorer.rootstock.io/address/${params.address}`;
 
@@ -231,7 +235,7 @@ export async function verifyCommand(
       data: {
         contractAddress: params.address,
         contractName: params.name,
-        network: params.testnet ? "Rootstock Testnet" : "Rootstock Mainnet",
+        network: isTestnet ? "Rootstock Testnet" : "Rootstock Mainnet",
         explorerUrl: explorerUrl,
         verified: true,
         verificationData: resData.data,
