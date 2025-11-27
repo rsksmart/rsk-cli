@@ -14,8 +14,8 @@ export type WalletItem = {
 };
 
 export type FileTx = {
-  to: Address;
-  value: bigint;
+  to: Address | string;
+  value: number;
 };
 
 
