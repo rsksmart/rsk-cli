@@ -17,6 +17,67 @@ To install the CLI tool globally, use the following command:
 npm i -g @rsksmart/rsk-cli
 ```
 
+## Configuration
+
+The `config` command allows you to customize your RSK CLI experience through an interactive configuration interface.
+
+```bash
+rsk-cli config
+```
+
+This command provides the following configuration options:
+
+### Network Settings
+- Default Network: Choose between mainnet/testnet
+- Example: `rsk-cli config --network testnet`
+
+### Gas Settings
+- Default Gas Limit: Set default gas limit (max 30M)
+- Default Gas Price: Set gas price in Gwei (0 for auto)
+- Example: `rsk-cli config --gas-limit 2000000 --gas-price 10`
+
+### API Key Management
+- Alchemy API Key: Store API key for history command
+- Example: `rsk-cli config --alchemy-key YOUR_API_KEY`
+
+### Display Preferences
+- Show Explorer Links: Toggle transaction explorer links
+- Show Gas Details: Toggle gas information display
+- Show Block Details: Toggle block information display
+- Compact Mode: Enable compact output format
+- Example: `rsk-cli config --show-explorer true --compact-mode false`
+
+### Wallet Preferences
+- Auto Confirm: Skip password prompts for transactions
+- Default Wallet: Set preferred wallet name
+- Example: `rsk-cli config --auto-confirm true --default-wallet myWallet`
+
+All settings are stored securely in `rsk-cli-config.json`. You can reset to default settings using:
+```bash
+rsk-cli config --reset
+```
+
+Example output:
+```
+🔧 Current Configuration:
+Network Settings:
+  - Default Network: testnet
+  - Default Gas Limit: 2000000
+  - Default Gas Price: 10 Gwei
+
+Display Settings:
+  - Show Explorer Links: ✅
+  - Show Gas Details: ✅
+  - Show Block Details: ✅
+  - Compact Mode: ❌
+
+Wallet Settings:
+  - Auto Confirm: ❌
+  - Default Wallet: myWallet
+
+✅ Configuration saved successfully!
+```
+
 ## Development
 
 ### Prerequisites

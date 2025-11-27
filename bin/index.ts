@@ -15,6 +15,8 @@ import { batchTransferCommand } from "../src/commands/batchTransfer.js";
 import { historyCommand } from "../src/commands/history.js";
 import { selectAddress } from "../src/commands/selectAddress.js";
 import { resolveCommand } from "../src/commands/resolve.js";
+import { configCommand } from "../src/commands/config.js";
+import { transactionCommand } from "../src/commands/transaction.js";
 import { monitorCommand, listMonitoringSessions, stopMonitoringSession } from "../src/commands/monitor.js";
 import { parseEther } from "viem";
 import { resolveRNSToAddress } from "../src/utils/rnsHelper.js";
@@ -102,7 +104,7 @@ program
     }
     
     await balanceCommand({
-      testnet: !!options.testnet,
+      testnet: options.testnet,
       walletName: options.wallet!,
       address: holderAddress,
     });
@@ -224,7 +226,7 @@ program
       {
         abiPath: options.abi!,
         bytecodePath: options.bytecode!,
-        testnet: !!options.testnet,
+        testnet: options.testnet,
         args: args,
         name: options.wallet!,
       }
@@ -249,7 +251,7 @@ program
         jsonPath: options.json!,
         address: options.address!,
         name: options.name!,
-        testnet: !!options.testnet,
+        testnet:  options.testnet === undefined ? undefined : !!options.testnet,
         args: args,
       }
     );
@@ -274,7 +276,7 @@ program
   .option("--wallet <wallet>", "Name of the wallet")
   .action(async (options: CommandOptions) => {
     await bridgeCommand({
-      testnet: !!options.testnet,
+      testnet: options.testnet === undefined ? undefined : !!options.testnet,
       name: options.wallet!,
     });
   });
@@ -341,6 +343,46 @@ program
       testnet: !!options.testnet,
       reverse: !!options.reverse
     });
+  });
+
+program
+  .command("config")
+  .description("Manage CLI configuration settings")
+  .action(async () => {
+    await configCommand();
+  });
+
+program
+  .command("transaction")
+  .description("Create and send transactions (simple, advanced, or raw)")
+  .option("-t, --testnet", "Execute on the testnet")
+  .option("--wallet <wallet>", "Name of the wallet")
+  .option("-a, --address <address>", "Recipient address")
+  .option("--token <address>", "ERC20 token contract address (optional, for token transfers)")
+  .option("--value <value>", "Amount to transfer")
+  .option("--gas-limit <limit>", "Custom gas limit")
+  .option("--gas-price <price>", "Custom gas price in RBTC")
+  .option("--data <data>", "Custom transaction data (hex)")
+  .action(async (options: CommandOptions) => {
+    try {
+      await transactionCommand(
+        options.testnet,
+        options.address as `0x${string}` | undefined,
+        options.value ? parseFloat(options.value) : undefined,
+        options.wallet,
+        options.token as `0x${string}` | undefined,
+        {
+          ...(options.gasLimit && { gasLimit: BigInt(options.gasLimit) }),
+          ...(options.gasPrice && { gasPrice: parseEther(options.gasPrice.toString()) }),
+          ...(options.data && { data: options.data as `0x${string}` })
+        }
+      );
+    } catch (error: any) {
+      console.error(
+        chalk.red("Error during transaction:"),
+        error.message || error
+      );
+    }
   });
 
 program
