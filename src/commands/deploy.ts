@@ -305,13 +305,11 @@ export async function deployCommand(
       logSuccess(params, `📍 Contract Address: ${receipt.contractAddress}`);
       logInfo(params, `🔗 View on Explorer: ${explorerUrl}`);
 
-      // Create deployment attestation if enabled
       let attestationUID: string | null = null;
       if (params.attestation?.enabled && receipt.contractAddress) {
         try {
           logInfo(params, "🔐 Creating deployment attestation...");
           
-          // Create signer using the wallet service
           const signer = await createAttestationSigner({
             testnet: params.testnet,
             walletName: params.name,
@@ -341,7 +339,8 @@ export async function deployCommand(
                 testnet: params.testnet,
                 recipient: params.attestation.recipient || receipt.contractAddress,
                 schemaUID: params.attestation.schemaUID,
-                enabled: true
+                enabled: true,
+                isExternal: params.isExternal
               }
             );
 
@@ -351,7 +350,6 @@ export async function deployCommand(
           }
         } catch (attestationError) {
           logError(params, `⚠️  Attestation creation failed: ${attestationError instanceof Error ? attestationError.message : 'Unknown error'}`);
-          // Don't fail the entire deployment if attestation fails
         }
       }
 

@@ -38,6 +38,7 @@
     "@types/bun": "latest",
     "@types/crypto-js": "^4.2.1",
     "@types/figlet": "^1.5.8",
+    "@types/jest": "^30.0.0",
     "@types/uuid": "^10.0.0",
     "solc": "0.8.28",
     "typescript": "^5.0.0"

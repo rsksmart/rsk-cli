@@ -92,19 +92,14 @@ export class WalletSignerService {
     }
   }
 
-  /**
-   * Create an Ethers.js signer from RSK CLI wallet
-   */
   async createSigner(options: WalletSignerOptions = {}): Promise<ethers.Signer> {
     try {
-      // Load wallet data
       const walletsData = await this.loadWalletData(options);
       
       if (!walletsData.wallets) {
         throw new Error("No wallets found in wallet data");
       }
 
-      // Get wallet name
       const walletName = this.getWalletName(walletsData, options);
       const wallet = walletsData.wallets[walletName];
 
@@ -112,20 +107,16 @@ export class WalletSignerService {
         throw new Error(`Wallet "${walletName}" not found`);
       }
 
-      // For external wallets, we need a password
       if (options.isExternal && !options.password) {
         throw new Error("Password is required for external wallet operations");
       }
 
-      // Decrypt private key
       const privateKey = this.decryptPrivateKey(wallet, options.password);
       
-      // Ensure private key is properly formatted
       const formattedPrivateKey = privateKey.startsWith('0x') 
         ? privateKey 
         : `0x${privateKey}`;
 
-      // Create Ethers provider and signer
       const provider = new ethers.JsonRpcProvider(this.getRpcUrl());
       const signer = new ethers.Wallet(formattedPrivateKey, provider);
 
@@ -136,21 +127,16 @@ export class WalletSignerService {
     }
   }
 
-  /**
-   * Check if signer creation is possible with current configuration
-   */
   async canCreateSigner(options: WalletSignerOptions = {}): Promise<boolean> {
     try {
       const walletsData = await this.loadWalletData(options);
       const walletName = this.getWalletName(walletsData, options);
       const wallet = walletsData.wallets[walletName];
 
-      // Check if we have required components
       if (!wallet?.encryptedPrivateKey || !wallet?.iv) {
         return false;
       }
 
-      // For external wallets, password is required
       if (options.isExternal && !options.password) {
         return false;
       }
@@ -161,9 +147,6 @@ export class WalletSignerService {
     }
   }
 
-  /**
-   * Get wallet address without creating a full signer
-   */
   async getWalletAddress(options: WalletSignerOptions = {}): Promise<string> {
     const walletsData = await this.loadWalletData(options);
     const walletName = this.getWalletName(walletsData, options);
@@ -177,14 +160,10 @@ export class WalletSignerService {
   }
 }
 
-/**
- * Convenience function to create a signer for attestations
- */
 export async function createAttestationSigner(options: WalletSignerOptions = {}): Promise<ethers.Signer | null> {
   try {
     const signerService = new WalletSignerService(options.testnet);
     
-    // Check if we can create a signer
     const canCreate = await signerService.canCreateSigner(options);
     if (!canCreate) {
       return null;

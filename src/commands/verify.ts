@@ -233,13 +233,11 @@ export async function verifyCommand(
     succeedSpinner(params, spinner, "📜 Contract verified successfully!");
     logInfo(params, `🔗 View on Explorer: ${explorerUrl}`);
 
-    // Create verification attestation if enabled
     let attestationUID: string | null = null;
     if (params.attestation?.enabled) {
       try {
         logInfo(params, "🔐 Creating verification attestation...");
         
-        // Create signer using the wallet service
         const signer = await createAttestationSigner({
           testnet: params.testnet
         });
@@ -268,7 +266,8 @@ export async function verifyCommand(
               testnet: params.testnet,
               recipient: params.attestation.recipient || params.address,
               schemaUID: params.attestation.schemaUID,
-              enabled: true
+              enabled: true,
+              isExternal: params.isExternal
             }
           );
 
@@ -278,7 +277,6 @@ export async function verifyCommand(
         }
       } catch (attestationError) {
         logError(params, `⚠️  Verification attestation creation failed: ${attestationError instanceof Error ? attestationError.message : 'Unknown error'}`);
-        // Don't fail the entire verification if attestation fails
       }
     }
 

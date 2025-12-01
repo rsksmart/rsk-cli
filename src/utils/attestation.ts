@@ -1,4 +1,3 @@
-// Dynamic import for EAS SDK to handle module compatibility issues
 import { ethers } from "ethers";
 import chalk from "chalk";
 import ora from "ora";
@@ -64,22 +63,95 @@ export const VERIFICATION_SCHEMA = "string contractName,address contractAddress,
 
 export const TRANSFER_SCHEMA = "address sender,address recipient,string amount,address tokenAddress,string tokenSymbol,bytes32 transactionHash,uint256 blockNumber,uint256 timestamp,string reason,string transferType";
 
+function logMessage(
+  isExternal: boolean,
+  message: string,
+  color: any = chalk.white
+) {
+  if (!isExternal) {
+    console.log(color(message));
+  }
+}
+
+function logError(isExternal: boolean, message: string) {
+  logMessage(isExternal, message, chalk.red);
+}
+
+function logSuccess(isExternal: boolean, message: string) {
+  logMessage(isExternal, message, chalk.green);
+}
+
+function logInfo(isExternal: boolean, message: string) {
+  logMessage(isExternal, message, chalk.cyan);
+}
+
+function startSpinner(
+  isExternal: boolean,
+  spinner: any,
+  message: string
+) {
+  if (!isExternal) {
+    spinner.start(message);
+  }
+}
+
+function updateSpinner(
+  isExternal: boolean,
+  spinner: any,
+  message: string
+) {
+  if (!isExternal) {
+    spinner.text = message;
+  }
+}
+
+function succeedSpinner(
+  isExternal: boolean,
+  spinner: any,
+  message: string
+) {
+  if (!isExternal) {
+    spinner.succeed(message);
+  }
+}
+
+function failSpinner(
+  isExternal: boolean,
+  spinner: any,
+  message: string
+) {
+  if (!isExternal) {
+    spinner.fail(message);
+  }
+}
+
+function warnSpinner(
+  isExternal: boolean,
+  spinner: any,
+  message: string
+) {
+  if (!isExternal) {
+    spinner.warn(message);
+  }
+}
+
 export class AttestationService {
   private eas: any;
   private config: AttestationConfig;
   private signer: ethers.Signer;
   private easSDK: any;
   private schemaEncoderClass: any;
+  private isExternal: boolean;
 
-  constructor(signer: ethers.Signer, isTestnet: boolean = false) {
+  constructor(signer: ethers.Signer, isTestnet: boolean = false, isExternal: boolean = false) {
     this.config = isTestnet ? RSK_ATTESTATION_CONFIG.testnet : RSK_ATTESTATION_CONFIG.mainnet;
     this.signer = signer;
+    this.isExternal = isExternal;
   }
 
   private async initializeEAS() {
     if (!this.easSDK) {
       try {
-        // Dynamic import to handle module compatibility
         const easSdk = await import("@ethereum-attestation-service/eas-sdk");
         this.easSDK = easSdk.EAS || easSdk.default?.EAS;
         this.schemaEncoderClass = easSdk.SchemaEncoder || easSdk.default?.SchemaEncoder;
@@ -101,12 +173,13 @@ export class AttestationService {
     recipient?: string,
     schemaUID?: string
   ): Promise<string> {
-    const spinner = ora("Creating deployment attestation...").start();
-    
+    const spinner = this.isExternal ? ora({ isEnabled: false }) : ora();
+    startSpinner(this.isExternal, spinner, "Creating deployment attestation...");
+
     try {
       await this.initializeEAS();
       const schemaEncoder = new this.schemaEncoderClass(DEPLOYMENT_SCHEMA);
-      
+
       const encodedData = schemaEncoder.encodeData([
         { name: "contractName", value: data.contractName, type: "string" },
         { name: "contractAddress", value: data.contractAddress, type: "address" },
@@ -120,7 +193,7 @@ export class AttestationService {
 
       const attestationData = {
         recipient: recipient || data.contractAddress,
-        expirationTime: 0n, // No expiration
+        expirationTime: 0n,
         revocable: true,
         data: encodedData
       };
@@ -131,68 +204,66 @@ export class AttestationService {
           data: attestationData
         });
 
-        spinner.text = "Waiting for attestation confirmation...";
+        updateSpinner(this.isExternal, spinner, "Waiting for attestation confirmation...");
         const receipt = await tx.wait();
-        
-        spinner.succeed(chalk.green("✅ Deployment attestation created successfully!"));
-        
-        console.log(chalk.cyan(`📋 Attestation UID: ${receipt}`));
-        console.log(chalk.cyan(`🏠 Contract: ${data.contractAddress}`));
-        console.log(chalk.cyan(`👤 Deployer: ${data.deployer}`));
-        
+
+        succeedSpinner(this.isExternal, spinner, "✅ Deployment attestation created successfully!");
+
+        logInfo(this.isExternal, `📋 Attestation UID: ${receipt}`);
+        logInfo(this.isExternal, `🏠 Contract: ${data.contractAddress}`);
+        logInfo(this.isExternal, `👤 Deployer: ${data.deployer}`);
+
         return receipt;
       } else {
-        spinner.warn(chalk.yellow("⚠️  No schema UID provided, skipping attestation"));
+        warnSpinner(this.isExternal, spinner, "⚠️  No schema UID provided, skipping attestation");
         return "";
       }
-      
+
     } catch (error) {
-      spinner.fail(chalk.red("❌ Failed to create deployment attestation"));
-      console.error(chalk.red("Error:"), error instanceof Error ? error.message : error);
+      failSpinner(this.isExternal, spinner, "❌ Failed to create deployment attestation");
+      logError(this.isExternal, `Error: ${error instanceof Error ? error.message : error}`);
       throw error;
     }
   }
 
   async verifyAttestation(uid: string): Promise<boolean> {
-    const spinner = ora("Verifying attestation...").start();
-    
+    const spinner = this.isExternal ? ora({ isEnabled: false }) : ora();
+    startSpinner(this.isExternal, spinner, "Verifying attestation...");
+
     try {
       await this.initializeEAS();
       const attestation = await this.eas.getAttestation(uid);
-      
+
       if (!attestation) {
-        spinner.fail(chalk.red("❌ Attestation not found"));
+        failSpinner(this.isExternal, spinner, "❌ Attestation not found");
         return false;
       }
 
-      // Check if attestation exists (uid is not zero)
       const exists = attestation.uid !== "0x0000000000000000000000000000000000000000000000000000000000000000";
-      
-      // Check revocation status (using revocationTime instead of revoked)
+
       const isRevoked = attestation.revocationTime > 0n;
-      
-      // Check expiration (expirationTime 0 means never expires)
+
       const currentTime = BigInt(Math.floor(Date.now() / 1000));
       const isExpired = attestation.expirationTime > 0n && attestation.expirationTime <= currentTime;
-      
+
       const isValid = exists && !isRevoked && !isExpired;
-      
+
       if (isValid) {
-        spinner.succeed(chalk.green("✅ Attestation is valid"));
+        succeedSpinner(this.isExternal, spinner, "✅ Attestation is valid");
         return true;
       } else {
         let reason = "Unknown reason";
         if (!exists) reason = "Attestation does not exist";
         else if (isRevoked) reason = "Attestation has been revoked";
         else if (isExpired) reason = "Attestation has expired";
-        
-        spinner.fail(chalk.red(`❌ Attestation is invalid: ${reason}`));
+
+        failSpinner(this.isExternal, spinner, `❌ Attestation is invalid: ${reason}`);
         return false;
       }
-      
+
     } catch (error) {
-      spinner.fail(chalk.red("❌ Failed to verify attestation"));
-      console.error(chalk.red("Error:"), error instanceof Error ? error.message : error);
+      failSpinner(this.isExternal, spinner, "❌ Failed to verify attestation");
+      logError(this.isExternal, `Error: ${error instanceof Error ? error.message : error}`);
       return false;
     }
   }
@@ -206,12 +277,13 @@ export class AttestationService {
     recipient?: string,
     schemaUID?: string
   ): Promise<string> {
-    const spinner = ora("Creating verification attestation...").start();
-    
+    const spinner = this.isExternal ? ora({ isEnabled: false }) : ora();
+    startSpinner(this.isExternal, spinner, "Creating verification attestation...");
+
     try {
       await this.initializeEAS();
       const schemaEncoder = new this.schemaEncoderClass(VERIFICATION_SCHEMA);
-      
+
       const encodedData = schemaEncoder.encodeData([
         { name: "contractName", value: data.contractName, type: "string" },
         { name: "contractAddress", value: data.contractAddress, type: "address" },
@@ -226,7 +298,7 @@ export class AttestationService {
 
       const attestationData = {
         recipient: recipient || data.contractAddress,
-        expirationTime: 0n, // No expiration
+        expirationTime: 0n, 
         revocable: true,
         data: encodedData
       };
@@ -237,25 +309,25 @@ export class AttestationService {
           data: attestationData
         });
 
-        spinner.text = "Waiting for verification attestation confirmation...";
+        updateSpinner(this.isExternal, spinner, "Waiting for verification attestation confirmation...");
         const receipt = await tx.wait();
-        
-        spinner.succeed(chalk.green("✅ Verification attestation created successfully!"));
-        
-        console.log(chalk.cyan(`📋 Attestation UID: ${receipt}`));
-        console.log(chalk.cyan(`🏠 Contract: ${data.contractAddress}`));
-        console.log(chalk.cyan(`🔍 Verifier: ${data.verifier}`));
-        console.log(chalk.cyan(`🛠️  Tool: ${data.verificationTool}`));
-        
+
+        succeedSpinner(this.isExternal, spinner, "✅ Verification attestation created successfully!");
+
+        logInfo(this.isExternal, `📋 Attestation UID: ${receipt}`);
+        logInfo(this.isExternal, `🏠 Contract: ${data.contractAddress}`);
+        logInfo(this.isExternal, `🔍 Verifier: ${data.verifier}`);
+        logInfo(this.isExternal, `🛠️  Tool: ${data.verificationTool}`);
+
         return receipt;
       } else {
-        spinner.warn(chalk.yellow("⚠️  No schema UID provided, skipping verification attestation"));
+        warnSpinner(this.isExternal, spinner, "⚠️  No schema UID provided, skipping verification attestation");
         return "";
       }
-      
+
     } catch (error) {
-      spinner.fail(chalk.red("❌ Failed to create verification attestation"));
-      console.error(chalk.red("Error:"), error instanceof Error ? error.message : error);
+      failSpinner(this.isExternal, spinner, "❌ Failed to create verification attestation");
+      logError(this.isExternal, `Error: ${error instanceof Error ? error.message : error}`);
       throw error;
     }
   }
@@ -265,12 +337,13 @@ export class AttestationService {
     recipient?: string,
     schemaUID?: string
   ): Promise<string> {
-    const spinner = ora("Creating transfer attestation...").start();
-    
+    const spinner = this.isExternal ? ora({ isEnabled: false }) : ora();
+    startSpinner(this.isExternal, spinner, "Creating transfer attestation...");
+
     try {
       await this.initializeEAS();
       const schemaEncoder = new this.schemaEncoderClass(TRANSFER_SCHEMA);
-      
+
       const encodedData = schemaEncoder.encodeData([
         { name: "sender", value: data.sender, type: "address" },
         { name: "recipient", value: data.recipient, type: "address" },
@@ -286,7 +359,7 @@ export class AttestationService {
 
       const attestationData = {
         recipient: recipient || data.recipient,
-        expirationTime: 0n, // No expiration
+        expirationTime: 0n,
         revocable: true,
         data: encodedData
       };
@@ -297,35 +370,33 @@ export class AttestationService {
           data: attestationData
         });
 
-        spinner.text = "Waiting for transfer attestation confirmation...";
+        updateSpinner(this.isExternal, spinner, "Waiting for transfer attestation confirmation...");
         const receipt = await tx.wait();
-        
-        spinner.succeed(chalk.green("✅ Transfer attestation created successfully!"));
-        
-        console.log(chalk.cyan(`📋 Attestation UID: ${receipt}`));
-        console.log(chalk.cyan(`💸 Transfer: ${data.amount} ${data.tokenSymbol || 'RBTC'}`));
-        console.log(chalk.cyan(`👤 From: ${data.sender}`));
-        console.log(chalk.cyan(`👤 To: ${data.recipient}`));
+
+        succeedSpinner(this.isExternal, spinner, "✅ Transfer attestation created successfully!");
+
+        logInfo(this.isExternal, `📋 Attestation UID: ${receipt}`);
+        logInfo(this.isExternal, `💸 Transfer: ${data.amount} ${data.tokenSymbol || 'RBTC'}`);
+        logInfo(this.isExternal, `👤 From: ${data.sender}`);
+        logInfo(this.isExternal, `👤 To: ${data.recipient}`);
         if (data.reason) {
-          console.log(chalk.cyan(`💭 Reason: ${data.reason}`));
+          logInfo(this.isExternal, `💭 Reason: ${data.reason}`);
         }
-        
+
         return receipt;
       } else {
-        spinner.warn(chalk.yellow("⚠️  No schema UID provided, skipping transfer attestation"));
+        warnSpinner(this.isExternal, spinner, "⚠️  No schema UID provided, skipping transfer attestation");
         return "";
       }
-      
+
     } catch (error) {
-      spinner.fail(chalk.red("❌ Failed to create transfer attestation"));
-      console.error(chalk.red("Error:"), error instanceof Error ? error.message : error);
+      failSpinner(this.isExternal, spinner, "❌ Failed to create transfer attestation");
+      logError(this.isExternal, `Error: ${error instanceof Error ? error.message : error}`);
       throw error;
     }
   }
 
   static async getDefaultSchemaUID(isTestnet: boolean = false, type: 'deployment' | 'verification' | 'transfer' = 'deployment'): Promise<string> {
-    // This would typically query the schema registry for the schema UID
-    // For now, return placeholders that would be the actual UIDs after schema registration
     if (type === 'verification') {
       return "0xabcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890";
     } else if (type === 'transfer') {
@@ -343,6 +414,7 @@ export async function createDeploymentAttestation(
     recipient?: string;
     schemaUID?: string;
     enabled?: boolean;
+    isExternal?: boolean;
   } = {}
 ): Promise<string | null> {
   if (!options.enabled) {
@@ -350,10 +422,10 @@ export async function createDeploymentAttestation(
   }
 
   try {
-    const attestationService = new AttestationService(signer, options.testnet);
-    
+    const attestationService = new AttestationService(signer, options.testnet, options.isExternal);
+
     const schemaUID = options.schemaUID || await AttestationService.getDefaultSchemaUID(options.testnet, 'deployment');
-    
+
     const uid = await attestationService.createDeploymentAttestation(
       deploymentData,
       options.recipient,
@@ -362,7 +434,7 @@ export async function createDeploymentAttestation(
 
     return uid;
   } catch (error) {
-    console.error(chalk.red("Attestation creation failed:"), error instanceof Error ? error.message : error);
+    logError(!!options.isExternal, `Attestation creation failed: ${error instanceof Error ? error.message : error}`);
     return null;
   }
 }
@@ -375,6 +447,7 @@ export async function createVerificationAttestation(
     recipient?: string;
     schemaUID?: string;
     enabled?: boolean;
+    isExternal?: boolean;
   } = {}
 ): Promise<string | null> {
   if (!options.enabled) {
@@ -382,10 +455,10 @@ export async function createVerificationAttestation(
   }
 
   try {
-    const attestationService = new AttestationService(signer, options.testnet);
-    
+    const attestationService = new AttestationService(signer, options.testnet, options.isExternal);
+
     const schemaUID = options.schemaUID || await AttestationService.getDefaultSchemaUID(options.testnet, 'verification');
-    
+
     const uid = await attestationService.createVerificationAttestation(
       verificationData,
       options.recipient,
@@ -394,7 +467,7 @@ export async function createVerificationAttestation(
 
     return uid;
   } catch (error) {
-    console.error(chalk.red("Verification attestation creation failed:"), error instanceof Error ? error.message : error);
+    logError(!!options.isExternal, `Verification attestation creation failed: ${error instanceof Error ? error.message : error}`);
     return null;
   }
 }
@@ -407,6 +480,7 @@ export async function createTransferAttestation(
     recipient?: string;
     schemaUID?: string;
     enabled?: boolean;
+    isExternal?: boolean;
   } = {}
 ): Promise<string | null> {
   if (!options.enabled) {
@@ -414,10 +488,10 @@ export async function createTransferAttestation(
   }
 
   try {
-    const attestationService = new AttestationService(signer, options.testnet);
-    
+    const attestationService = new AttestationService(signer, options.testnet, options.isExternal);
+
     const schemaUID = options.schemaUID || await AttestationService.getDefaultSchemaUID(options.testnet, 'transfer');
-    
+
     const uid = await attestationService.createTransferAttestation(
       transferData,
       options.recipient,
@@ -426,7 +500,7 @@ export async function createTransferAttestation(
 
     return uid;
   } catch (error) {
-    console.error(chalk.red("Transfer attestation creation failed:"), error instanceof Error ? error.message : error);
+    logError(!!options.isExternal, `Transfer attestation creation failed: ${error instanceof Error ? error.message : error}`);
     return null;
   }
 }

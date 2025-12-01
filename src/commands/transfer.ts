@@ -191,7 +191,6 @@ export async function transferCommand(
     logInfo(params, `🔑 Wallet account: ${account.address}`);
 
     if (params.tokenAddress) {
-      // Handle ERC20 token transfer
       const isERC20 = await isERC20Contract(publicClient, params.tokenAddress);
       if (!isERC20) {
         const errorMessage = "The provided address is not a valid ERC20 token contract.";
@@ -202,7 +201,6 @@ export async function transferCommand(
         };
       }
 
-      // Get token information
       const tokenName = await publicClient.readContract({
         address: params.tokenAddress,
         abi: [{
@@ -227,7 +225,6 @@ export async function transferCommand(
         functionName: "symbol"
       });
 
-      // Display token and transfer information
       logInfo(params, `📄 Token Information:`);
       logInfo(params, `     Name: ${tokenName}`);
       logInfo(params, `     Symbol: ${tokenSymbol}`);
@@ -235,7 +232,6 @@ export async function transferCommand(
       logInfo(params, `🎯 To Address: ${params.toAddress}`);
       logInfo(params, `💵 Amount to Transfer: ${params.value} ${tokenSymbol}`);
 
-      // Check balance and proceed with transfer
       const { balance } = await getTokenInfo(publicClient, params.tokenAddress, walletAddress);
       const formattedBalance = Number(balance) / 10 ** 18;
 
@@ -287,13 +283,11 @@ export async function transferCommand(
         logInfo(params, `⛽ Gas Used: ${receipt.gasUsed}`);
         logInfo(params, `🔗 View on Explorer: ${explorerUrl}`);
         
-        // Create transfer attestation if enabled
         let attestationUID: string | null = null;
         if (params.attestation?.enabled) {
           try {
             logInfo(params, "🔐 Creating transfer attestation...");
             
-            // Create signer using the clean wallet service
             const signer = await createAttestationSigner({
               testnet: params.testnet,
               walletName: params.name,
@@ -325,7 +319,8 @@ export async function transferCommand(
                   testnet: params.testnet,
                   recipient: params.attestation.recipient || params.toAddress,
                   schemaUID: params.attestation.schemaUID,
-                  enabled: true
+                  enabled: true,
+                  isExternal: params.isExternal
                 }
               );
 
@@ -335,7 +330,6 @@ export async function transferCommand(
             }
           } catch (attestationError) {
             logError(params, `⚠️  Transfer attestation creation failed: ${attestationError instanceof Error ? attestationError.message : 'Unknown error'}`);
-            // Don't fail the entire transfer if attestation fails
           }
         }
         
@@ -363,7 +357,6 @@ export async function transferCommand(
         };
       }
     } else {
-      // Handle RBTC transfer
       const balance = await publicClient.getBalance({ address: walletAddress });
       const rbtcBalance = Number(balance) / 10 ** 18;
 
@@ -408,13 +401,11 @@ export async function transferCommand(
         logInfo(params, `⛽ Gas Used: ${receipt.gasUsed.toString()}`);
         logInfo(params, `🔗 View on Explorer: ${explorerUrl}`);
         
-        // Create transfer attestation if enabled
         let attestationUID: string | null = null;
         if (params.attestation?.enabled) {
           try {
             logInfo(params, "🔐 Creating transfer attestation...");
             
-            // Create signer using the wallet service
             const signer = await createAttestationSigner({
               testnet: params.testnet,
               walletName: params.name,
@@ -446,7 +437,8 @@ export async function transferCommand(
                   testnet: params.testnet,
                   recipient: params.attestation.recipient || params.toAddress,
                   schemaUID: params.attestation.schemaUID,
-                  enabled: true
+                  enabled: true,
+                  isExternal: params.isExternal
                 }
               );
 
@@ -456,7 +448,6 @@ export async function transferCommand(
             }
           } catch (attestationError) {
             logError(params, `⚠️  Transfer attestation creation failed: ${attestationError instanceof Error ? attestationError.message : 'Unknown error'}`);
-            // Don't fail the entire transfer if attestation fails
           }
         }
         
