@@ -123,7 +123,6 @@ export class GraphQLService {
         throw new Error('No data returned from GraphQL query');
       }
 
-      // Transform GraphQL response to AttestationData format with safety checks
       return response.data.attestations.map(gqlAttestation => {
         const timeCreated = parseInt(gqlAttestation.timeCreated, 10);
         const expirationTime = parseInt(gqlAttestation.expirationTime, 10);
@@ -178,7 +177,7 @@ export class GraphQLService {
       `;
 
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+      const timeoutId = setTimeout(() => controller.abort(), 30000);
 
       let httpResponse: Response;
       try {

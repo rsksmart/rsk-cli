@@ -48,7 +48,6 @@ export function validateAndFormatAddressRSK(
     }
   }
 
-  // Accept all-lowercase or valid checksummed (EIP-55 or EIP-1191). Return lowercase for internal use.
   return lower as Address;
 }
 

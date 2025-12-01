@@ -23,7 +23,6 @@ type AttestationCommandOptions = {
   limit?: number;
 };
 
-// RSK EAS contract addresses
 const EAS_CONTRACTS = {
   mainnet: "0x6C2270298b1e6046898E8908C9171fFf6c2C8F8B" as `0x${string}`,
   testnet: "0x6C2270298b1e6046898E8908C9171fFf6c2C8F8B" as `0x${string}`
@@ -95,7 +94,7 @@ async function setupEAS(params: AttestationCommandOptions) {
     : EAS_CONTRACTS.mainnet;
     
   const eas = new EAS(easAddress);
-  eas.connect(walletClient as any); // Type assertion needed for viem compatibility
+  eas.connect(walletClient as any); 
   
   return { eas, walletClient };
 }
@@ -133,7 +132,6 @@ async function createAttestation(params: AttestationCommandOptions): Promise<Att
 
     const uid = await tx.wait();
     
-    // Get transaction hash from transaction object with fallback
     const txHash = (tx as any).hash || 'unknown';
     const explorerUrl = params.testnet
       ? `https://explorer.testnet.rootstock.io/tx/${txHash}`
@@ -234,7 +232,6 @@ async function revokeAttestation(params: AttestationCommandOptions): Promise<Att
 
     const receipt = await tx.wait();
     
-    // Get transaction hash from receipt or transaction object
     const txHash = (tx as any).hash || (receipt as any)?.transactionHash || (receipt as any)?.hash || 'unknown';
     const explorerUrl = params.testnet
       ? `https://explorer.testnet.rootstock.io/tx/${txHash}`
@@ -340,7 +337,6 @@ async function createSchema(params: AttestationCommandOptions): Promise<Attestat
       ? SCHEMA_REGISTRY_CONTRACTS.testnet
       : SCHEMA_REGISTRY_CONTRACTS.mainnet;
     
-    // Get schema registry from EAS
     const schemaRegistry = await (eas as any).getSchemaRegistry();
     
     const tx = await schemaRegistry.register(
@@ -351,15 +347,12 @@ async function createSchema(params: AttestationCommandOptions): Promise<Attestat
 
     const receipt = await tx.wait();
     
-    // Get transaction hash with fallback
     const txHash = (tx as any).hash || (receipt as any)?.transactionHash || (receipt as any)?.hash || 'unknown';
     
-    // Try to get schema UID from transaction logs or methods
     let schemaUID = 'unknown';
     try {
       schemaUID = await (tx as any).getSchemaUID?.() || 'unknown';
     } catch (e) {
-      // If getSchemaUID is not available, we'll use unknown
     }
     
     const explorerUrl = params.testnet
