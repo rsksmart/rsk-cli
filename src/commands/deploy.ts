@@ -5,11 +5,12 @@ import ora from "ora";
 import { DeployResult } from "../utils/types.js";
 import { createDeploymentAttestation, DeploymentAttestationData, AttestationService } from "../utils/attestation.js";
 import { createAttestationSigner } from "../utils/walletSigner.js";
+import { getConfig } from "./config.js";
 
 type DeployCommandOptions = {
   abiPath: string;
   bytecodePath: string;
-  testnet: boolean;
+  testnet?: boolean;
   args?: any[];
   name?: string;
   isExternal?: boolean;
@@ -80,9 +81,12 @@ export async function deployCommand(
   params: DeployCommandOptions
 ): Promise<DeployResult | void> {
   try {
-    logInfo(params, `🔧 Initializing ViemProvider for ${params.testnet ? "testnet" : "mainnet"}...`);
+    const config = getConfig();
+    const isTestnet = params.testnet !== undefined ? params.testnet : (config.defaultNetwork === 'testnet');
     
-    const provider = new ViemProvider(params.testnet);
+    logInfo(params, `🔧 Initializing ViemProvider for ${isTestnet ? "testnet" : "mainnet"}...`);
+    
+    const provider = new ViemProvider(isTestnet);
 
     let walletsData;
     if (params.isExternal && params.walletsData) {
@@ -278,6 +282,8 @@ export async function deployCommand(
       bytecode: bytecode as `0x${string}`,
       account: walletClient.account,
       args: params.args || [],
+      ...(config.defaultGasLimit > 0 ? { gas: BigInt(config.defaultGasLimit) } : {}),
+      ...(config.defaultGasPrice > 0 ? { maxFeePerGas: BigInt(config.defaultGasPrice * 1e9) } : {}),
     };
 
     const spinner = params.isExternal ? ora({isEnabled: false}) : ora();
@@ -297,13 +303,29 @@ export async function deployCommand(
         throw new Error("An error occurred during contract deployment.");
       }
 
-      const explorerUrl = params.testnet
+      const explorerUrl = isTestnet
         ? `https://explorer.testnet.rootstock.io/address/${receipt.contractAddress}`
         : `https://explorer.rootstock.io/address/${receipt.contractAddress}`;
 
       succeedSpinner(params, spinner, "📜 Contract deployed successfully!");
-      logSuccess(params, `📍 Contract Address: ${receipt.contractAddress}`);
-      logInfo(params, `🔗 View on Explorer: ${explorerUrl}`);
+      
+      if (config.displayPreferences.compactMode) {
+        logSuccess(params, `📍 ${receipt.contractAddress}`);
+      } else {
+        logSuccess(params, `📍 Contract Address: ${receipt.contractAddress}`);
+      }
+
+      if (config.displayPreferences.showGasDetails) {
+        logInfo(params, `⛽ Gas Used: ${receipt.gasUsed}`);
+      }
+
+      if (config.displayPreferences.showBlockDetails) {
+        logInfo(params, `📦 Block Number: ${receipt.blockNumber}`);
+      }
+
+      if (config.displayPreferences.showExplorerLinks) {
+        logInfo(params, `🔗 View on Explorer: ${explorerUrl}`);
+      }
 
       let attestationUID: string | null = null;
       if (params.attestation?.enabled && receipt.contractAddress) {
@@ -358,7 +380,7 @@ export async function deployCommand(
         data: {
           contractAddress: receipt.contractAddress!,
           transactionHash: hash,
-          network: params.testnet ? "Rootstock Testnet" : "Rootstock Mainnet",
+          network: isTestnet ? "Rootstock Testnet" : "Rootstock Mainnet",
           explorerUrl: explorerUrl,
           attestationUID: attestationUID || undefined,
         },
