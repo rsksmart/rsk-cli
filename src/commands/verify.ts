@@ -3,6 +3,8 @@ import fs from "fs";
 import ora from "ora";
 import { getConfig } from "./config.js";
 import { VerifyResult, VerificationRequest } from "../utils/types.js";
+import { createVerificationAttestation, VerificationAttestationData, AttestationService } from "../utils/attestation.js";
+import { createAttestationSigner } from "../utils/walletSigner.js";
 
 type VerifyCommandOptions = {
   jsonPath: string;
@@ -11,6 +13,11 @@ type VerifyCommandOptions = {
   testnet?: boolean;
   args?: any[];
   isExternal?: boolean;
+  attestation?: {
+    enabled: boolean;
+    schemaUID?: string;
+    recipient?: string;
+  };
 };
 
 function logMessage(
@@ -230,6 +237,53 @@ export async function verifyCommand(
     succeedSpinner(params, spinner, "📜 Contract verified successfully!");
     logInfo(params, `🔗 View on Explorer: ${explorerUrl}`);
 
+    let attestationUID: string | null = null;
+    if (params.attestation?.enabled) {
+      try {
+        logInfo(params, "🔐 Creating verification attestation...");
+        
+        const signer = await createAttestationSigner({
+          testnet: params.testnet
+        });
+
+        if (!signer) {
+          logInfo(params, "⚠️  Unable to create wallet signer for verification attestation, skipping");
+        } else {
+          const verifierAddress = await signer.getAddress();
+
+          const attestationData: VerificationAttestationData = {
+            contractAddress: params.address,
+            contractName: params.name,
+            verifier: verifierAddress,
+            sourceCodeHash: AttestationService.createHash(JSON.stringify(parsedJson.sources || {})),
+            compilationTarget: params.name,
+            compilerVersion: solidityVersion,
+            optimizationUsed: transformedSettings.optimizer?.enabled || false,
+            timestamp: Math.floor(Date.now() / 1000),
+            verificationTool: "rsk-cli"
+          };
+
+          attestationUID = await createVerificationAttestation(
+            signer,
+            attestationData,
+            {
+              testnet: params.testnet,
+              recipient: params.attestation.recipient || params.address,
+              schemaUID: params.attestation.schemaUID,
+              enabled: true,
+              isExternal: params.isExternal
+            }
+          );
+
+          if (attestationUID) {
+            logSuccess(params, `🎯 Verification attestation created: ${attestationUID}`);
+          }
+        }
+      } catch (attestationError) {
+        logError(params, `⚠️  Verification attestation creation failed: ${attestationError instanceof Error ? attestationError.message : 'Unknown error'}`);
+      }
+    }
+
     return {
       success: true,
       data: {
@@ -239,6 +293,7 @@ export async function verifyCommand(
         explorerUrl: explorerUrl,
         verified: true,
         verificationData: resData.data,
+        attestationUID: attestationUID || undefined,
       },
     };
   } catch (error) {

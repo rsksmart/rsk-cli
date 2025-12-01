@@ -51,7 +51,6 @@ export async function historyCommand(
   params: HistoryCommandOptions
 ): Promise<HistoryResult | void> {
   try {
-    // Check if API key exists in storage or passed as argument
     let apiKeyFromStorage = getApiKeyFromStorage();
     let finalApiKey = params.apiKey || apiKeyFromStorage;
     if (!params.isExternal && params.apiKey && !apiKeyFromStorage) {
@@ -133,7 +132,6 @@ export async function historyCommand(
 
     const result = await response.json();
 
-    // Handle Alchemy-specific errors
     if (result.error) {
       const errorMessage = `Error from Alchemy: ${result.error.message}`;
       logError(params, errorMessage);
@@ -193,13 +191,10 @@ export async function historyCommand(
 
 async function writeApiKey(apiKey: string) {
   try {
-    // Read the existing wallet file
     const walletsData = JSON.parse(fs.readFileSync(walletFilePath, "utf8"));
 
-    // Add or update the alchemyApiKey
     walletsData.alchemyApiKey = apiKey;
 
-    // Write the updated JSON back to the file
     fs.writeFileSync(walletFilePath, JSON.stringify(walletsData, null, 2));
 
   } catch (error: any) {

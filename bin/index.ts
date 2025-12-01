@@ -51,6 +51,12 @@ interface CommandOptions {
   gasLimit?: string;
   gasPrice?: string;
   data?: string;
+  attestDeployment?: boolean;
+  attestVerification?: boolean;
+  attestTransfer?: boolean;
+  attestSchemaUid?: string;
+  attestRecipient?: string;
+  attestReason?: string;
   rns?: string;
 }
 
@@ -123,6 +129,10 @@ program
   .option("--gas-limit <limit>", "Custom gas limit")
   .option("--gas-price <price>", "Custom gas price in RBTC")
   .option("--data <data>", "Custom transaction data (hex)")
+  .option("--attest-transfer", "Create attestation for significant transfers")
+  .option("--attest-schema-uid <uid>", "Custom schema UID for attestation")
+  .option("--attest-recipient <address>", "Custom recipient for attestation (default: transfer recipient)")
+  .option("--attest-reason <reason>", "Reason/purpose for the transfer (e.g., 'Grant payment', 'Bounty reward')")
   .action(async (options: CommandOptions) => {
     try {
       if (options.interactive) {
@@ -181,6 +191,12 @@ program
           value: value,
           name: options.wallet!,
           tokenAddress: options.token as `0x${string}` | undefined,
+          attestation: {
+            enabled: !!options.attestTransfer,
+            schemaUID: options.attestSchemaUid,
+            recipient: options.attestRecipient,
+            reason: options.attestReason
+          }
         }
       );
     } catch (error: any) {
@@ -220,6 +236,9 @@ program
   .option("--wallet <wallet>", "Name of the wallet")
   .option("--args <args...>", "Constructor arguments (space-separated)")
   .option("-t, --testnet", "Deploy on the testnet")
+  .option("--attest-deployment", "Create attestation for deployment")
+  .option("--attest-schema-uid <uid>", "Custom schema UID for attestation")
+  .option("--attest-recipient <address>", "Custom recipient for attestation (default: contract address)")
   .action(async (options: CommandOptions) => {
     const args = options.args || [];
     await deployCommand(
@@ -229,6 +248,11 @@ program
         testnet: options.testnet,
         args: args,
         name: options.wallet!,
+        attestation: {
+          enabled: !!options.attestDeployment,
+          schemaUID: options.attestSchemaUid,
+          recipient: options.attestRecipient
+        }
       }
     );
   });
@@ -244,6 +268,9 @@ program
     "--decodedArgs <args...>",
     "Decoded Constructor arguments (space-separated)"
   )
+  .option("--attest-verification", "Create attestation for contract verification")
+  .option("--attest-schema-uid <uid>", "Custom schema UID for attestation")
+  .option("--attest-recipient <address>", "Custom recipient for attestation (default: contract address)")
   .action(async (options: CommandOptions) => {
     const args = options.decodedArgs || [];
     await verifyCommand(
@@ -253,6 +280,11 @@ program
         name: options.name!,
         testnet:  options.testnet === undefined ? undefined : !!options.testnet,
         args: args,
+        attestation: {
+          enabled: !!options.attestVerification,
+          schemaUID: options.attestSchemaUid,
+          recipient: options.attestRecipient
+        }
       }
     );
   });
