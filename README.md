@@ -17,6 +17,67 @@ To install the CLI tool globally, use the following command:
 npm i -g @rsksmart/rsk-cli
 ```
 
+## Configuration
+
+The `config` command allows you to customize your RSK CLI experience through an interactive configuration interface.
+
+```bash
+rsk-cli config
+```
+
+This command provides the following configuration options:
+
+### Network Settings
+- Default Network: Choose between mainnet/testnet
+- Example: `rsk-cli config --network testnet`
+
+### Gas Settings
+- Default Gas Limit: Set default gas limit (max 30M)
+- Default Gas Price: Set gas price in Gwei (0 for auto)
+- Example: `rsk-cli config --gas-limit 2000000 --gas-price 10`
+
+### API Key Management
+- Alchemy API Key: Store API key for history command
+- Example: `rsk-cli config --alchemy-key YOUR_API_KEY`
+
+### Display Preferences
+- Show Explorer Links: Toggle transaction explorer links
+- Show Gas Details: Toggle gas information display
+- Show Block Details: Toggle block information display
+- Compact Mode: Enable compact output format
+- Example: `rsk-cli config --show-explorer true --compact-mode false`
+
+### Wallet Preferences
+- Auto Confirm: Skip password prompts for transactions
+- Default Wallet: Set preferred wallet name
+- Example: `rsk-cli config --auto-confirm true --default-wallet myWallet`
+
+All settings are stored securely in `rsk-cli-config.json`. You can reset to default settings using:
+```bash
+rsk-cli config --reset
+```
+
+Example output:
+```
+🔧 Current Configuration:
+Network Settings:
+  - Default Network: testnet
+  - Default Gas Limit: 2000000
+  - Default Gas Price: 10 Gwei
+
+Display Settings:
+  - Show Explorer Links: ✅
+  - Show Gas Details: ✅
+  - Show Block Details: ✅
+  - Compact Mode: ❌
+
+Wallet Settings:
+  - Auto Confirm: ❌
+  - Default Wallet: myWallet
+
+✅ Configuration saved successfully!
+```
+
 ## Development
 
 ### Prerequisites
@@ -134,12 +195,19 @@ This command will guide you through the process of wallet management, offering o
 
 ### 2. Check Balance
 
-The `balance` command allows you to check the balance of any token on the Rootstock blockchain for any of the saved wallets. You can check the balance on either the mainnet or testnet using the appropriate flags.
+The `balance` command allows you to check the balance of any token on the Rootstock blockchain for any of the saved wallets. You can check the balance on either the mainnet or testnet using the appropriate flags. The command now supports RNS domain resolution for checking balances of any address.
 
 #### Mainnet
 
 ```bash
+# Check balance of your wallet
 rsk-cli balance
+
+# Check balance of a specific address
+rsk-cli balance --address 0x123...
+
+# Check balance using RNS domain (example with real mainnet domain)
+rsk-cli balance --rns testing.rsk
 ```
 
 Output example:
@@ -161,7 +229,11 @@ Output example:
 Use the `-t` or `--testnet` flag to check the balance on the Rootstock testnet.
 
 ```bash
+# Check balance on testnet
 rsk-cli balance -t
+
+# Check balance using RNS domain on testnet  
+rsk-cli balance -t --rns testing.rsk
 ```
 
 Output example:
@@ -188,7 +260,7 @@ rsk-cli balance --wallet <name>
 
 ### 3. Transfer (RBTC and ERC20)
 
-The `transfer` command allows you to transfer both RBTC and ERC20 tokens from your saved wallet to a specified address on the Rootstock blockchain. You can execute transfers on either mainnet or testnet using the appropriate flags.
+The `transfer` command allows you to transfer both RBTC and ERC20 tokens from your saved wallet to a specified address on the Rootstock blockchain. You can execute transfers on either mainnet or testnet using the appropriate flags. The command now supports RNS domain resolution for recipient addresses.
 
 #### Interactive Mode
 
@@ -205,8 +277,11 @@ rsk-cli transfer -i
 #### For RBTC Transfer
 
 ```bash
-# Basic transfer on mainnet
+# Basic transfer on mainnet using address
 rsk-cli transfer --address 0xRecipientAddress --value 0.001
+
+# Transfer using RNS domain
+rsk-cli transfer --rns testing.rsk --value 0.001
 
 # Transfer on testnet
 rsk-cli transfer --testnet --address 0x08C4E4BdAb2473E454B8B2a4400358792786d341 --value 0.001
@@ -237,11 +312,17 @@ Output example for RBTC transfer:
 Add the `--token` flag with the token contract address to transfer ERC20 tokens:
 
 ```bash
-# Basic token transfer on mainnet
+# Basic token transfer on mainnet using address
 rsk-cli transfer --token 0xTokenAddress --address 0xRecipientAddress --value 0.1
+
+# Token transfer using RNS domain
+rsk-cli transfer --token 0xTokenAddress --rns testing.rsk --value 0.1
 
 # Token transfer on testnet
 rsk-cli transfer --testnet --token 0x32Cd6c5831531F96f57d1faf4DDdf0222c4Af8AB --address 0x8A0d290b2EE35eFde47810CA8fF057e109e4190B --value 0.1
+
+# Token transfer on testnet using RNS domain
+rsk-cli transfer --testnet --token 0x32Cd6c5831531F96f57d1faf4DDdf0222c4Af8AB --rns testing.rsk --value 0.1
 
 # Using specific wallet
 rsk-cli transfer --wallet <n> --testnet --token 0x32Cd6c5831531F96f57d1faf4DDdf0222c4Af8AB --address 0x8A0d290b2EE35eFde47810CA8fF057e109e4190B --value 0.1
@@ -517,9 +598,9 @@ Output example:
    Time: Tue Nov 12 2024 11:46:32 GMT+0700 (Indochina Time)
 ```
 
-### 9. Fetch Wallet History
+### 10. Batch Transfer
 
-The batch-transfer command allows you to send multiple transactions in one batch. This feature supports both interactive mode (manual input) and file-based batch processing, enabling you to transfer rBTC to multiple addresses in a single operation.
+The batch-transfer command allows you to send multiple transactions in one batch. This feature supports both interactive mode (manual input) and file-based batch processing, enabling you to transfer rBTC to multiple addresses in a single operation. The command now supports RNS domain resolution for recipient addresses.
 
 #### Interactive Mode
 
@@ -528,13 +609,21 @@ In this mode, the CLI will prompt you to enter the recipient addresses and amoun
 #### Mainnet
 
 ```bash
+# Interactive mode without RNS
 rsk-cli batch-transfer --interactive
+
+# Interactive mode with RNS support
+rsk-cli batch-transfer --interactive --rns
 ```
 
 #### Testnet
 
 ```bash
+# Interactive mode without RNS
 rsk-cli batch-transfer --testnet --interactive
+
+# Interactive mode with RNS support
+rsk-cli batch-transfer --testnet --interactive --rns
 ```
 
 Output example:
@@ -561,7 +650,7 @@ Add another transaction? (y/n): n
 
 #### File-based
 
-In this mode, you provide a JSON file containing the batch transactions. The file must include a list of transactions, each specifying the recipient address (address) and the amount (amount). The file should look something like this:
+In this mode, you provide a JSON file containing the batch transactions. The file must include a list of transactions, each specifying the recipient address (address) and the amount (amount). With RNS support, you can also use domain names as recipients. The file should look something like this:
 
 ```json
 [
@@ -570,16 +659,34 @@ In this mode, you provide a JSON file containing the batch transactions. The fil
 ]
 ```
 
+Or with RNS domains (when using --rns flag):
+
+```json
+[
+  { "to": "testing.rsk", "value": 0.000001 },
+  { "to": "rifos.rsk", "value": 0.000001 },
+  { "to": "0xDdC94BFde7C64117F35803AeA4FA4F98A7b4f57C", "value": 0.000001 }
+]
+```
+
 #### Mainnet
 
 ```bash
+# File-based batch transfer
 rsk-cli batch-transfer --file <path/to/file.json>
+
+# File-based batch transfer with RNS resolution
+rsk-cli batch-transfer --file <path/to/file.json> --rns
 ```
 
 #### Testnet
 
 ```bash
+# File-based batch transfer
 rsk-cli batch-transfer --testnet --file <path/to/file.json>
+
+# File-based batch transfer with RNS resolution
+rsk-cli batch-transfer --testnet --file <path/to/file.json> --rns
 ```
 
 Output example:
@@ -597,6 +704,67 @@ Output example:
 📦 Block Number: 6021846
 ⛽ Gas Used: 21000
 ```
+
+### 11. RNS Resolve
+
+The `resolve` command allows you to interact with the RIF Name Service (RNS) on the Rootstock blockchain. You can perform both forward resolution (domain to address) and reverse resolution (address to domain name).
+
+#### Forward Resolution (Domain to Address)
+
+Convert an RNS domain name to its associated address:
+
+##### Mainnet
+
+```bash
+rsk-cli resolve testing.rsk
+```
+
+##### Testnet
+
+```bash
+rsk-cli resolve testing.rsk --testnet
+```
+
+Output example:
+
+```
+🔍 Resolving testing.rsk...
+✅ Domain resolved successfully!
+🏷️  Domain: testing.rsk
+📄 Address: 0x0000000000000000000000000000000001000006
+🌐 Network: Rootstock Mainnet
+```
+
+#### Reverse Resolution (Address to Domain)
+
+Convert an address back to its RNS domain name:
+
+##### Mainnet
+
+```bash
+rsk-cli resolve 0x123456789abcdef0123456789abcdef012345678 --reverse
+```
+
+##### Testnet
+
+```bash
+rsk-cli resolve 0x123456789abcdef0123456789abcdef012345678 --reverse --testnet
+```
+
+Output example:
+
+```
+🔍 Resolving address: 0x123456789abcdef0123456789abcdef012345678
+✅ Resolution successful!
+📍 Address: 0x123456789abcdef0123456789abcdef012345678
+📌 Name: alice.rsk
+🌐 Network: Rootstock Testnet
+```
+
+> **Note**: 
+> - The `.rsk` extension is automatically appended if not provided
+> - Both checksummed and non-checksummed addresses are supported
+> - The command will show appropriate error messages if the name or address cannot be resolved
 
 ## Contributing
 
