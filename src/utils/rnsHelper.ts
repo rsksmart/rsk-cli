@@ -57,6 +57,7 @@ export function isRNSDomain(input: string): boolean {
 }
 
 async function getResolver() {
+  // @ts-ignore - dynamic import of @rsksmart/rns-resolver.js
   const RNSResolverModule = await import("@rsksmart/rns-resolver.js");
   return (RNSResolverModule as any).default.default || (RNSResolverModule as any).default;
 }
