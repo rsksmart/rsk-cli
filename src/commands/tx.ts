@@ -9,7 +9,6 @@ type TxCommandOptions = {
   testnet: boolean;
   txid: string;
   isExternal?: boolean;
-  pipeInput?: any;
   monitor?: boolean;
   confirmations?: number;
 };

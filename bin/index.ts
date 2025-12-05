@@ -52,6 +52,11 @@ interface CommandOptions {
   gasLimit?: string;
   gasPrice?: string;
   data?: string;
+  abiPath?: string;
+  functionName?: string;
+  simulate?: boolean;
+  optimize?: boolean;
+  bytecodePath?: string;
   rns?: string;
 }
 
