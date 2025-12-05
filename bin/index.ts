@@ -18,6 +18,7 @@ import { resolveCommand } from "../src/commands/resolve.js";
 import { configCommand } from "../src/commands/config.js";
 import { transactionCommand } from "../src/commands/transaction.js";
 import { monitorCommand, listMonitoringSessions, stopMonitoringSession } from "../src/commands/monitor.js";
+import { gasCommand } from "../src/commands/gas.js";
 import { parseEther } from "viem";
 import { resolveRNSToAddress } from "../src/utils/rnsHelper.js";
 import { validateAndFormatAddressRSK } from "../src/utils/index.js";
@@ -51,6 +52,11 @@ interface CommandOptions {
   gasLimit?: string;
   gasPrice?: string;
   data?: string;
+  abiPath?: string;
+  functionName?: string;
+  simulate?: boolean;
+  optimize?: boolean;
+  bytecodePath?: string;
   rns?: string;
 }
 
@@ -328,6 +334,43 @@ program
       console.error(
         chalk.red("🚨 Error during batch transfer:"),
         chalk.yellow(error.message || "Unknown error")
+      );
+    }
+  });
+
+program
+  .command("gas")
+  .description("Estimate gas costs for transactions and contract interactions with optimization tips")
+  .option("-t, --testnet", "Use testnet")
+  .option("-c, --contract <address>", "Contract address for function call estimation")
+  .option("--abi <path>", "Path to contract ABI file")
+  .option("-f, --function <name>", "Function name to estimate")
+  .option("--args <args...>", "Function arguments (space-separated)")
+  .option("-a, --address <address>", "Recipient address for transaction estimation")
+  .option("--value <value>", "Amount to send (in RBTC)")
+  .option("--data <data>", "Transaction data (hex)")
+  .option("-s, --simulate", "Run transaction simulation")
+  .option("-o, --optimize", "Show gas optimization tips")
+  .option("-i, --interactive", "Interactive mode with guided prompts")
+  .action(async (options: CommandOptions) => {
+    try {
+      await gasCommand({
+        testnet: !!options.testnet,
+        contractAddress: options.contract as Address | undefined,
+        abiPath: options.abi,
+        functionName: options.functionName,
+        args: options.args,
+        to: options.address as Address | undefined,
+        value: options.value,
+        data: options.data,
+        simulate: !!options.simulate,
+        optimize: !!options.optimize,
+        interactive: !!options.interactive,
+      });
+    } catch (error: any) {
+      console.error(
+        chalk.red("Error during gas estimation:"),
+        error.message || error
       );
     }
   });
