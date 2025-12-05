@@ -1,6 +1,6 @@
 {
   "name": "@rsksmart/rsk-cli",
-  "version": "1.3.2",
+  "version": "1.4.0",
   "description": "CLI tool for Rootstock network using Viem",
   "repository": {
     "type": "git",
@@ -21,7 +21,8 @@
     "batch-transfer": "pnpm run build && node dist/bin/index.js batch-transfer",
     "history": "pnpm run build && node dist/bin/index.js history",
     "gas": "pnpm run build && node dist/bin/index.js gas --testnet",
-    "gas:interactive": "pnpm run build && node dist/bin/index.js gas --testnet --interactive"
+    "gas:interactive": "pnpm run build && node dist/bin/index.js gas --testnet --interactive",
+    "config": "pnpm run build && node dist/bin/index.js config"
   },
   "keywords": [
     "rootstock",
@@ -48,6 +49,7 @@
   },
   "dependencies": {
     "@openzeppelin/contracts": "^5.0.2",
+    "@rsksmart/rns-resolver.js": "^1.1.0",
     "@rsksmart/rsk-precompiled-abis": "^6.0.0-ARROWHEAD",
     "@types/fs-extra": "^11.0.4",
     "@types/zxcvbn": "^4.4.5",

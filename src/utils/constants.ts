@@ -2,6 +2,8 @@ import path from "path";
 
 export const walletFilePath = path.join(process.cwd(), "rootstock-wallet.json");
 
+export const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000" as const;
+
 export const METHOD_TYPES = {
   read: "read",
   write: "write",
