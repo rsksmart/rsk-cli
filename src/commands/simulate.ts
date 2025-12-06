@@ -69,24 +69,20 @@ async function simulateERC20Transfer(
   isTestnet: boolean,
   gasPrice?: bigint
 ): Promise<SimulationResult> {
-  // Validate ERC20 contract
   const isValidERC20 = await isERC20Contract(publicClient, tokenAddress);
   if (!isValidERC20) {
     return createErrorResult("The provided address is not a valid ERC20 token contract.");
   }
 
-  // Get token information
   const { balance: tokenBalance, decimals, name: tokenName, symbol: tokenSymbol } = 
     await getTokenInfo(publicClient, tokenAddress, walletAddress);
   
   const currentTokenBalance = Number(tokenBalance) / (10 ** decimals);
   const transferAmountBigInt = BigInt(transferAmount * (10 ** decimals));
 
-  // Get current RBTC balance for gas
   const rbtcBalance = await publicClient.getBalance({ address: walletAddress });
   const currentRbtcBalance = Number(formatEther(rbtcBalance));
 
-  // Estimate gas
   const gasResult = await estimateERC20Gas(
     publicClient, 
     walletClient.account, 
@@ -96,14 +92,12 @@ async function simulateERC20Transfer(
     gasPrice
   );
 
-  // Calculate balances
   const sufficientTokenBalance = currentTokenBalance >= transferAmount;
   const sufficientGas = currentRbtcBalance >= Number(gasResult.totalGasCostRBTC);
   const balanceAfterGas = currentRbtcBalance - Number(gasResult.totalGasCostRBTC);
   const balanceAfterTransfer = currentTokenBalance - transferAmount;
   const networkName = isTestnet ? "Rootstock Testnet" : "Rootstock Mainnet";
 
-  // Display results
   console.log("\n" + chalk.cyan("📊 SIMULATION RESULTS") + "\n");
   
   const simulationTable = createSimulationTable({
@@ -198,12 +192,10 @@ async function simulateRBTCTransfer(
   gasPrice?: bigint,
   data?: `0x${string}`
 ): Promise<SimulationResult> {
-  // Get current RBTC balance
   const rbtcBalance = await publicClient.getBalance({ address: walletAddress });
   const currentRbtcBalance = Number(formatEther(rbtcBalance));
   const transferValue = parseEther(transferAmount.toString());
 
-  // Estimate gas
   const gasResult = await estimateRBTCGas(
     publicClient,
     walletClient.account,
@@ -213,13 +205,11 @@ async function simulateRBTCTransfer(
     gasPrice
   );
 
-  // Calculate balances
   const totalCost = transferAmount + Number(gasResult.totalGasCostRBTC);
   const sufficientBalance = currentRbtcBalance >= totalCost;
   const balanceAfterTransaction = currentRbtcBalance - totalCost;
   const networkName = isTestnet ? "Rootstock Testnet" : "Rootstock Mainnet";
 
-  // Display results
   console.log("\n" + chalk.cyan("📊 SIMULATION RESULTS") + "\n");
   
   const simulationTable = createSimulationTable({
@@ -301,7 +291,6 @@ export async function simulateCommand(
   simulationOptions: TransactionSimulationOptions
 ): Promise<SimulationResult | void> {
   try {
-    // Load and validate wallet data
     const walletResult = loadWalletData();
     if (!walletResult.success) {
       return walletResult;
@@ -314,7 +303,6 @@ export async function simulateCommand(
 
     const wallet = walletSelection.data;
 
-    // Initialize providers
     const provider = new ViemProvider(simulationOptions.testnet);
     const publicClient = await provider.getPublicClient();
     const walletClient = await provider.getWalletClient(simulationOptions.name);
@@ -323,13 +311,11 @@ export async function simulateCommand(
       return createErrorResult("Failed to get wallet client or account.");
     }
 
-    // Display simulation info
     logInfo(`🔮 Simulating Transaction`);
     logInfo(`🔑 From Address: ${walletClient.account.address}`);
     logInfo(`🎯 To Address: ${simulationOptions.toAddress}`);
     logInfo(`💵 Amount: ${simulationOptions.value} ${simulationOptions.tokenAddress ? 'tokens' : 'RBTC'}`);
 
-    // Route to appropriate simulation
     if (simulationOptions.tokenAddress) {
       return await simulateERC20Transfer(
         publicClient,

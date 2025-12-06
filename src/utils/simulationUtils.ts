@@ -2,7 +2,6 @@ import { PublicClient, Account, Address, parseEther, formatEther } from "viem";
 import chalk from "chalk";
 import Table from "cli-table3";
 
-// Simple ERC20 Transfer ABI
 export const ERC20_TRANSFER_ABI = [{
   name: "transfer",
   type: "function",
@@ -30,7 +29,7 @@ export async function estimateERC20Gas(
   amount: bigint,
   gasPrice?: bigint
 ): Promise<GasEstimationResult> {
-  let gasEstimate = BigInt(100000); // Default fallback
+  let gasEstimate = BigInt(100000);
   let simulationSucceeded = true;
   let errorMessage: string | undefined;
 
@@ -75,7 +74,7 @@ export async function estimateRBTCGas(
   data?: `0x${string}`,
   gasPrice?: bigint
 ): Promise<GasEstimationResult> {
-  let gasEstimate = BigInt(21000); // Standard ETH transfer
+  let gasEstimate = BigInt(21000);
   let simulationSucceeded = true;
   let errorMessage: string | undefined;
 
