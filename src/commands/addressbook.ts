@@ -1,6 +1,6 @@
 import inquirer from "inquirer";
 import chalk from "chalk";
-import { loadWallets } from "../utils/index.js";
+import { loadWallets, validateAndFormatAddress } from "../utils/index.js";
 import { walletFilePath } from "../utils/constants.js";
 import { writeWalletData } from "./wallet.js";
 
@@ -45,7 +45,12 @@ export async function addressBookCommand() {
         return;
       }
 
-      walletsData.addressBook[label] = address;
+      const formattedAddress = validateAndFormatAddress(address);
+      if (!formattedAddress) {
+        return;
+      }
+
+      walletsData.addressBook[label] = formattedAddress;
       console.log(chalk.green(`✅ Address added under label "${label}".`));
     }
 
@@ -86,7 +91,12 @@ export async function addressBookCommand() {
         },
       ]);
 
-      walletsData.addressBook[label] = newAddress;
+      const formattedAddress = validateAndFormatAddress(newAddress);
+      if (!formattedAddress) {
+        return;
+      }
+
+      walletsData.addressBook[label] = formattedAddress;
       console.log(chalk.green(`✅ Address for "${label}" updated.`));
     }
 
