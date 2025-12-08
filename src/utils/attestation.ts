@@ -1,6 +1,6 @@
 import { ethers } from "ethers";
-import chalk from "chalk";
 import ora from "ora";
+import { logError, logInfo } from "./logger.js";
 
 export interface AttestationConfig {
   contractAddress: string;
@@ -62,28 +62,6 @@ export const DEPLOYMENT_SCHEMA = "string contractName,address contractAddress,ad
 export const VERIFICATION_SCHEMA = "string contractName,address contractAddress,address verifier,string sourceCodeHash,string compilationTarget,string compilerVersion,bool optimizationUsed,uint256 timestamp,string verificationTool";
 
 export const TRANSFER_SCHEMA = "address sender,address recipient,string amount,address tokenAddress,string tokenSymbol,bytes32 transactionHash,uint256 blockNumber,uint256 timestamp,string reason,string transferType";
-
-function logMessage(
-  isExternal: boolean,
-  message: string,
-  color: any = chalk.white
-) {
-  if (!isExternal) {
-    console.log(color(message));
-  }
-}
-
-function logError(isExternal: boolean, message: string) {
-  logMessage(isExternal, message, chalk.red);
-}
-
-function logSuccess(isExternal: boolean, message: string) {
-  logMessage(isExternal, message, chalk.green);
-}
-
-function logInfo(isExternal: boolean, message: string) {
-  logMessage(isExternal, message, chalk.cyan);
-}
 
 function startSpinner(
   isExternal: boolean,

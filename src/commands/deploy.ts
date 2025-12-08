@@ -1,11 +1,12 @@
 import ViemProvider from "../utils/viemProvider.js";
-import chalk from "chalk";
 import fs from "fs";
-import ora from "ora";
 import { DeployResult } from "../utils/types.js";
-import { createDeploymentAttestation, DeploymentAttestationData, AttestationService } from "../utils/attestation.js";
-import { createAttestationSigner } from "../utils/walletSigner.js";
+import { DeploymentAttestationData, AttestationService } from "../utils/attestation.js";
+import { handleAttestation } from "../utils/attestationHandler.js";
 import { getConfig } from "./config.js";
+import { logError, logSuccess, logInfo } from "../utils/logger.js";
+import { createSpinner } from "../utils/spinner.js";
+import { getExplorerUrl, getNetworkName, getCurrentTimestamp, extractContractName } from "../utils/constants.js";
 
 type DeployCommandOptions = {
   abiPath: string;
@@ -23,68 +24,16 @@ type DeployCommandOptions = {
   };
 };
 
-function logMessage(
-  params: DeployCommandOptions,
-  message: string,
-  color: any = chalk.white
-) {
-  if (!params.isExternal) {
-    console.log(color(message));
-  }
-}
-
-function logError(params: DeployCommandOptions, message: string) {
-  logMessage(params, `❌ ${message}`, chalk.red);
-}
-
-function logSuccess(params: DeployCommandOptions, message: string) {
-  logMessage(params, message, chalk.green);
-}
-
-function logInfo(params: DeployCommandOptions, message: string) {
-  logMessage(params, message, chalk.blue);
-}
-
-
-
-function startSpinner(
-  params: DeployCommandOptions,
-  spinner: any,
-  message: string
-) {
-  if (!params.isExternal) {
-    spinner.start(message);
-  }
-}
-
-function succeedSpinner(
-  params: DeployCommandOptions,
-  spinner: any,
-  message: string
-) {
-  if (!params.isExternal) {
-    spinner.succeed(message);
-  }
-}
-
-function failSpinner(
-  params: DeployCommandOptions,
-  spinner: any,
-  message: string
-) {
-  if (!params.isExternal) {
-    spinner.fail(message);
-  }
-}
-
 export async function deployCommand(
   params: DeployCommandOptions
 ): Promise<DeployResult | void> {
+  const isExternal = params.isExternal || false;
+
   try {
     const config = getConfig();
     const isTestnet = params.testnet !== undefined ? params.testnet : (config.defaultNetwork === 'testnet');
-    
-    logInfo(params, `🔧 Initializing ViemProvider for ${isTestnet ? "testnet" : "mainnet"}...`);
+
+    logInfo(isExternal, `🔧 Initializing ViemProvider for ${isTestnet ? "testnet" : "mainnet"}...`);
     
     const provider = new ViemProvider(isTestnet);
 
@@ -97,7 +46,7 @@ export async function deployCommand(
         walletsData = JSON.parse(fs.readFileSync(walletFilePath, "utf8"));
       } catch (error) {
         const errorMessage = "No wallets found. Please create or import a wallet first.";
-        logError(params, errorMessage);
+        logError(isExternal, errorMessage);
         return {
           error: errorMessage,
           success: false,
@@ -107,7 +56,7 @@ export async function deployCommand(
 
     if (!walletsData.currentWallet || !walletsData.wallets) {
       const errorMessage = "No valid wallet found. Please create or import a wallet first.";
-      logError(params, errorMessage);
+      logError(isExternal, errorMessage);
       return {
         error: errorMessage,
         success: false,
@@ -117,7 +66,7 @@ export async function deployCommand(
     const walletName = params.name || walletsData.currentWallet;
     if (!walletsData.wallets[walletName]) {
       const errorMessage = `Wallet "${walletName}" not found.`;
-      logError(params, errorMessage);
+      logError(isExternal, errorMessage);
       return {
         error: errorMessage,
         success: false,
@@ -156,7 +105,7 @@ export async function deployCommand(
         decryptedPrivateKey += decipher.final("utf8");
       } catch (error) {
         const errorMessage = "Failed to decrypt wallet. Password may be incorrect.";
-        logError(params, errorMessage);
+        logError(isExternal, errorMessage);
         return {
           error: errorMessage,
           success: false,
@@ -177,7 +126,7 @@ export async function deployCommand(
       } catch (error) {
         if (error instanceof Error && error.message.includes("Failed to decrypt the private key")) {
           const errorMessage = `Error interacting with the bridge: ${error.message}`;
-          logError(params, errorMessage);
+          logError(isExternal, errorMessage);
           return {
             error: errorMessage,
             success: false,
@@ -189,14 +138,14 @@ export async function deployCommand(
 
     if (!walletClient.account) {
       const errorMessage = "Wallet account is undefined. Make sure the wallet is properly loaded.";
-      logError(params, errorMessage);
+      logError(isExternal, errorMessage);
       return {
         error: errorMessage,
         success: false,
       };
     }
 
-    logInfo(params, `🔑 Wallet account: ${walletClient.account.address}`);
+    logInfo(isExternal, `🔑 Wallet account: ${walletClient.account.address}`);
 
     let abiContent: string;
     let abi: any;
@@ -212,13 +161,13 @@ export async function deployCommand(
         };
       }
     } else {
-      logInfo(params, `📄 Reading ABI from ${params.abiPath}...`);
+      logInfo(isExternal, `📄 Reading ABI from ${params.abiPath}...`);
       try {
         abiContent = fs.readFileSync(params.abiPath, "utf8");
         abi = JSON.parse(abiContent);
       } catch (error) {
         const errorMessage = `Error reading or parsing ABI file: ${params.abiPath}`;
-        logError(params, errorMessage);
+        logError(isExternal, errorMessage);
         return {
           error: errorMessage,
           success: false,
@@ -228,7 +177,7 @@ export async function deployCommand(
 
     if (!Array.isArray(abi)) {
       const errorMessage = "The ABI file is not a valid JSON array.";
-      logError(params, errorMessage);
+      logError(isExternal, errorMessage);
       return {
         error: errorMessage,
         success: false,
@@ -250,7 +199,7 @@ export async function deployCommand(
         };
       }
     } else {
-      logInfo(params, `📄 Reading Bytecode from ${params.bytecodePath}...`);
+      logInfo(isExternal, `📄 Reading Bytecode from ${params.bytecodePath}...`);
       try {
         bytecode = fs.readFileSync(params.bytecodePath, "utf8").trim();
         if (!bytecode.startsWith("0x")) {
@@ -258,7 +207,7 @@ export async function deployCommand(
         }
       } catch (error) {
         const errorMessage = `Error reading bytecode file: ${params.bytecodePath}`;
-        logError(params, errorMessage);
+        logError(isExternal, errorMessage);
         return {
           error: errorMessage,
           success: false,
@@ -268,7 +217,7 @@ export async function deployCommand(
 
     if (!bytecode) {
       const errorMessage = "Invalid or empty bytecode file.";
-      logError(params, errorMessage);
+      logError(isExternal, errorMessage);
       return {
         error: errorMessage,
         success: false,
@@ -286,16 +235,16 @@ export async function deployCommand(
       ...(config.defaultGasPrice > 0 ? { maxFeePerGas: BigInt(config.defaultGasPrice * 1e9) } : {}),
     };
 
-    const spinner = params.isExternal ? ora({isEnabled: false}) : ora();
-    startSpinner(params, spinner, "⏳ Deploying contract...");
+    const spinner = createSpinner(isExternal);
+    spinner.start("⏳ Deploying contract...");
 
     try {
       // @ts-ignore
       const hash = await walletClient.deployContract(deployParams);
 
-      succeedSpinner(params, spinner, "🎉 Contract deployment transaction sent!");
-      logSuccess(params, `🔑 Transaction Hash: ${hash}`);
-      startSpinner(params, spinner, "⏳ Waiting for transaction receipt...");
+      spinner.succeed("🎉 Contract deployment transaction sent!");
+      logSuccess(isExternal, `🔑 Transaction Hash: ${hash}`);
+      spinner.start("⏳ Waiting for transaction receipt...");
 
       const receipt = await publicClient.waitForTransactionReceipt({ hash });
 
@@ -303,76 +252,53 @@ export async function deployCommand(
         throw new Error("An error occurred during contract deployment.");
       }
 
-      const explorerUrl = isTestnet
-        ? `https://explorer.testnet.rootstock.io/address/${receipt.contractAddress}`
-        : `https://explorer.rootstock.io/address/${receipt.contractAddress}`;
+      const explorerUrl = getExplorerUrl(isTestnet, 'address', receipt.contractAddress!);
 
-      succeedSpinner(params, spinner, "📜 Contract deployed successfully!");
+      spinner.succeed("📜 Contract deployed successfully!");
       
       if (config.displayPreferences.compactMode) {
-        logSuccess(params, `📍 ${receipt.contractAddress}`);
+        logSuccess(isExternal, `📍 ${receipt.contractAddress}`);
       } else {
-        logSuccess(params, `📍 Contract Address: ${receipt.contractAddress}`);
+        logSuccess(isExternal, `📍 Contract Address: ${receipt.contractAddress}`);
       }
 
       if (config.displayPreferences.showGasDetails) {
-        logInfo(params, `⛽ Gas Used: ${receipt.gasUsed}`);
+        logInfo(isExternal, `⛽ Gas Used: ${receipt.gasUsed}`);
       }
 
       if (config.displayPreferences.showBlockDetails) {
-        logInfo(params, `📦 Block Number: ${receipt.blockNumber}`);
+        logInfo(isExternal, `📦 Block Number: ${receipt.blockNumber}`);
       }
 
       if (config.displayPreferences.showExplorerLinks) {
-        logInfo(params, `🔗 View on Explorer: ${explorerUrl}`);
+        logInfo(isExternal, `🔗 View on Explorer: ${explorerUrl}`);
       }
 
       let attestationUID: string | null = null;
       if (params.attestation?.enabled && receipt.contractAddress) {
-        try {
-          logInfo(params, "🔐 Creating deployment attestation...");
-          
-          const signer = await createAttestationSigner({
-            testnet: params.testnet,
-            walletName: params.name,
-            isExternal: params.isExternal,
-            walletsData: walletsData,
-            password: params.password
-          });
+        const attestationData: DeploymentAttestationData = {
+          contractAddress: receipt.contractAddress,
+          contractName: extractContractName(params.abiPath),
+          deployer: walletClient.account.address,
+          blockNumber: Number(receipt.blockNumber),
+          transactionHash: hash,
+          timestamp: getCurrentTimestamp(),
+          abiHash: AttestationService.createHash(abiContent),
+          bytecodeHash: AttestationService.createHash(bytecode)
+        };
 
-          if (!signer) {
-            logInfo(params, "⚠️  Unable to create wallet signer for attestation, skipping");
-          } else {
-            const attestationData: DeploymentAttestationData = {
-              contractAddress: receipt.contractAddress,
-              contractName: params.abiPath.includes('/') ? params.abiPath.split('/').pop()?.replace('.json', '') || 'Unknown' : params.abiPath.replace('.json', ''),
-              deployer: walletClient.account.address,
-              blockNumber: Number(receipt.blockNumber),
-              transactionHash: hash,
-              timestamp: Math.floor(Date.now() / 1000),
-              abiHash: AttestationService.createHash(abiContent),
-              bytecodeHash: AttestationService.createHash(bytecode)
-            };
+        const result = await handleAttestation('deployment', attestationData, {
+          enabled: params.attestation.enabled,
+          testnet: params.testnet,
+          schemaUID: params.attestation.schemaUID,
+          recipient: params.attestation.recipient || receipt.contractAddress,
+          isExternal: params.isExternal,
+          walletName: params.name,
+          walletsData: walletsData,
+          password: params.password
+        });
 
-            attestationUID = await createDeploymentAttestation(
-              signer,
-              attestationData,
-              {
-                testnet: params.testnet,
-                recipient: params.attestation.recipient || receipt.contractAddress,
-                schemaUID: params.attestation.schemaUID,
-                enabled: true,
-                isExternal: params.isExternal
-              }
-            );
-
-            if (attestationUID) {
-              logSuccess(params, `🎯 Deployment attestation created: ${attestationUID}`);
-            }
-          }
-        } catch (attestationError) {
-          logError(params, `⚠️  Attestation creation failed: ${attestationError instanceof Error ? attestationError.message : 'Unknown error'}`);
-        }
+        attestationUID = result.uid;
       }
 
       return {
@@ -380,14 +306,14 @@ export async function deployCommand(
         data: {
           contractAddress: receipt.contractAddress!,
           transactionHash: hash,
-          network: isTestnet ? "Rootstock Testnet" : "Rootstock Mainnet",
+          network: getNetworkName(isTestnet),
           explorerUrl: explorerUrl,
           attestationUID: attestationUID || undefined,
         },
       };
     } catch (error) {
       const errorMessage = "Error during contract deployment, please check the ABI and bytecode files.";
-      failSpinner(params, spinner, "Error during contract deployment.");
+      spinner.fail("Error during contract deployment.");
       return {
         error: errorMessage,
         success: false,
@@ -395,7 +321,7 @@ export async function deployCommand(
     }
   } catch (error) {
     const errorMessage = "Error deploying contract, please check the ABI and bytecode files.";
-    logError(params, errorMessage);
+    logError(isExternal, errorMessage);
     return {
       error: errorMessage,
       success: false,
