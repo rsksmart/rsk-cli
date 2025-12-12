@@ -101,8 +101,11 @@ export async function transferCommand(
 
     const provider = new ViemProvider(params.testnet);
     const publicClient = await provider.getPublicClient();
-    
+
     let walletClient;
+    let walletPassword: string | undefined;
+    let actualWalletName: string | undefined;
+
     if (params.isExternal) {
       if (!params.name || !params.password || !params.walletsData) {
         const errorMessage = "Wallet name, password and wallets data are required.";
@@ -118,8 +121,13 @@ export async function transferCommand(
         params.password,
         provider
       );
+      walletPassword = params.password;
+      actualWalletName = params.name;
     } else {
-      walletClient = await provider.getWalletClient(params.name);
+      const { client, password, name } = await provider.getWalletClientWithPassword(params.name);
+      walletClient = client;
+      walletPassword = password;
+      actualWalletName = name;
     }
     
     if (!walletClient) {
@@ -256,9 +264,9 @@ export async function transferCommand(
             schemaUID: params.attestation.schemaUID,
             recipient: params.attestation.recipient || params.toAddress,
             isExternal: params.isExternal,
-            walletName: params.name,
+            walletName: actualWalletName,
             walletsData: walletsData,
-            password: params.password
+            password: walletPassword
           });
 
           attestationUID = result.uid;
@@ -351,9 +359,9 @@ export async function transferCommand(
             schemaUID: params.attestation.schemaUID,
             recipient: params.attestation.recipient || params.toAddress,
             isExternal: params.isExternal,
-            walletName: params.name,
+            walletName: actualWalletName,
             walletsData: walletsData,
-            password: params.password
+            password: walletPassword
           });
 
           attestationUID = result.uid;

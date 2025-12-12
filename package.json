@@ -38,7 +38,6 @@
   "devDependencies": {
     "@types/bun": "latest",
     "@types/figlet": "^1.5.8",
-    "@types/jest": "^30.0.0",
     "@types/uuid": "^10.0.0",
     "solc": "0.8.28",
     "typescript": "^5.0.0"
@@ -47,7 +46,7 @@
     "typescript": "^5.0.0"
   },
   "dependencies": {
-    "@ethereum-attestation-service/eas-sdk": "^2.9.1-beta.1",
+    "@ethereum-attestation-service/eas-sdk": "^2.7.0",
     "@openzeppelin/contracts": "^5.0.2",
     "@rsksmart/rns-resolver.js": "^1.1.0",
     "@rsksmart/rsk-precompiled-abis": "^6.0.0-ARROWHEAD",

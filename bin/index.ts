@@ -139,6 +139,12 @@ program
         await batchTransferCommand({
           testnet: !!options.testnet,
           interactive: true,
+          attestation: {
+            enabled: !!options.attestTransfer,
+            schemaUID: options.attestSchemaUid,
+            recipient: options.attestRecipient,
+            reason: options.attestReason
+          }
         });
         return;
       }

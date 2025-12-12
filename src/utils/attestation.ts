@@ -1,6 +1,8 @@
 import { ethers } from "ethers";
 import ora from "ora";
 import { logError, logInfo } from "./logger.js";
+import { createRequire } from "module";
+const require = createRequire(import.meta.url);
 
 export interface AttestationConfig {
   contractAddress: string;
@@ -46,13 +48,13 @@ export interface TransferAttestationData {
 
 export const RSK_ATTESTATION_CONFIG = {
   testnet: {
-    contractAddress: "0x54c0726E9D2D57Bc37aD52C7E219a3229E0ee963",
-    schemaRegistryAddress: "0xef29675d82Cc5967069D6D9c17F2719F67728F5b",
+    contractAddress: "0xc300aeEaDd60999933468738c9F5D7e9C0671e1c",
+    schemaRegistryAddress: "0x679c62956cD2801AbAbF80e9D430f18859Eea2d5",
     graphqlEndpoint: "https://rootstock.easscan.org/graphql"
   },
   mainnet: {
-    contractAddress: "0x54c0726E9D2D57Bc37aD52C7E219a3229E0ee963",
-    schemaRegistryAddress: "0xef29675d82Cc5967069D6D9c17F2719F67728F5b", 
+    contractAddress: "0x54C0726E9d2D57Bc37AD52c7E219A3229e0eE963",
+    schemaRegistryAddress: "0xeF29675d82CC5967069d6d9C17F2719f67728F5B",
     graphqlEndpoint: "https://rootstock.easscan.org/graphql"
   }
 };
@@ -130,10 +132,10 @@ export class AttestationService {
   private async initializeEAS() {
     if (!this.easSDK) {
       try {
-        const easSdk = await import("@ethereum-attestation-service/eas-sdk");
-        this.easSDK = easSdk.EAS || easSdk.default?.EAS;
-        this.schemaEncoderClass = easSdk.SchemaEncoder || easSdk.default?.SchemaEncoder;
-        
+        const easSdk = require("@ethereum-attestation-service/eas-sdk");
+        this.easSDK = easSdk.EAS;
+        this.schemaEncoderClass = easSdk.SchemaEncoder;
+
         if (!this.easSDK || !this.schemaEncoderClass) {
           throw new Error("Failed to load EAS SDK components");
         }
@@ -374,13 +376,14 @@ export class AttestationService {
     }
   }
 
-  static async getDefaultSchemaUID(isTestnet: boolean = false, type: 'deployment' | 'verification' | 'transfer' = 'deployment'): Promise<string> {
-    if (type === 'verification') {
-      return "0xabcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890";
-    } else if (type === 'transfer') {
-      return "0xfedcba0987654321fedcba0987654321fedcba0987654321fedcba0987654321";
+  static async getDefaultSchemaUID(isTestnet: boolean = false, type: 'deployment' | 'verification' | 'transfer' = 'deployment'): Promise<string | undefined> {
+    if (isTestnet) {
+      if (type === 'transfer') {
+        return '0x44d562ac1d7cd77e232978687fea027ace48f719cf1d58c7888e509663bb87fc';
+      }
+      return undefined;
     }
-    return "0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef";
+    return undefined;
   }
 }
 
@@ -403,6 +406,12 @@ export async function createDeploymentAttestation(
     const attestationService = new AttestationService(signer, options.testnet, options.isExternal);
 
     const schemaUID = options.schemaUID || await AttestationService.getDefaultSchemaUID(options.testnet, 'deployment');
+
+    if (!schemaUID) {
+      logInfo(!!options.isExternal, '⚠️  No schema UID provided for deployment attestation');
+      logInfo(!!options.isExternal, '   To enable attestations, use --attest-schema-uid <UID>');
+      return null;
+    }
 
     const uid = await attestationService.createDeploymentAttestation(
       deploymentData,
@@ -437,6 +446,12 @@ export async function createVerificationAttestation(
 
     const schemaUID = options.schemaUID || await AttestationService.getDefaultSchemaUID(options.testnet, 'verification');
 
+    if (!schemaUID) {
+      logInfo(!!options.isExternal, '⚠️  No schema UID provided for verification attestation');
+      logInfo(!!options.isExternal, '   To enable attestations, use --attest-schema-uid <UID>');
+      return null;
+    }
+
     const uid = await attestationService.createVerificationAttestation(
       verificationData,
       options.recipient,
@@ -470,6 +485,13 @@ export async function createTransferAttestation(
 
     const schemaUID = options.schemaUID || await AttestationService.getDefaultSchemaUID(options.testnet, 'transfer');
 
+    if (!schemaUID) {
+      logInfo(!!options.isExternal, '⚠️  No schema UID provided for transfer attestation');
+      logInfo(!!options.isExternal, '   To enable attestations, register a transfer schema and use --attest-schema-uid <UID>');
+      logInfo(!!options.isExternal, '   See documentation: https://dev.rootstock.io/dev-tools/attestations/ras/');
+      return null;
+    }
+
     const uid = await attestationService.createTransferAttestation(
       transferData,
       options.recipient,
@@ -478,7 +500,15 @@ export async function createTransferAttestation(
 
     return uid;
   } catch (error) {
-    logError(!!options.isExternal, `Transfer attestation creation failed: ${error instanceof Error ? error.message : error}`);
+    const errorMessage = error instanceof Error ? error.message : String(error);
+
+    if (errorMessage.includes('0xbf37b20e') || errorMessage.includes('InvalidSchema')) {
+      logError(!!options.isExternal, '❌ Invalid or unregistered schema UID');
+      logInfo(!!options.isExternal, '   The schema UID provided does not exist on RSK EAS');
+      logInfo(!!options.isExternal, '   Register your schema or contact RSK team for valid schema UIDs');
+    } else {
+      logError(!!options.isExternal, `Transfer attestation creation failed: ${errorMessage}`);
+    }
     return null;
   }
 }

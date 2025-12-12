@@ -7,6 +7,9 @@ import { Address } from "viem";
 import { FileTx, WalletData } from "../utils/types.js";
 import { resolveRNSToAddress, isRNSDomain } from "../utils/rnsHelper.js";
 import { validateAndFormatAddressRSK } from "../utils/index.js";
+import { TransferAttestationData } from "../utils/attestation.js";
+import { handleAttestation } from "../utils/attestationHandler.js";
+import { getCurrentTimestamp } from "../utils/constants.js";
 
 type BatchTransferCommandOptions = {
   testnet: boolean;
@@ -18,6 +21,12 @@ type BatchTransferCommandOptions = {
   password?: string;
   walletsData?: WalletData;
   resolveRNS?: boolean;
+  attestation?: {
+    enabled: boolean;
+    schemaUID?: string;
+    recipient?: string;
+    reason?: string;
+  };
 };
 
 type BatchData = {
@@ -79,6 +88,10 @@ export async function batchTransferCommand(params: BatchTransferCommandOptions) 
     const provider = new ViemProvider(params.testnet);
 
     let walletClient;
+    let walletPassword: string | undefined;
+    let walletsData: any;
+    let walletName: string | undefined;
+
     if (params.isExternal) {
       if (!params.name || !params.password || !params.walletsData) {
         const errorMessage = "Wallet name, password and wallets data are required.";
@@ -94,8 +107,15 @@ export async function batchTransferCommand(params: BatchTransferCommandOptions) 
         params.password,
         provider
       );
+      walletPassword = params.password;
+      walletsData = params.walletsData;
+      walletName = params.name;
     } else {
-      walletClient = await provider.getWalletClient();
+      const { client, password, data, name } = await provider.getWalletClientWithPassword(params.name);
+      walletClient = client;
+      walletPassword = password;
+      walletsData = data;
+      walletName = name;
     }
     if (!walletClient) {
       const errorMessage = "Failed to get wallet client.";
@@ -179,12 +199,43 @@ export async function batchTransferCommand(params: BatchTransferCommandOptions) 
         logSuccess(params, "✅ Transaction confirmed successfully!");
         logInfo(params, `📦 Block Number: ${receipt.blockNumber}`);
         logInfo(params, `⛽ Gas Used: ${receipt.gasUsed.toString()}`);
+
+        let attestationUID: string | null = null;
+        if (params.attestation?.enabled) {
+          const attestationData: TransferAttestationData = {
+            sender: account.address,
+            recipient: recipientAddress,
+            amount: `${value}`,
+            tokenAddress: undefined,
+            tokenSymbol: "RBTC",
+            transactionHash: txHash,
+            blockNumber: Number(receipt.blockNumber),
+            timestamp: getCurrentTimestamp(),
+            reason: params.attestation.reason || "",
+            transferType: "RBTC"
+          };
+
+          const result = await handleAttestation('transfer', attestationData, {
+            enabled: params.attestation.enabled,
+            testnet: params.testnet,
+            schemaUID: params.attestation.schemaUID,
+            recipient: params.attestation.recipient || recipientAddress,
+            isExternal: params.isExternal,
+            walletName: walletName,
+            walletsData: walletsData,
+            password: walletPassword
+          });
+
+          attestationUID = result.uid;
+        }
+
         return {
           success: true,
           data: {
             transactionHash: txHash,
             blockNumber: receipt.blockNumber,
             gasUsed: receipt.gasUsed.toString(),
+            attestationUID: attestationUID || undefined,
           },
         };
       } else {

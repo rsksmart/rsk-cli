@@ -260,7 +260,7 @@ rsk-cli balance --wallet <name>
 
 ### 3. Transfer (RBTC and ERC20)
 
-The `transfer` command allows you to transfer both RBTC and ERC20 tokens from your saved wallet to a specified address on the Rootstock blockchain. You can execute transfers on either mainnet or testnet using the appropriate flags. The command now supports RNS domain resolution for recipient addresses.
+The `transfer` command allows you to transfer both RBTC and ERC20 tokens from your saved wallet to a specified address on the Rootstock blockchain. You can execute transfers on either mainnet or testnet using the appropriate flags. The command now supports RNS domain resolution for recipient addresses and on-chain attestations via the Ethereum Attestation Service (EAS).
 
 #### Interactive Mode
 
@@ -360,6 +360,8 @@ The transfer command supports the following options:
 - `--wallet`: Select a specific wallet to use
 - `--gas-limit`: Custom gas limit for the transaction
 - `--data`: Custom transaction data (hexadecimal format)
+- `--attest-transfer`: Create on-chain attestation for the transfer
+- `--attest-reason`: Reason for the transfer (used in attestation)
 
 > **Note**: Before making any transfer, ensure you have:
 > 1. A wallet configured with sufficient balance (RBTC or ERC20 tokens)
@@ -367,6 +369,17 @@ The transfer command supports the following options:
 > 3. A valid recipient address
 > 4. Enough RBTC to cover gas fees
 > 5. Appropriate gas parameters for your transaction type
+
+#### Attestations
+
+Transfer attestations provide cryptographic proof of transfers on-chain using the Ethereum Attestation Service. On testnet, simply add the `--attest-transfer` flag to create an attestation automatically:
+
+```bash
+# Transfer with attestation
+rsk-cli transfer --testnet --address 0x... --value 0.001 --attest-transfer --attest-reason "Payment for services"
+```
+
+For more information on attestations, including deployment and verification attestations, see [docs/ATTESTATIONS.md](docs/ATTESTATIONS.md).
 
 ### 4. Check Transaction Status
 
