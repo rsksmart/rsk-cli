@@ -10,6 +10,7 @@ import {
   createValidationTable, 
   formatGasPrice 
 } from "../utils/simulationUtils.js";
+import { logMessage, logError, logInfo } from "../utils/logger.js";
 
 export interface TransactionSimulationOptions {
   testnet: boolean;
@@ -56,24 +57,6 @@ export interface SimulationResult {
   error?: string;
 }
 
-function logMessage(
-  params: TransactionSimulationOptions,
-  message: string,
-  color: any = chalk.white
-) {
-  if (!params.isExternal) {
-    console.log(color(message));
-  }
-}
-
-function logError(params: TransactionSimulationOptions, message: string) {
-  logMessage(params, `❌ ${message}`, chalk.red);
-}
-
-function logInfo(params: TransactionSimulationOptions, message: string) {
-  logMessage(params, message, chalk.blue);
-}
-
 async function simulateERC20Transfer(
   params: TransactionSimulationOptions,
   publicClient: any,
@@ -115,7 +98,7 @@ async function simulateERC20Transfer(
   const balanceAfterTransfer = currentTokenBalance - value;
   const networkName = params.testnet ? "Rootstock Testnet" : "Rootstock Mainnet";
 
-  logMessage(params, "\n" + chalk.cyan("📊 SIMULATION RESULTS") + "\n");
+  logMessage(params.isExternal || false, "\n" + chalk.cyan("📊 SIMULATION RESULTS") + "\n");
 
   const simulationTable = createSimulationTable({
     network: networkName,
@@ -131,9 +114,9 @@ async function simulateERC20Transfer(
       ['Token Balance After Transfer', `${balanceAfterTransfer.toFixed(6)} ${tokenSymbol}`]
     ]
   });
-  logMessage(params, simulationTable);
+  logMessage(params.isExternal || false, simulationTable);
 
-  logMessage(params, "\n" + chalk.cyan("✅ VALIDATION RESULTS") + "\n");
+  logMessage(params.isExternal || false, "\n" + chalk.cyan("✅ VALIDATION RESULTS") + "\n");
 
   const validationTable = createValidationTable([
     {
@@ -158,13 +141,13 @@ async function simulateERC20Transfer(
         'Transaction would fail'
     }
   ]);
-  logMessage(params, validationTable);
+  logMessage(params.isExternal || false, validationTable);
 
   const isSuccessful = sufficientTokenBalance && sufficientGas && gasResult.simulationSucceeded;
   const summaryMessage = isSuccessful ?
     "\n✅ Transaction simulation successful! Transaction is ready to execute." :
     "\n❌ Transaction simulation failed! Please address the issues above.";
-  logMessage(params, summaryMessage, isSuccessful ? chalk.green : chalk.red);
+  logMessage(params.isExternal || false, summaryMessage, isSuccessful ? chalk.green : chalk.red);
 
   return {
     success: true,
@@ -224,7 +207,7 @@ async function simulateRBTCTransfer(
   const balanceAfterTransaction = currentRbtcBalance - totalCost;
   const networkName = params.testnet ? "Rootstock Testnet" : "Rootstock Mainnet";
 
-  logMessage(params, "\n" + chalk.cyan("📊 SIMULATION RESULTS") + "\n");
+  logMessage(params.isExternal || false, "\n" + chalk.cyan("📊 SIMULATION RESULTS") + "\n");
 
   const simulationTable = createSimulationTable({
     network: networkName,
@@ -239,9 +222,9 @@ async function simulateRBTCTransfer(
       ['Total Transaction Cost', `${totalCost.toFixed(6)} RBTC`]
     ]
   });
-  logMessage(params, simulationTable);
+  logMessage(params.isExternal || false, simulationTable);
 
-  logMessage(params, "\n" + chalk.cyan("✅ VALIDATION RESULTS") + "\n");
+  logMessage(params.isExternal || false, "\n" + chalk.cyan("✅ VALIDATION RESULTS") + "\n");
 
   const validationTable = createValidationTable([
     {
@@ -259,13 +242,13 @@ async function simulateRBTCTransfer(
         'Transaction would fail'
     }
   ]);
-  logMessage(params, validationTable);
+  logMessage(params.isExternal || false, validationTable);
 
   const isSuccessful = sufficientBalance && gasResult.simulationSucceeded;
   const summaryMessage = isSuccessful ?
     "\n✅ Transaction simulation successful! Transaction is ready to execute." :
     "\n❌ Transaction simulation failed! Please address the issues above.";
-  logMessage(params, summaryMessage, isSuccessful ? chalk.green : chalk.red);
+  logMessage(params.isExternal || false, summaryMessage, isSuccessful ? chalk.green : chalk.red);
 
   return {
     success: true,
@@ -324,10 +307,10 @@ export async function simulateCommand(
       return createErrorResult("Failed to get wallet client or account.");
     }
 
-    logInfo(simulationOptions, `🔮 Simulating Transaction`);
-    logInfo(simulationOptions, `🔑 From Address: ${walletClient.account.address}`);
-    logInfo(simulationOptions, `🎯 To Address: ${simulationOptions.toAddress}`);
-    logInfo(simulationOptions, `💵 Amount: ${simulationOptions.value} ${simulationOptions.tokenAddress ? 'tokens' : 'RBTC'}`);
+    logInfo(simulationOptions.isExternal || false, `🔮 Simulating Transaction`);
+    logInfo(simulationOptions.isExternal || false, `🔑 From Address: ${walletClient.account.address}`);
+    logInfo(simulationOptions.isExternal || false, `🎯 To Address: ${simulationOptions.toAddress}`);
+    logInfo(simulationOptions.isExternal || false, `💵 Amount: ${simulationOptions.value} ${simulationOptions.tokenAddress ? 'tokens' : 'RBTC'}`);
 
     if (simulationOptions.tokenAddress) {
       return await simulateERC20Transfer(
@@ -347,7 +330,7 @@ export async function simulateCommand(
 
   } catch (error: any) {
     const errorResult = createErrorResult(`Error during simulation: ${error.message || 'Unknown error'}`);
-    logError(simulationOptions, errorResult.error || 'Unknown error');
+    logError(simulationOptions.isExternal || false, errorResult.error || 'Unknown error');
     return errorResult;
   }
 }

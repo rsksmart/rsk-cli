@@ -486,4 +486,3 @@ program
   });
 
 program.parse(process.argv);
-program.parse(process.argv);
