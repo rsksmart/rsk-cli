@@ -1,10 +1,12 @@
 import ViemProvider from "../utils/viemProvider.js";
-import chalk from "chalk";
-import ora from "ora";
 import fs from "fs";
 import { Address } from "viem";
-import { walletFilePath } from "../utils/constants.js";
+import { walletFilePath, getExplorerUrl, getNetworkName, getCurrentTimestamp, WEI_MULTIPLIER } from "../utils/constants.js";
 import { getTokenInfo, isERC20Contract } from "../utils/tokenHelper.js";
+import { TransferAttestationData } from "../utils/attestation.js";
+import { handleAttestation } from "../utils/attestationHandler.js";
+import { logError, logSuccess, logInfo } from "../utils/logger.js";
+import { createSpinner } from "../utils/spinner.js";
 
 type TransferCommandOptions = {
   testnet: boolean;
@@ -15,6 +17,12 @@ type TransferCommandOptions = {
   isExternal?: boolean;
   walletsData?: any;
   password?: string;
+  attestation?: {
+    enabled: boolean;
+    schemaUID?: string;
+    recipient?: string;
+    reason?: string;
+  };
 };
 
 type TransferResult = {
@@ -29,61 +37,16 @@ type TransferResult = {
     explorerUrl: string;
     gasUsed?: string;
     blockNumber?: string;
+    attestationUID?: string;
   };
   error?: string;
 };
 
-function logMessage(
-  params: TransferCommandOptions,
-  message: string,
-  color: any = chalk.white
-) {
-  if (!params.isExternal) {
-    console.log(color(message));
-  }
-}
-
-function logError(params: TransferCommandOptions, message: string) {
-  logMessage(params, `❌ ${message}`, chalk.red);
-}
-
-function logSuccess(params: TransferCommandOptions, message: string) {
-  logMessage(params, message, chalk.green);
-}
-
-function logInfo(params: TransferCommandOptions, message: string) {
-  logMessage(params, message, chalk.blue);
-}
-
-function startSpinner(
-  params: TransferCommandOptions,
-  spinner: any,
-  message: string
-) {
-  if (!params.isExternal) {
-    spinner.start(message);
-  }
-}
-
-function stopSpinner(params: TransferCommandOptions, spinner: any) {
-  if (!params.isExternal) {
-    spinner.stop();
-  }
-}
-
-function succeedSpinner(
-  params: TransferCommandOptions,
-  spinner: any,
-  message: string
-) {
-  if (!params.isExternal) {
-    spinner.succeed(message);
-  }
-}
-
 export async function transferCommand(
   params: TransferCommandOptions
 ): Promise<TransferResult | void> {
+  const isExternal = params.isExternal || false;
+
   try {
     let walletsData;
     if (params.isExternal && params.walletsData) {
@@ -91,7 +54,7 @@ export async function transferCommand(
     } else {
       if (!fs.existsSync(walletFilePath)) {
         const errorMessage = "No saved wallet found. Please create a wallet first.";
-        logError(params, errorMessage);
+        logError(isExternal, errorMessage);
         return {
           error: errorMessage,
           success: false,
@@ -102,7 +65,7 @@ export async function transferCommand(
 
     if (!walletsData.currentWallet || !walletsData.wallets) {
       const errorMessage = "No valid wallet found. Please create or import a wallet first.";
-      logError(params, errorMessage);
+      logError(isExternal, errorMessage);
       return {
         error: errorMessage,
         success: false,
@@ -116,7 +79,7 @@ export async function transferCommand(
     if (params.name) {
       if (!wallets[params.name]) {
         const errorMessage = "Wallet with the provided name does not exist.";
-        logError(params, errorMessage);
+        logError(isExternal, errorMessage);
         return {
           error: errorMessage,
           success: false,
@@ -129,7 +92,7 @@ export async function transferCommand(
 
     if (!walletAddress) {
       const errorMessage = "No valid address found in the saved wallet.";
-      logError(params, errorMessage);
+      logError(isExternal, errorMessage);
       return {
         error: errorMessage,
         success: false,
@@ -138,12 +101,15 @@ export async function transferCommand(
 
     const provider = new ViemProvider(params.testnet);
     const publicClient = await provider.getPublicClient();
-    
+
     let walletClient;
+    let walletPassword: string | undefined;
+    let actualWalletName: string | undefined;
+
     if (params.isExternal) {
       if (!params.name || !params.password || !params.walletsData) {
         const errorMessage = "Wallet name, password and wallets data are required.";
-        logError(params, errorMessage);
+        logError(isExternal, errorMessage);
         return {
           error: errorMessage,
           success: false,
@@ -155,13 +121,18 @@ export async function transferCommand(
         params.password,
         provider
       );
+      walletPassword = params.password;
+      actualWalletName = params.name;
     } else {
-      walletClient = await provider.getWalletClient(params.name);
+      const { client, password, name } = await provider.getWalletClientWithPassword(params.name);
+      walletClient = client;
+      walletPassword = password;
+      actualWalletName = name;
     }
     
     if (!walletClient) {
       const errorMessage = "Failed to get wallet client.";
-      logError(params, errorMessage);
+      logError(isExternal, errorMessage);
       return {
         error: errorMessage,
         success: false,
@@ -172,20 +143,20 @@ export async function transferCommand(
 
     if (!account) {
       const errorMessage = "Failed to retrieve the account. Please ensure your wallet is correctly set up.";
-      logError(params, errorMessage);
+      logError(isExternal, errorMessage);
       return {
         error: errorMessage,
         success: false,
       };
     }
 
-    logInfo(params, `🔑 Wallet account: ${account.address}`);
+    logInfo(isExternal, `🔑 Wallet account: ${account.address}`);
 
     if (params.tokenAddress) {
       const isERC20 = await isERC20Contract(publicClient, params.tokenAddress);
       if (!isERC20) {
         const errorMessage = "The provided address is not a valid ERC20 token contract.";
-        logError(params, errorMessage);
+        logError(isExternal, errorMessage);
         return {
           error: errorMessage,
           success: false,
@@ -216,28 +187,28 @@ export async function transferCommand(
         functionName: "symbol"
       });
 
-      logInfo(params, `📄 Token Information:`);
-      logInfo(params, `     Name: ${tokenName}`);
-      logInfo(params, `     Symbol: ${tokenSymbol}`);
-      logInfo(params, `     Contract: ${params.tokenAddress}`);
-      logInfo(params, `🎯 To Address: ${params.toAddress}`);
-      logInfo(params, `💵 Amount to Transfer: ${params.value} ${tokenSymbol}`);
+      logInfo(isExternal, `📄 Token Information:`);
+      logInfo(isExternal, `     Name: ${tokenName}`);
+      logInfo(isExternal, `     Symbol: ${tokenSymbol}`);
+      logInfo(isExternal, `     Contract: ${params.tokenAddress}`);
+      logInfo(isExternal, `🎯 To Address: ${params.toAddress}`);
+      logInfo(isExternal, `💵 Amount to Transfer: ${params.value} ${tokenSymbol}`);
 
       const { balance } = await getTokenInfo(publicClient, params.tokenAddress, walletAddress);
-      const formattedBalance = Number(balance) / 10 ** 18;
+      const formattedBalance = Number(balance) / WEI_MULTIPLIER;
 
       if (formattedBalance < params.value) {
         const errorMessage = `Insufficient balance to transfer ${params.value} tokens.`;
-        logError(params, errorMessage);
+        logError(isExternal, errorMessage);
         return {
           error: errorMessage,
           success: false,
         };
       }
 
-      const spinner = params.isExternal ? ora({isEnabled: false}) : ora();
-      startSpinner(params, spinner, "⏳ Simulating token transfer...");
-      
+      const spinner = createSpinner(isExternal);
+      spinner.start("⏳ Simulating token transfer...");
+
       const { request } = await publicClient.simulateContract({
         account,
         address: params.tokenAddress,
@@ -252,28 +223,55 @@ export async function transferCommand(
           outputs: [{ type: "bool" }]
         }],
         functionName: "transfer",
-        args: [params.toAddress, BigInt(params.value * (10 ** 18))]
+        args: [params.toAddress, BigInt(params.value * WEI_MULTIPLIER)]
       });
 
-      succeedSpinner(params, spinner, "✅ Simulation successful, proceeding with transfer...");
+      spinner.succeed("✅ Simulation successful, proceeding with transfer...");
 
       const txHash = await walletClient.writeContract(request);
-      logSuccess(params, `🔄 Transaction initiated. TxHash: ${txHash}`);
+      logSuccess(isExternal, `🔄 Transaction initiated. TxHash: ${txHash}`);
 
-      startSpinner(params, spinner, "⏳ Waiting for confirmation...");
+      spinner.start("⏳ Waiting for confirmation...");
       const receipt = await publicClient.waitForTransactionReceipt({ hash: txHash });
-      stopSpinner(params, spinner);
+      spinner.stop();
 
-      const explorerUrl = params.testnet
-        ? `https://explorer.testnet.rootstock.io/tx/${txHash}`
-        : `https://explorer.rootstock.io/tx/${txHash}`;
+      const explorerUrl = getExplorerUrl(params.testnet, 'tx', txHash);
 
       if (receipt.status === "success") {
-        logSuccess(params, "✅ Transfer completed successfully!");
-        logInfo(params, `📦 Block Number: ${receipt.blockNumber}`);
-        logInfo(params, `⛽ Gas Used: ${receipt.gasUsed}`);
-        logInfo(params, `🔗 View on Explorer: ${explorerUrl}`);
+        logSuccess(isExternal, "✅ Transfer completed successfully!");
+        logInfo(isExternal, `📦 Block Number: ${receipt.blockNumber}`);
+        logInfo(isExternal, `⛽ Gas Used: ${receipt.gasUsed}`);
+        logInfo(isExternal, `🔗 View on Explorer: ${explorerUrl}`);
         
+        let attestationUID: string | null = null;
+        if (params.attestation?.enabled) {
+          const attestationData: TransferAttestationData = {
+            sender: walletAddress,
+            recipient: params.toAddress,
+            amount: `${params.value}`,
+            tokenAddress: params.tokenAddress,
+            tokenSymbol: tokenSymbol as string,
+            transactionHash: txHash,
+            blockNumber: Number(receipt.blockNumber),
+            timestamp: getCurrentTimestamp(),
+            reason: params.attestation.reason || "",
+            transferType: "ERC20"
+          };
+
+          const result = await handleAttestation('transfer', attestationData, {
+            enabled: params.attestation.enabled,
+            testnet: params.testnet,
+            schemaUID: params.attestation.schemaUID,
+            recipient: params.attestation.recipient || params.toAddress,
+            isExternal: params.isExternal,
+            walletName: actualWalletName,
+            walletsData: walletsData,
+            password: walletPassword
+          });
+
+          attestationUID = result.uid;
+        }
+
         return {
           success: true,
           data: {
@@ -282,15 +280,16 @@ export async function transferCommand(
             to: params.toAddress,
             amount: `${params.value}`,
             token: tokenSymbol as string,
-            network: params.testnet ? "Rootstock Testnet" : "Rootstock Mainnet",
+            network: getNetworkName(params.testnet),
             explorerUrl,
             gasUsed: receipt.gasUsed.toString(),
             blockNumber: receipt.blockNumber.toString(),
+            attestationUID: attestationUID || undefined,
           },
         };
       } else {
         const errorMessage = "Transfer failed.";
-        logError(params, errorMessage);
+        logError(isExternal, errorMessage);
         return {
           error: errorMessage,
           success: false,
@@ -298,16 +297,16 @@ export async function transferCommand(
       }
     } else {
       const balance = await publicClient.getBalance({ address: walletAddress });
-      const rbtcBalance = Number(balance) / 10 ** 18;
+      const rbtcBalance = Number(balance) / WEI_MULTIPLIER;
 
-      logInfo(params, `📄 Wallet Address: ${walletAddress}`);
-      logInfo(params, `🎯 Recipient Address: ${params.toAddress}`);
-      logInfo(params, `💵 Amount to Transfer: ${params.value} RBTC`);
-      logInfo(params, `💰 Current Balance: ${rbtcBalance} RBTC`);
+      logInfo(isExternal, `📄 Wallet Address: ${walletAddress}`);
+      logInfo(isExternal, `🎯 Recipient Address: ${params.toAddress}`);
+      logInfo(isExternal, `💵 Amount to Transfer: ${params.value} RBTC`);
+      logInfo(isExternal, `💰 Current Balance: ${rbtcBalance} RBTC`);
 
       if (rbtcBalance < params.value) {
         const errorMessage = `Insufficient balance to transfer ${params.value} RBTC.`;
-        logError(params, errorMessage);
+        logError(isExternal, errorMessage);
         return {
           error: errorMessage,
           success: false,
@@ -318,29 +317,56 @@ export async function transferCommand(
         account: account,
         chain: provider.chain,
         to: params.toAddress,
-        value: BigInt(params.value * 10 ** 18),
+        value: BigInt(params.value * WEI_MULTIPLIER),
       });
 
-      logSuccess(params, `🔄 Transaction initiated. TxHash: ${txHash}`);
-      
-      const spinner = params.isExternal ? ora({isEnabled: false}) : ora();
-      startSpinner(params, spinner, "⏳ Waiting for confirmation...");
+      logSuccess(isExternal, `🔄 Transaction initiated. TxHash: ${txHash}`);
+
+      const spinner = createSpinner(isExternal);
+      spinner.start("⏳ Waiting for confirmation...");
 
       const receipt = await publicClient.waitForTransactionReceipt({
         hash: txHash,
       });
-      stopSpinner(params, spinner);
+      spinner.stop();
 
-      const explorerUrl = params.testnet
-        ? `https://explorer.testnet.rootstock.io/tx/${txHash}`
-        : `https://explorer.rootstock.io/tx/${txHash}`;
+      const explorerUrl = getExplorerUrl(params.testnet, 'tx', txHash);
 
       if (receipt.status === "success") {
-        logSuccess(params, "✅ Transaction confirmed successfully!");
-        logInfo(params, `📦 Block Number: ${receipt.blockNumber}`);
-        logInfo(params, `⛽ Gas Used: ${receipt.gasUsed.toString()}`);
-        logInfo(params, `🔗 View on Explorer: ${explorerUrl}`);
+        logSuccess(isExternal, "✅ Transaction confirmed successfully!");
+        logInfo(isExternal, `📦 Block Number: ${receipt.blockNumber}`);
+        logInfo(isExternal, `⛽ Gas Used: ${receipt.gasUsed.toString()}`);
+        logInfo(isExternal, `🔗 View on Explorer: ${explorerUrl}`);
         
+        let attestationUID: string | null = null;
+        if (params.attestation?.enabled) {
+          const attestationData: TransferAttestationData = {
+            sender: walletAddress,
+            recipient: params.toAddress,
+            amount: `${params.value}`,
+            tokenAddress: undefined,
+            tokenSymbol: "RBTC",
+            transactionHash: txHash,
+            blockNumber: Number(receipt.blockNumber),
+            timestamp: getCurrentTimestamp(),
+            reason: params.attestation.reason || "",
+            transferType: "RBTC"
+          };
+
+          const result = await handleAttestation('transfer', attestationData, {
+            enabled: params.attestation.enabled,
+            testnet: params.testnet,
+            schemaUID: params.attestation.schemaUID,
+            recipient: params.attestation.recipient || params.toAddress,
+            isExternal: params.isExternal,
+            walletName: actualWalletName,
+            walletsData: walletsData,
+            password: walletPassword
+          });
+
+          attestationUID = result.uid;
+        }
+
         return {
           success: true,
           data: {
@@ -349,15 +375,16 @@ export async function transferCommand(
             to: params.toAddress,
             amount: `${params.value}`,
             token: "RBTC",
-            network: params.testnet ? "Rootstock Testnet" : "Rootstock Mainnet",
+            network: getNetworkName(params.testnet),
             explorerUrl,
             gasUsed: receipt.gasUsed.toString(),
             blockNumber: receipt.blockNumber.toString(),
+            attestationUID: attestationUID || undefined,
           },
         };
       } else {
         const errorMessage = "Transaction failed.";
-        logError(params, errorMessage);
+        logError(isExternal, errorMessage);
         return {
           error: errorMessage,
           success: false,
@@ -366,7 +393,7 @@ export async function transferCommand(
     }
   } catch (error) {
     const errorMessage = "Error during transfer, please check the transfer details.";
-    logError(params, errorMessage);
+    logError(isExternal, errorMessage);
     
     return {
       error: errorMessage,
