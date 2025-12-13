@@ -10,9 +10,9 @@ import { privateKeyToAccount } from "viem/accounts";
 import fs from "fs";
 import crypto from "crypto";
 import inquirer from "inquirer";
-import chalk from "chalk";
 import { walletFilePath } from "./constants.js";
 import { WalletData } from "./types.js";
+import { logError } from "./logger.js";
 
 class ViemProvider {
   public chain: typeof rootstock | typeof rootstockTestnet;
@@ -74,11 +74,7 @@ class ViemProvider {
     const walletsData = JSON.parse(fs.readFileSync(walletFilePath, "utf8"));
 
     if (!walletsData.currentWallet || !walletsData.wallets) {
-      console.log(
-        chalk.red(
-          "⚠️ No valid wallet found. Please create or import a wallet first."
-        )
-      );
+      logError(false, "No valid wallet found. Please create or import a wallet first.");
       throw new Error();
     }
 
@@ -87,10 +83,7 @@ class ViemProvider {
 
     if (name) {
       if (!wallets[name]) {
-        console.log(
-          chalk.red("⚠️ Wallet with the provided name does not exist.")
-        );
-
+        logError(false, "Wallet with the provided name does not exist.");
         throw new Error();
       } else {
         wallet = wallets[name];
@@ -153,11 +146,7 @@ class ViemProvider {
     const walletsData = JSON.parse(fs.readFileSync(walletFilePath, "utf8"));
 
     if (!walletsData.currentWallet || !walletsData.wallets) {
-      console.log(
-        chalk.red(
-          "⚠️ No valid wallet found. Please create or import a wallet first."
-        )
-      );
+      logError(false, "No valid wallet found. Please create or import a wallet first.");
       throw new Error();
     }
 
@@ -167,10 +156,7 @@ class ViemProvider {
 
     if (name) {
       if (!wallets[name]) {
-        console.log(
-          chalk.red("⚠️ Wallet with the provided name does not exist.")
-        );
-
+        logError(false, "Wallet with the provided name does not exist.");
         throw new Error();
       } else {
         wallet = wallets[name];

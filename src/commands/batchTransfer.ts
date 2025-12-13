@@ -1,6 +1,5 @@
 import fs from "fs";
 import chalk from "chalk";
-import ora from "ora";
 import readline from "readline";
 import ViemProvider from "../utils/viemProvider.js";
 import { Address } from "viem";
@@ -10,6 +9,8 @@ import { validateAndFormatAddressRSK } from "../utils/index.js";
 import { TransferAttestationData } from "../utils/attestation.js";
 import { handleAttestation } from "../utils/attestationHandler.js";
 import { getCurrentTimestamp } from "../utils/constants.js";
+import { logError, logSuccess, logInfo, logMessage } from "../utils/logger.js";
+import { createSpinner } from "../utils/spinner.js";
 
 type BatchTransferCommandOptions = {
   testnet: boolean;
@@ -34,51 +35,16 @@ type BatchData = {
   value: number;
 };
 
-function logMessage(
-  params: BatchTransferCommandOptions,
-  message: string,
-  color: any = chalk.white
-) {
-  if (!params.isExternal) {
-    console.log(color(message));
-  }
-}
-
-function logSuccess(params: BatchTransferCommandOptions, message: string) {
-  logMessage(params, message, chalk.green);
-}
-
-function logError(params: BatchTransferCommandOptions, message: string) {
-  logMessage(params, `❌ ${message}`, chalk.red);
-}
-
-function logInfo(params: BatchTransferCommandOptions, message: string) {
-  logMessage(params, message, chalk.blue);
-}
-
-function startSpinner(
-  params: BatchTransferCommandOptions,
-  spinner: any,
-  message: string
-) {
-  if (!params.isExternal) {
-    spinner.start(message);
-  }
-}
-
-function stopSpinner(params: BatchTransferCommandOptions, spinner: any) {
-  if (!params.isExternal) {
-    spinner.stop();
-  }
-}
 
 export async function batchTransferCommand(params: BatchTransferCommandOptions) {
+  const isExternal = params.isExternal || false;
+
   try {
     const batchData = await getBatchData(params);
 
     if (batchData.length === 0) {
       const errorMessage = "No transactions file provided. Exiting...";
-      logError(params, errorMessage);
+      logError(isExternal, `❌ ${errorMessage}`);
       return {
         error: errorMessage,
         success: false,
@@ -92,10 +58,10 @@ export async function batchTransferCommand(params: BatchTransferCommandOptions) 
     let walletsData: any;
     let walletName: string | undefined;
 
-    if (params.isExternal) {
+    if (isExternal) {
       if (!params.name || !params.password || !params.walletsData) {
         const errorMessage = "Wallet name, password and wallets data are required.";
-        logError(params, errorMessage);
+        logError(isExternal, `❌ ${errorMessage}`);
         return {
           error: errorMessage,
           success: false,
@@ -119,7 +85,7 @@ export async function batchTransferCommand(params: BatchTransferCommandOptions) 
     }
     if (!walletClient) {
       const errorMessage = "Failed to get wallet client.";
-      logError(params, errorMessage);
+      logError(isExternal, `❌ ${errorMessage}`);
       return {
         error: errorMessage,
         success: false,
@@ -129,7 +95,7 @@ export async function batchTransferCommand(params: BatchTransferCommandOptions) 
 
     if (!account) {
       const errorMessage = "Failed to retrieve wallet account. Exiting...";
-      logError(params, errorMessage);
+      logError(isExternal, `❌ ${errorMessage}`);
       return {
         error: errorMessage,
         success: false,
@@ -142,13 +108,13 @@ export async function batchTransferCommand(params: BatchTransferCommandOptions) 
     });
     const rbtcBalance = Number(balance) / 10 ** 18;
 
-    logMessage(params, `📄 Wallet Address: ${account.address}`);
-    logMessage(params, `💰 Current Balance: ${rbtcBalance} RBTC`);
+    logMessage(isExternal, `📄 Wallet Address: ${account.address}`, chalk.white);
+    logMessage(isExternal, `💰 Current Balance: ${rbtcBalance} RBTC`, chalk.white);
 
     for (const { to, value } of batchData) {
       if (rbtcBalance < value) {
         const errorMessage = `Insufficient balance to transfer ${value} RBTC.`;
-        logError(params, errorMessage);
+        logError(isExternal, `❌ ${errorMessage}`);
         return {
           error: errorMessage,
           success: false,
@@ -157,19 +123,19 @@ export async function batchTransferCommand(params: BatchTransferCommandOptions) 
 
       let recipientAddress: Address;
       if (params.resolveRNS && isRNSDomain(to)) {
-        logMessage(params, `🔍 Resolving RNS domain: ${to}`);
+        logMessage(isExternal, `🔍 Resolving RNS domain: ${to}`, chalk.white);
         const resolved = await resolveRNSToAddress({
           name: to,
           testnet: params.testnet,
           isExternal: params.isExternal
         });
         if (!resolved) {
-          logError(params, `Failed to resolve RNS domain: ${to}. Skipping transaction.`);
+          logError(isExternal, `Failed to resolve RNS domain: ${to}. Skipping transaction.`);
           continue;
         }
         const formatted = validateAndFormatAddressRSK(resolved as string, params.testnet);
         if (!formatted) {
-          logError(params, `Resolved address is invalid for: ${to}. Skipping transaction.`);
+          logError(isExternal, `Resolved address is invalid for: ${to}. Skipping transaction.`);
           continue;
         }
         recipientAddress = formatted as Address;
@@ -184,21 +150,21 @@ export async function batchTransferCommand(params: BatchTransferCommandOptions) 
         value: BigInt(Math.floor(value * 10 ** 18)),
       });
 
-      logMessage(params, `🔄 Transaction initiated. TxHash: ${txHash}`);
+      logMessage(isExternal, `🔄 Transaction initiated. TxHash: ${txHash}`, chalk.white);
 
-      const spinner = params.isExternal ? ora({isEnabled: false}) : ora();
-      startSpinner(params, spinner, "⏳ Waiting for confirmation...");
+      const spinner = createSpinner(isExternal);
+      spinner.start("⏳ Waiting for confirmation...");
 
       const receipt = await publicClient.waitForTransactionReceipt({
         hash: txHash,
       });
 
-      stopSpinner(params, spinner);
+      spinner.stop();
 
       if (receipt.status === "success") {
-        logSuccess(params, "✅ Transaction confirmed successfully!");
-        logInfo(params, `📦 Block Number: ${receipt.blockNumber}`);
-        logInfo(params, `⛽ Gas Used: ${receipt.gasUsed.toString()}`);
+        logSuccess(isExternal, "✅ Transaction confirmed successfully!");
+        logInfo(isExternal, `📦 Block Number: ${receipt.blockNumber}`);
+        logInfo(isExternal, `⛽ Gas Used: ${receipt.gasUsed.toString()}`);
 
         let attestationUID: string | null = null;
         if (params.attestation?.enabled) {
@@ -239,7 +205,7 @@ export async function batchTransferCommand(params: BatchTransferCommandOptions) 
           },
         };
       } else {
-        logError(params, "❌ Transaction failed.");
+        logError(isExternal, "Transaction failed.");
         return {
           success: false,
           data: {
@@ -252,7 +218,7 @@ export async function batchTransferCommand(params: BatchTransferCommandOptions) 
     }
   } catch (error: any) {
     const errorMessage = `🚨 Error during batch transfer: ${error.message || "Unknown error"}`;
-    logError(params, errorMessage);
+    logError(isExternal, errorMessage);
     return {
       error: errorMessage,
       success: false,
@@ -281,15 +247,15 @@ async function promptForTransactions(allowRNS: boolean = false) {
       try {
         to = validateAddress(input);
       } catch (error) {
-        console.log(chalk.red("⚠️ Invalid address. Please try again."));
+        logError(false, "⚠️ Invalid address. Please try again.");
         continue;
       }
     }
-    
+
     const value = parseFloat(await askQuestion(rl, "Enter amount: "));
 
     if (isNaN(value)) {
-      console.log(chalk.red("⚠️ Invalid amount. Please try again."));
+      logError(false, "⚠️ Invalid amount. Please try again.");
       continue;
     }
 
@@ -327,9 +293,7 @@ async function getBatchData(params: BatchTransferCommandOptions): Promise<BatchD
       return await promptForTransactions(params.resolveRNS);
     } else if (params.filePath) {
       if (!fs.existsSync(params.filePath)) {
-        console.log(
-          chalk.red("🚫 Batch file not found. Please provide a valid file.")
-        );
+        logError(false, "🚫 Batch file not found. Please provide a valid file.");
         return [];
       }
       const fileContent = JSON.parse(fs.readFileSync(params.filePath, "utf8"));
@@ -339,11 +303,7 @@ async function getBatchData(params: BatchTransferCommandOptions): Promise<BatchD
       }));
       return batchData;
     } else {
-      console.log(
-        chalk.yellow(
-          "⚠️ No transactions file provided nor interactive mode enabled. Exiting..."
-        )
-      );
+      logError(false, "⚠️ No transactions file provided nor interactive mode enabled. Exiting...");
       return [];
     }
   }

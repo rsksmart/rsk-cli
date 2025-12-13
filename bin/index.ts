@@ -7,6 +7,7 @@ import { txCommand } from "../src/commands/tx.js";
 import figlet from "figlet";
 import chalk from "chalk";
 import { deployCommand } from "../src/commands/deploy.js";
+import { logError } from "../src/utils/logger.js";
 import { verifyCommand } from "../src/commands/verify.js";
 import { ReadContract } from "../src/commands/contract.js";
 import { Address } from "viem";
@@ -206,10 +207,7 @@ program
         }
       );
     } catch (error: any) {
-      console.error(
-        chalk.red("Error during transfer:"),
-        error.message || error
-      );
+      logError(false, `Error during transfer: ${error.message || error}`);
     }
   });
 
@@ -348,11 +346,7 @@ program
       const resolveRNS = !!options.rns;
 
       if (interactive && file) {
-        console.error(
-          chalk.red(
-            "🚨 Cannot use both interactive mode and file input simultaneously."
-          )
-        );
+        logError(false, "Cannot use both interactive mode and file input simultaneously.");
         return;
       }
 
@@ -363,10 +357,7 @@ program
         resolveRNS: resolveRNS,
       });
     } catch (error: any) {
-      console.error(
-        chalk.red("🚨 Error during batch transfer:"),
-        chalk.yellow(error.message || "Unknown error")
-      );
+      logError(false, `Error during batch transfer: ${error.message || "Unknown error"}`);
     }
   });
 
@@ -416,10 +407,7 @@ program
         }
       );
     } catch (error: any) {
-      console.error(
-        chalk.red("Error during transaction:"),
-        error.message || error
-      );
+      logError(false, `Error during transaction: ${error.message || error}`);
     }
   });
 
@@ -464,10 +452,7 @@ program
         isExternal: false
       });
     } catch (error: any) {
-      console.error(
-        chalk.red("Error during monitoring:"),
-        error.message || error
-      );
+      logError(false, `Error during monitoring: ${error.message || error}`);
     }
   });
 
