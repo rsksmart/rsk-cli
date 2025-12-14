@@ -57,9 +57,6 @@ function logSuccess(params: GasEstimateOptions, message: string) {
   logMessage(params, message, chalk.green);
 }
 
-function logInfo(params: GasEstimateOptions, message: string) {
-  logMessage(params, message, chalk.blue);
-}
 
 function startSpinner(
   params: GasEstimateOptions,
@@ -71,11 +68,6 @@ function startSpinner(
   }
 }
 
-function stopSpinner(params: GasEstimateOptions, spinner: any) {
-  if (!params.isExternal) {
-    spinner.stop();
-  }
-}
 
 function succeedSpinner(
   params: GasEstimateOptions,
