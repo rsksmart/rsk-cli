@@ -19,6 +19,7 @@ interface GasEstimateOptions {
   simulate?: boolean;
   optimize?: boolean;
   interactive?: boolean;
+  isExternal?: boolean;
 }
 
 interface GasAnalysis {
@@ -38,9 +39,67 @@ interface OptimizationTip {
   potentialSavings: string;
 }
 
+function logMessage(
+  params: GasEstimateOptions,
+  message: string,
+  color: any = chalk.white
+) {
+  if (!params.isExternal) {
+    console.log(color(message));
+  }
+}
+
+function logError(params: GasEstimateOptions, message: string) {
+  logMessage(params, `❌ ${message}`, chalk.red);
+}
+
+function logSuccess(params: GasEstimateOptions, message: string) {
+  logMessage(params, message, chalk.green);
+}
+
+function logInfo(params: GasEstimateOptions, message: string) {
+  logMessage(params, message, chalk.blue);
+}
+
+function startSpinner(
+  params: GasEstimateOptions,
+  spinner: any,
+  message: string
+) {
+  if (!params.isExternal) {
+    spinner.start(message);
+  }
+}
+
+function stopSpinner(params: GasEstimateOptions, spinner: any) {
+  if (!params.isExternal) {
+    spinner.stop();
+  }
+}
+
+function succeedSpinner(
+  params: GasEstimateOptions,
+  spinner: any,
+  message: string
+) {
+  if (!params.isExternal) {
+    spinner.succeed(message);
+  }
+}
+
+function failSpinner(
+  params: GasEstimateOptions,
+  spinner: any,
+  message: string
+) {
+  if (!params.isExternal) {
+    spinner.fail(message);
+  }
+}
+
 export async function gasCommand(options: GasEstimateOptions) {
   try {
-    console.log(chalk.cyan.bold('\n⛽ Gas Estimator for Rootstock\n'));
+    logMessage(options, '\n⛽ Gas Estimator for Rootstock\n', chalk.cyan.bold);
 
     if (options.interactive) {
       await interactiveGasEstimation(options.testnet);
@@ -52,24 +111,25 @@ export async function gasCommand(options: GasEstimateOptions) {
     } else if (options.to) {
       await estimateTransactionGas(options);
     } else {
-      await displayCurrentGasInfo(options.testnet);
+      await displayCurrentGasInfo(options);
     }
 
   } catch (error: any) {
-    console.error(chalk.red("🚨 Error:"), chalk.yellow(error.message || "Gas estimation failed"));
+    logError(options, `🚨 Error: ${error.message || "Gas estimation failed"}`);
   }
 }
 
-async function displayCurrentGasInfo(testnet: boolean) {
-  const provider = new ViemProvider(testnet);
+async function displayCurrentGasInfo(options: GasEstimateOptions) {
+  const provider = new ViemProvider(options.testnet);
   const publicClient = await provider.getPublicClient();
-  const spinner = ora('Fetching current gas prices...').start();
+  const spinner = options.isExternal ? ora({isEnabled: false}) : ora();
+  startSpinner(options, spinner, 'Fetching current gas prices...');
 
   try {
     const gasPrice = await publicClient.getGasPrice();
     const block = await publicClient.getBlock({ blockTag: 'latest' });
     
-    spinner.succeed('Gas information retrieved');
+    succeedSpinner(options, spinner, 'Gas information retrieved');
 
     const table = new Table({
       head: [chalk.cyan('Metric'), chalk.cyan('Value')],
@@ -78,7 +138,7 @@ async function displayCurrentGasInfo(testnet: boolean) {
     });
 
     table.push(
-      ['Network', testnet ? 'Rootstock Testnet' : 'Rootstock Mainnet'],
+      ['Network', options.testnet ? 'Rootstock Testnet' : 'Rootstock Mainnet'],
       ['Current Gas Price', `${formatGwei(gasPrice)} Gwei (${formatEther(gasPrice)} RBTC)`],
       ['Latest Block Number', block.number?.toString() || 'N/A'],
       ['Block Gas Limit', block.gasLimit?.toString() || 'N/A'],
@@ -88,9 +148,9 @@ async function displayCurrentGasInfo(testnet: boolean) {
         : 'N/A']
     );
 
-    console.log(table.toString());
+    logMessage(options, table.toString());
 
-    console.log(chalk.cyan.bold('\n📊 Estimated Transaction Costs:\n'));
+    logMessage(options, '\n📊 Estimated Transaction Costs:\n', chalk.cyan.bold);
     
     const sampleCosts = new Table({
       head: [chalk.cyan('Transaction Type'), chalk.cyan('Gas Limit'), chalk.cyan('Cost (RBTC)')],
@@ -108,17 +168,17 @@ async function displayCurrentGasInfo(testnet: boolean) {
       ['Contract Deployment (avg)', contractDeployment.toString(), formatEther(gasPrice * contractDeployment)]
     );
 
-    console.log(sampleCosts.toString());
+    logMessage(options, sampleCosts.toString());
 
   } catch (error) {
-    spinner.fail('Failed to fetch gas information');
+    failSpinner(options, spinner, 'Failed to fetch gas information');
     throw error;
   }
 }
 
 async function estimateTransactionGas(options: GasEstimateOptions) {
   if (!fs.existsSync(walletFilePath)) {
-    console.log(chalk.red("🚫 No saved wallet found. Please create a wallet first."));
+    logError(options, '🚫 No saved wallet found. Please create a wallet first.');
     return;
   }
 
@@ -128,11 +188,12 @@ async function estimateTransactionGas(options: GasEstimateOptions) {
   const account = walletClient.account;
 
   if (!account) {
-    console.log(chalk.red("⚠️ Failed to retrieve account."));
+    logError(options, '⚠️ Failed to retrieve account.');
     return;
   }
 
-  const spinner = ora('Estimating transaction gas...').start();
+  const spinner = options.isExternal ? ora({isEnabled: false}) : ora();
+  startSpinner(options, spinner, 'Estimating transaction gas...');
 
   try {
     const gasPrice = await publicClient.getGasPrice();
@@ -144,7 +205,7 @@ async function estimateTransactionGas(options: GasEstimateOptions) {
       data: options.data as `0x${string}` | undefined,
     });
 
-    spinner.succeed('Gas estimation complete');
+    succeedSpinner(options, spinner, 'Gas estimation complete');
 
     const analysis: GasAnalysis = {
       estimatedGas,
@@ -153,7 +214,7 @@ async function estimateTransactionGas(options: GasEstimateOptions) {
       estimatedCostInRBTC: formatEther(estimatedGas * gasPrice),
     };
 
-    displayGasAnalysis(analysis, options.testnet);
+    displayGasAnalysis(analysis, options);
 
     if (options.simulate) {
       await simulateTransaction(publicClient, account, options);
@@ -164,14 +225,14 @@ async function estimateTransactionGas(options: GasEstimateOptions) {
     }
 
   } catch (error: any) {
-    spinner.fail('Gas estimation failed');
-    console.error(chalk.red('Error:'), chalk.yellow(error.message || 'Unknown error'));
+    failSpinner(options, spinner, 'Gas estimation failed');
+    logError(options, `Error: ${error.message || 'Unknown error'}`);
   }
 }
 
 async function estimateContractGas(options: GasEstimateOptions) {
   if (!fs.existsSync(walletFilePath)) {
-    console.log(chalk.red("🚫 No saved wallet found. Please create a wallet first."));
+    logError(options, '🚫 No saved wallet found. Please create a wallet first.');
     return;
   }
 
@@ -181,17 +242,20 @@ async function estimateContractGas(options: GasEstimateOptions) {
   const account = walletClient.account;
 
   if (!account) {
-    console.log(chalk.red("⚠️ Failed to retrieve account."));
+    logError(options, '⚠️ Failed to retrieve account.');
     return;
   }
 
-  const spinner = ora('Loading contract ABI...').start();
+  const spinner = options.isExternal ? ora({isEnabled: false}) : ora();
+  startSpinner(options, spinner, 'Loading contract ABI...');
 
   try {
     const abiContent = fs.readFileSync(options.abiPath!, 'utf8');
     const abi = JSON.parse(abiContent);
     
-    spinner.text = 'Estimating contract interaction gas...';
+    if (!options.isExternal) {
+      spinner.text = 'Estimating contract interaction gas...';
+    }
 
     const gasPrice = await publicClient.getGasPrice();
 
@@ -205,7 +269,7 @@ async function estimateContractGas(options: GasEstimateOptions) {
       args: functionArgs,
     });
 
-    spinner.succeed('Contract gas estimation complete');
+    succeedSpinner(options, spinner, 'Contract gas estimation complete');
 
     const analysis: GasAnalysis = {
       estimatedGas,
@@ -214,12 +278,12 @@ async function estimateContractGas(options: GasEstimateOptions) {
       estimatedCostInRBTC: formatEther(estimatedGas * gasPrice),
     };
 
-    console.log(chalk.cyan.bold('\n📝 Contract Interaction Details:\n'));
-    console.log(chalk.white(`Contract: ${options.contractAddress}`));
-    console.log(chalk.white(`Function: ${options.functionName}`));
-    console.log(chalk.white(`Arguments: ${JSON.stringify(functionArgs)}\n`));
+    logMessage(options, '\n📝 Contract Interaction Details:\n', chalk.cyan.bold);
+    logMessage(options, `Contract: ${options.contractAddress}`);
+    logMessage(options, `Function: ${options.functionName}`);
+    logMessage(options, `Arguments: ${JSON.stringify(functionArgs)}\n`);
 
-    displayGasAnalysis(analysis, options.testnet);
+    displayGasAnalysis(analysis, options);
 
     if (options.simulate) {
       await simulateContractCall(publicClient, account, options, abi);
@@ -230,14 +294,15 @@ async function estimateContractGas(options: GasEstimateOptions) {
     }
 
   } catch (error: any) {
-    spinner.fail('Contract gas estimation failed');
-    console.error(chalk.red('Error:'), chalk.yellow(error.message || 'Unknown error'));
+    failSpinner(options, spinner, 'Contract gas estimation failed');
+    logError(options, `Error: ${error.message || 'Unknown error'}`);
   }
 }
 
 async function simulateTransaction(publicClient: any, account: any, options: GasEstimateOptions) {
-  console.log(chalk.cyan.bold('\n🧪 Running Transaction Simulation:\n'));
-  const spinner = ora('Simulating transaction...').start();
+  logMessage(options, '\n🧪 Running Transaction Simulation:\n', chalk.cyan.bold);
+  const spinner = options.isExternal ? ora({isEnabled: false}) : ora();
+  startSpinner(options, spinner, 'Simulating transaction...');
 
   try {
     const result = await publicClient.call({
@@ -247,32 +312,33 @@ async function simulateTransaction(publicClient: any, account: any, options: Gas
       data: options.data as `0x${string}` | undefined,
     });
 
-    spinner.succeed('Simulation successful');
+    succeedSpinner(options, spinner, 'Simulation successful');
     
-    console.log(chalk.green('\n✅ Transaction simulation passed!'));
-    console.log(chalk.white(`Result: ${result.data || 'Success'}\n`));
+    logSuccess(options, '\n✅ Transaction simulation passed!');
+    logMessage(options, `Result: ${result.data || 'Success'}\n`);
 
-    console.log(chalk.cyan('Simulation Checks:'));
-    console.log(chalk.green('  ✓ Transaction will not revert'));
-    console.log(chalk.green('  ✓ Account has sufficient balance'));
-    console.log(chalk.green('  ✓ Gas estimation is accurate\n'));
+    logMessage(options, 'Simulation Checks:', chalk.cyan);
+    logSuccess(options, '  ✓ Transaction will not revert');
+    logSuccess(options, '  ✓ Account has sufficient balance');
+    logSuccess(options, '  ✓ Gas estimation is accurate\n');
 
   } catch (error: any) {
-    spinner.fail('Simulation failed');
-    console.log(chalk.red('\n❌ Transaction simulation failed!'));
-    console.log(chalk.yellow(`Reason: ${error.message || 'Unknown error'}\n`));
+    failSpinner(options, spinner, 'Simulation failed');
+    logError(options, '\n❌ Transaction simulation failed!');
+    logMessage(options, `Reason: ${error.message || 'Unknown error'}\n`, chalk.yellow);
     
-    console.log(chalk.cyan('Common Issues:'));
-    console.log(chalk.yellow('  • Insufficient balance'));
-    console.log(chalk.yellow('  • Contract will revert'));
-    console.log(chalk.yellow('  • Invalid parameters'));
-    console.log(chalk.yellow('  • Gas limit too low\n'));
+    logMessage(options, 'Common Issues:', chalk.cyan);
+    logMessage(options, '  • Insufficient balance', chalk.yellow);
+    logMessage(options, '  • Contract will revert', chalk.yellow);
+    logMessage(options, '  • Invalid parameters', chalk.yellow);
+    logMessage(options, '  • Gas limit too low\n', chalk.yellow);
   }
 }
 
 async function simulateContractCall(publicClient: any, account: any, options: GasEstimateOptions, abi: any) {
-  console.log(chalk.cyan.bold('\n🧪 Running Contract Simulation:\n'));
-  const spinner = ora('Simulating contract call...').start();
+  logMessage(options, '\n🧪 Running Contract Simulation:\n', chalk.cyan.bold);
+  const spinner = options.isExternal ? ora({isEnabled: false}) : ora();
+  startSpinner(options, spinner, 'Simulating contract call...');
 
   try {
     const { result } = await publicClient.simulateContract({
@@ -283,31 +349,31 @@ async function simulateContractCall(publicClient: any, account: any, options: Ga
       args: options.args || [],
     });
 
-    spinner.succeed('Simulation successful');
+    succeedSpinner(options, spinner, 'Simulation successful');
     
-    console.log(chalk.green('\n✅ Contract call simulation passed!'));
-    console.log(chalk.white(`Return Value: ${JSON.stringify(result, null, 2)}\n`));
+    logSuccess(options, '\n✅ Contract call simulation passed!');
+    logMessage(options, `Return Value: ${JSON.stringify(result, null, 2)}\n`);
 
-    console.log(chalk.cyan('Simulation Checks:'));
-    console.log(chalk.green('  ✓ Function call will not revert'));
-    console.log(chalk.green('  ✓ Parameters are valid'));
-    console.log(chalk.green('  ✓ Gas estimation is accurate\n'));
+    logMessage(options, 'Simulation Checks:', chalk.cyan);
+    logSuccess(options, '  ✓ Function call will not revert');
+    logSuccess(options, '  ✓ Parameters are valid');
+    logSuccess(options, '  ✓ Gas estimation is accurate\n');
 
   } catch (error: any) {
-    spinner.fail('Simulation failed');
-    console.log(chalk.red('\n❌ Contract call simulation failed!'));
-    console.log(chalk.yellow(`Reason: ${error.shortMessage || error.message || 'Unknown error'}\n`));
+    failSpinner(options, spinner, 'Simulation failed');
+    logError(options, '\n❌ Contract call simulation failed!');
+    logMessage(options, `Reason: ${error.shortMessage || error.message || 'Unknown error'}\n`, chalk.yellow);
     
-    console.log(chalk.cyan('Troubleshooting:'));
-    console.log(chalk.yellow('  • Check function name spelling'));
-    console.log(chalk.yellow('  • Verify argument types and values'));
-    console.log(chalk.yellow('  • Ensure contract state allows this call'));
-    console.log(chalk.yellow('  • Check for access control restrictions\n'));
+    logMessage(options, 'Troubleshooting:', chalk.cyan);
+    logMessage(options, '  • Check function name spelling', chalk.yellow);
+    logMessage(options, '  • Verify argument types and values', chalk.yellow);
+    logMessage(options, '  • Ensure contract state allows this call', chalk.yellow);
+    logMessage(options, '  • Check for access control restrictions\n', chalk.yellow);
   }
 }
 
-function displayGasAnalysis(analysis: GasAnalysis, testnet: boolean) {
-  console.log(chalk.cyan.bold('\n⛽ Gas Analysis:\n'));
+function displayGasAnalysis(analysis: GasAnalysis, options: GasEstimateOptions) {
+  logMessage(options, '\n⛽ Gas Analysis:\n', chalk.cyan.bold);
 
   const table = new Table({
     head: [chalk.cyan('Metric'), chalk.cyan('Value')],
@@ -319,7 +385,7 @@ function displayGasAnalysis(analysis: GasAnalysis, testnet: boolean) {
     ['Estimated Gas Units', analysis.estimatedGas.toString()],
     ['Current Gas Price', `${formatGwei(analysis.gasPrice)} Gwei (${formatEther(analysis.gasPrice)} RBTC)`],
     ['Estimated Cost', `${chalk.green(analysis.estimatedCostInRBTC)} RBTC`],
-    ['Network', testnet ? 'Rootstock Testnet' : 'Rootstock Mainnet']
+    ['Network', options.testnet ? 'Rootstock Testnet' : 'Rootstock Mainnet']
   );
 
   const gasWithBuffer10 = (analysis.estimatedGas * 110n) / 100n;
@@ -333,7 +399,7 @@ function displayGasAnalysis(analysis: GasAnalysis, testnet: boolean) {
     [chalk.yellow('Cost with 20% buffer'), `${formatEther(gasWithBuffer20 * analysis.gasPrice)} RBTC`]
   );
 
-  console.log(table.toString());
+  logMessage(options, table.toString());
 }
 
 function displayOptimizationTips(context: 'transaction' | 'contract') {
@@ -436,7 +502,7 @@ async function interactiveGasEstimation(testnet: boolean) {
 
   switch (estimationType) {
     case 'current':
-      await displayCurrentGasInfo(testnet);
+      await displayCurrentGasInfo({ testnet, isExternal: false });
       break;
 
     case 'transaction':
@@ -626,7 +692,7 @@ async function interactiveDeploymentEstimation(testnet: boolean) {
     console.log(chalk.white(`Bytecode Size: ${bytecodeLength} bytes`));
     console.log(chalk.white(`Network: ${testnet ? 'Testnet' : 'Mainnet'}\n`));
 
-    displayGasAnalysis(analysis, testnet);
+    displayGasAnalysis(analysis, { testnet, isExternal: false });
 
     if (answers.optimize) {
       displayOptimizationTips('contract');
@@ -723,4 +789,3 @@ async function interactiveBatchEstimation(testnet: boolean) {
   console.log(chalk.gray('   rsk-cli batch-transfer --interactive' + (testnet ? ' --testnet' : '')));
   console.log();
 }
-
