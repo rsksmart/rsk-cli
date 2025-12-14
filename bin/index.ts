@@ -17,6 +17,7 @@ import { selectAddress } from "../src/commands/selectAddress.js";
 import { resolveCommand } from "../src/commands/resolve.js";
 import { configCommand } from "../src/commands/config.js";
 import { transactionCommand } from "../src/commands/transaction.js";
+import { pipeCommand } from "../src/commands/pipe.js";
 import { monitorCommand, listMonitoringSessions, stopMonitoringSession } from "../src/commands/monitor.js";
 import { parseEther } from "viem";
 import { resolveRNSToAddress } from "../src/utils/rnsHelper.js";
@@ -51,6 +52,11 @@ interface CommandOptions {
   gasLimit?: string;
   gasPrice?: string;
   data?: string;
+  abiPath?: string;
+  functionName?: string;
+  simulate?: boolean;
+  optimize?: boolean;
+  bytecodePath?: string;
   rns?: string;
 }
 
@@ -327,6 +333,21 @@ program
     } catch (error: any) {
       console.error(
         chalk.red("🚨 Error during batch transfer:"),
+        chalk.yellow(error.message || "Unknown error")
+      );
+    }
+  });
+
+program
+  .command("pipe")
+  .description("Chain multiple commands together using pipe syntax")
+  .argument("<commands>", "Pipe command string (e.g., 'transfer --testnet --address 0x... --value 0.001 | tx --testnet')")
+  .action(async (commands: string) => {
+    try {
+      await pipeCommand(commands);
+    } catch (error: any) {
+      console.error(
+        chalk.red("🚨 Error during pipe execution:"),
         chalk.yellow(error.message || "Unknown error")
       );
     }
