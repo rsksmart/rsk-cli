@@ -8,7 +8,7 @@ import {
 } from "./attestation.js";
 import { createAttestationSigner } from "./walletSigner.js";
 import { logError, logSuccess, logInfo, capitalize } from "./logger.js";
-import { UNKNOWN_ERROR_MESSAGE } from "./constants.js";
+import { UNKNOWN_ERROR_MESSAGE, getAttestationViewerUrl } from "./constants.js";
 import { ethers } from "ethers";
 
 export interface BaseAttestationOptions {
@@ -127,6 +127,8 @@ export async function handleAttestation<T extends DeploymentAttestationData | Tr
 
     if (attestationUID) {
       logSuccess(isExternal, `🎯 ${capitalize(attestationType)} attestation created: ${attestationUID}`);
+      const viewerUrl = getAttestationViewerUrl(options.testnet || false, attestationUID);
+      logInfo(isExternal, `🔗 View attestation: ${viewerUrl}`);
       return { uid: attestationUID, success: true };
     }
 

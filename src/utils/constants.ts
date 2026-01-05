@@ -69,18 +69,25 @@ export const EXPLORER_URLS = {
   mainnet: {
     base: "https://explorer.rootstock.io",
     address: (address: string) => `https://explorer.rootstock.io/address/${address}`,
-    tx: (txHash: string) => `https://explorer.rootstock.io/tx/${txHash}`
+    tx: (txHash: string) => `https://explorer.rootstock.io/tx/${txHash}`,
+    attestation: (uid: string) => `https://explorer.rootstock.io/attestation/${uid}`
   },
   testnet: {
     base: "https://explorer.testnet.rootstock.io",
     address: (address: string) => `https://explorer.testnet.rootstock.io/address/${address}`,
-    tx: (txHash: string) => `https://explorer.testnet.rootstock.io/tx/${txHash}`
+    tx: (txHash: string) => `https://explorer.testnet.rootstock.io/tx/${txHash}`,
+    attestation: (uid: string) => `https://explorer.testnet.rootstock.io/attestation/${uid}`
   }
 } as const;
 
 export function getExplorerUrl(isTestnet: boolean, type: 'address' | 'tx', identifier: string): string {
   const explorer = isTestnet ? EXPLORER_URLS.testnet : EXPLORER_URLS.mainnet;
   return explorer[type](identifier);
+}
+
+export function getAttestationViewerUrl(isTestnet: boolean, uid: string): string {
+  const explorer = isTestnet ? EXPLORER_URLS.testnet : EXPLORER_URLS.mainnet;
+  return explorer.attestation(uid);
 }
 
 export const WEI_DECIMALS = 18;

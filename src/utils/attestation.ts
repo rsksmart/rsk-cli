@@ -1,6 +1,7 @@
 import { ethers } from "ethers";
 import ora from "ora";
 import { logError, logInfo } from "./logger.js";
+import { getAttestationViewerUrl } from "./constants.js";
 import { createRequire } from "module";
 const require = createRequire(import.meta.url);
 
@@ -122,11 +123,13 @@ export class AttestationService {
   private easSDK: any;
   private schemaEncoderClass: any;
   private isExternal: boolean;
+  private isTestnet: boolean;
 
   constructor(signer: ethers.Signer, isTestnet: boolean = false, isExternal: boolean = false) {
     this.config = isTestnet ? RSK_ATTESTATION_CONFIG.testnet : RSK_ATTESTATION_CONFIG.mainnet;
     this.signer = signer;
     this.isExternal = isExternal;
+    this.isTestnet = isTestnet;
   }
 
   private async initializeEAS() {
@@ -190,6 +193,8 @@ export class AttestationService {
         succeedSpinner(this.isExternal, spinner, "✅ Deployment attestation created successfully!");
 
         logInfo(this.isExternal, `📋 Attestation UID: ${receipt}`);
+        const viewerUrl = getAttestationViewerUrl(this.isTestnet, receipt);
+        logInfo(this.isExternal, `🔗 View attestation: ${viewerUrl}`);
         logInfo(this.isExternal, `🏠 Contract: ${data.contractAddress}`);
         logInfo(this.isExternal, `👤 Deployer: ${data.deployer}`);
 
@@ -295,6 +300,8 @@ export class AttestationService {
         succeedSpinner(this.isExternal, spinner, "✅ Verification attestation created successfully!");
 
         logInfo(this.isExternal, `📋 Attestation UID: ${receipt}`);
+        const viewerUrl = getAttestationViewerUrl(this.isTestnet, receipt);
+        logInfo(this.isExternal, `🔗 View attestation: ${viewerUrl}`);
         logInfo(this.isExternal, `🏠 Contract: ${data.contractAddress}`);
         logInfo(this.isExternal, `🔍 Verifier: ${data.verifier}`);
         logInfo(this.isExternal, `🛠️  Tool: ${data.verificationTool}`);
@@ -356,6 +363,8 @@ export class AttestationService {
         succeedSpinner(this.isExternal, spinner, "✅ Transfer attestation created successfully!");
 
         logInfo(this.isExternal, `📋 Attestation UID: ${receipt}`);
+        const viewerUrl = getAttestationViewerUrl(this.isTestnet, receipt);
+        logInfo(this.isExternal, `🔗 View attestation: ${viewerUrl}`);
         logInfo(this.isExternal, `💸 Transfer: ${data.amount} ${data.tokenSymbol || 'RBTC'}`);
         logInfo(this.isExternal, `👤 From: ${data.sender}`);
         logInfo(this.isExternal, `👤 To: ${data.recipient}`);

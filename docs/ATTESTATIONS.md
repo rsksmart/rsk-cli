@@ -99,9 +99,63 @@ string reason
 string transferType
 ```
 
+### Deployment Schema
+
+**Note:** You must provide your own schema UID using `--attest-schema-uid <UID>` when creating deployment attestations.
+
+**Schema Definition:**
+```
+string contractName
+address contractAddress
+address deployer
+uint256 blockNumber
+bytes32 transactionHash
+uint256 timestamp
+string abiHash
+string bytecodeHash
+```
+
+**Description:**
+- `contractName`: Name of the deployed contract
+- `contractAddress`: Address where the contract was deployed
+- `deployer`: Address that deployed the contract
+- `blockNumber`: Block number when the contract was deployed
+- `transactionHash`: Transaction hash of the deployment
+- `timestamp`: Unix timestamp of the deployment
+- `abiHash`: Keccak256 hash of the contract ABI (optional)
+- `bytecodeHash`: Keccak256 hash of the contract bytecode (optional)
+
+### Verification Schema
+
+**Note:** You must provide your own schema UID using `--attest-schema-uid <UID>` when creating verification attestations.
+
+**Schema Definition:**
+```
+string contractName
+address contractAddress
+address verifier
+string sourceCodeHash
+string compilationTarget
+string compilerVersion
+bool optimizationUsed
+uint256 timestamp
+string verificationTool
+```
+
+**Description:**
+- `contractName`: Name of the verified contract
+- `contractAddress`: Address of the verified contract
+- `verifier`: Address that performed the verification
+- `sourceCodeHash`: Hash of the verified source code
+- `compilationTarget`: Compilation target (e.g., "contracts/MyContract.sol:MyContract")
+- `compilerVersion`: Solidity compiler version used
+- `optimizationUsed`: Whether optimization was enabled during compilation
+- `timestamp`: Unix timestamp of the verification
+- `verificationTool`: Tool used for verification (e.g., "rsk-cli")
+
 ### Custom Schemas
 
-For deployment and verification attestations, or custom use cases, you'll need to provide your own schema UID. Refer to the [Rootstock Attestation Service documentation](https://dev.rootstock.io/dev-tools/attestations/ras/) for schema registration information.
+For custom use cases, you can register your own schemas. Refer to the [Rootstock Attestation Service documentation](https://dev.rootstock.io/dev-tools/attestations/ras/) for schema registration information.
 
 ## MCP Server Integration
 
