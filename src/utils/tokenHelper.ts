@@ -1,5 +1,6 @@
 import { Address, encodeFunctionData, PublicClient, erc20Abi } from "viem";
 import { TOKENS } from "../constants/tokenAdress.js";
+import { logError } from "./logger.js";
 
 export function resolveTokenAddress(token: string, testnet: boolean): Address {
   return TOKENS[token][
@@ -95,7 +96,7 @@ export async function isERC20Contract(
 
     return true;
   } catch (error) {
-    console.error("Error checking ERC20 contract:", error);
+    logError(false, `Error checking ERC20 contract: ${error}`);
     return false;
   }
 }

@@ -1,7 +1,7 @@
 import { Address, isAddress } from "viem";
-import chalk from "chalk";
 import { ZERO_ADDRESS } from "./constants.js";
 import { validateAndFormatAddressRSK } from "./index.js";
+import { logError, logWarning, logSuccess } from "./logger.js";
 
 type ResolveRNSOptions = {
   name: string;
@@ -21,27 +21,6 @@ type ResolveToAddressOptions = {
   isExternal?: boolean;
 };
 
-function logMessage(
-  isExternal: boolean | undefined,
-  message: string,
-  color: typeof chalk.white = chalk.white
-) {
-  if (!isExternal) {
-    console.log(color(message));
-  }
-}
-
-function logError(isExternal: boolean | undefined, message: string) {
-  logMessage(isExternal, `❌ ${message}`, chalk.red);
-}
-
-function logWarning(isExternal: boolean | undefined, message: string) {
-  logMessage(isExternal, message, chalk.yellow);
-}
-
-function logSuccess(isExternal: boolean | undefined, message: string) {
-  logMessage(isExternal, message, chalk.green);
-}
 
 export function isRNSDomain(input: string): boolean {
   if (input.endsWith(".rsk")) {
@@ -64,6 +43,8 @@ async function getResolver() {
 export async function resolveRNSToAddress(
   params: ResolveRNSOptions
 ): Promise<Address | null> {
+  const isExternal = params.isExternal || false;
+
   try {
     let name = params.name;
     if (!name.endsWith(".rsk")) {
@@ -71,28 +52,28 @@ export async function resolveRNSToAddress(
     }
 
     const Resolver = await getResolver();
-    const resolver = params.testnet 
+    const resolver = params.testnet
       ? Resolver.forRskTestnet({})
       : Resolver.forRskMainnet({});
 
     const resolvedAddress = await resolver.addr(name) as Address;
 
     if (!resolvedAddress || resolvedAddress === ZERO_ADDRESS) {
-      logWarning(params.isExternal, `⚠️ No address found for ${name}`);
+      logWarning(isExternal, `⚠️ No address found for ${name}`);
       return null;
     }
 
     const formatted = validateAndFormatAddressRSK(resolvedAddress, !!params.testnet);
     if (!formatted) {
-      logError(params.isExternal, `Failed to validate resolved address for ${name}`);
+      logError(isExternal, `Failed to validate resolved address for ${name}`);
       return null;
     }
-    logSuccess(params.isExternal, `✅ Resolved ${name} to ${formatted}`);
+    logSuccess(isExternal, `✅ Resolved ${name} to ${formatted}`);
     return formatted;
   } catch (error) {
-    logError(params.isExternal, `Failed to resolve RNS name: ${params.name}`);
-    if (error instanceof Error && !params.isExternal) {
-      logWarning(params.isExternal, error.message);
+    logError(isExternal, `Failed to resolve RNS name: ${params.name}`);
+    if (error instanceof Error && !isExternal) {
+      logWarning(isExternal, error.message);
     }
     return null;
   }
@@ -101,24 +82,26 @@ export async function resolveRNSToAddress(
 export async function resolveAddressToRNS(
   params: ResolveAddressOptions
 ): Promise<string | null> {
+  const isExternal = params.isExternal || false;
+
   try {
     const Resolver = await getResolver();
-    const resolver = params.testnet 
+    const resolver = params.testnet
       ? Resolver.forRskTestnet({})
       : Resolver.forRskMainnet({});
 
     const resolverName = await resolver.reverse(params.address) as string;
 
     if (resolverName && resolverName !== "") {
-      logSuccess(params.isExternal, `✅ Resolved ${params.address} to ${resolverName}`);
+      logSuccess(isExternal, `✅ Resolved ${params.address} to ${resolverName}`);
       return resolverName;
     }
-    
+
     return null;
   } catch (error) {
-    logError(params.isExternal, `Failed to reverse resolve address: ${params.address}`);
-    if (error instanceof Error && !params.isExternal) {
-      logWarning(params.isExternal, error.message);
+    logError(isExternal, `Failed to reverse resolve address: ${params.address}`);
+    if (error instanceof Error && !isExternal) {
+      logWarning(isExternal, error.message);
     }
     return null;
   }
@@ -127,11 +110,13 @@ export async function resolveAddressToRNS(
 export async function resolveToAddress(
   params: ResolveToAddressOptions
 ): Promise<Address | null> {
+  const isExternal = params.isExternal || false;
+
   if (params.input.startsWith("0x") && params.input.length === 42) {
     if (isAddress(params.input)) {
       return params.input as Address;
     } else {
-      logError(params.isExternal, "Invalid address format");
+      logError(isExternal, "Invalid address format");
       return null;
     }
   }
@@ -144,6 +129,6 @@ export async function resolveToAddress(
     });
   }
 
-  logError(params.isExternal, "Input is neither a valid address nor an RNS domain");
+  logError(isExternal, "Input is neither a valid address nor an RNS domain");
   return null;
 }

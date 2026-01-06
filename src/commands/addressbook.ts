@@ -1,10 +1,10 @@
 import inquirer from "inquirer";
-import chalk from "chalk";
 import { loadWallets } from "../utils/index.js";
 import { walletFilePath } from "../utils/constants.js";
 import { writeWalletData } from "./wallet.js";
+import { logError, logSuccess, logInfo } from "../utils/logger.js";
 
-export async function addressBookCommand() {
+export async function addressBookCommand(isExternal: boolean = false) {
   try {
     const walletsDataString = loadWallets();
     const walletsData = JSON.parse(walletsDataString);
@@ -41,31 +41,31 @@ export async function addressBookCommand() {
       ]);
 
       if (walletsData.addressBook[label]) {
-        console.log(chalk.red(`❌ Label "${label}" already exists.`));
+        logError(isExternal, `Label "${label}" already exists.`);
         return;
       }
 
       walletsData.addressBook[label] = address;
-      console.log(chalk.green(`✅ Address added under label "${label}".`));
+      logSuccess(isExternal, `✅ Address added under label "${label}".`);
     }
 
     if (action === "📖 View Address Book") {
       const addressBook = walletsData.addressBook;
       if (Object.keys(addressBook).length === 0) {
-        console.log(chalk.red("❌ Address book is empty."));
+        logError(isExternal, "Address book is empty.");
         return;
       }
 
-      console.log(chalk.green("📖 Address Book:"));
+      logSuccess(isExternal, "📖 Address Book:");
       Object.entries(addressBook).forEach(([label, address]) => {
-        console.log(chalk.blue(`- ${label}: ${address}`));
+        logInfo(isExternal, `- ${label}: ${address}`);
       });
     }
 
     if (action === "✏️ Update Address") {
       const labels = Object.keys(walletsData.addressBook);
       if (labels.length === 0) {
-        console.log(chalk.red("❌ Address book is empty."));
+        logError(isExternal, "Address book is empty.");
         return;
       }
 
@@ -87,13 +87,13 @@ export async function addressBookCommand() {
       ]);
 
       walletsData.addressBook[label] = newAddress;
-      console.log(chalk.green(`✅ Address for "${label}" updated.`));
+      logSuccess(isExternal, `✅ Address for "${label}" updated.`);
     }
 
     if (action === "🗑️ Delete Address") {
       const labels = Object.keys(walletsData.addressBook);
       if (labels.length === 0) {
-        console.log(chalk.red("❌ Address book is empty."));
+        logError(isExternal, "Address book is empty.");
         return;
       }
 
@@ -107,11 +107,11 @@ export async function addressBookCommand() {
       ]);
 
       delete walletsData.addressBook[label];
-      console.log(chalk.red(`🗑️ Address with label "${label}" deleted.`));
+      logError(isExternal, `🗑️ Address with label "${label}" deleted.`);
     }
 
     writeWalletData(walletFilePath, walletsData);
   } catch (error: any) {
-    console.error(chalk.red("❌ Error managing address book:"), error.message);
+    logError(isExternal, `Error managing address book: ${error.message}`);
   }
 }

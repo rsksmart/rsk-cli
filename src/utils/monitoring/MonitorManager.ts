@@ -9,27 +9,7 @@ import {
 import fs from 'fs';
 import path from 'path';
 import { v4 } from 'uuid';
-import chalk from 'chalk';
-
-function logMessage(message: string, color: any = chalk.white) {
-  console.log(color(message));
-}
-
-function logError(message: string) {
-  logMessage(`❌ ${message}`, chalk.red);
-}
-
-function logSuccess(message: string) {
-  logMessage(`✅ ${message}`, chalk.green);
-}
-
-function logWarning(message: string) {
-  logMessage(`⚠️  ${message}`, chalk.yellow);
-}
-
-function logInfo(message: string) {
-  logMessage(`📊 ${message}`, chalk.blue);
-}
+import { logError, logSuccess, logWarning, logInfo } from '../logger.js';
 
 export class MonitorManager {
   private sessions: Map<string, MonitoringSession> = new Map();
@@ -52,7 +32,7 @@ export class MonitorManager {
       await this.loadState();
       this.isInitialized = true;
     } catch (error) {
-      logError(`Failed to initialize monitoring: ${error}`);
+      logError(false, `Failed to initialize monitoring: ${error}`);
       throw error;
     }
   }
@@ -90,8 +70,8 @@ export class MonitorManager {
     this.startPolling(sessionId);
     await this.saveState();
 
-    logSuccess(`Started monitoring transaction: ${txHash}`);
-    logInfo(`Session ID: ${sessionId}`);
+    logSuccess(false, `Started monitoring transaction: ${txHash}`);
+    logInfo(false, `Session ID: ${sessionId}`);
     
     return sessionId;
   }
@@ -131,8 +111,8 @@ export class MonitorManager {
     this.startPolling(sessionId);
     await this.saveState();
 
-    logSuccess(`Started monitoring address: ${address}`);
-    logInfo(`Session ID: ${sessionId}`);
+    logSuccess(false, `Started monitoring address: ${address}`);
+    logInfo(false, `Session ID: ${sessionId}`);
     
     return sessionId;
   }
@@ -140,7 +120,7 @@ export class MonitorManager {
   async stopMonitoring(sessionId: string): Promise<boolean> {
     const session = this.sessions.get(sessionId);
     if (!session) {
-      logError(`Session ${sessionId} not found`);
+      logError(false, `Session ${sessionId} not found`);
       return false;
     }
 
@@ -154,7 +134,7 @@ export class MonitorManager {
     }
 
     await this.saveState();
-    logWarning(`Stopped monitoring session: ${sessionId}`);
+    logWarning(false, `Stopped monitoring session: ${sessionId}`);
 
     const activeSessions = this.getActiveSessions();
     if (activeSessions.length === 0) {
@@ -170,7 +150,7 @@ export class MonitorManager {
     for (const [sessionId] of this.sessions) {
       await this.stopMonitoring(sessionId);
     }
-    logWarning(`Stopped all monitoring sessions`);
+    logWarning(false, `Stopped all monitoring sessions`);
   }
 
   getActiveSessions(): MonitoringSession[] {
@@ -185,11 +165,11 @@ export class MonitorManager {
       try {
         await this.checkSession(sessionId);
       } catch (error) {
-        logError(`Error checking session ${sessionId}: ${error}`);
-        
+        logError(false, `Error checking session ${sessionId}: ${error}`);
+
         const session = this.sessions.get(sessionId);
         if (session && session.checkCount > 10) {
-          logWarning(`Too many errors, stopping session ${sessionId}`);
+          logWarning(false, `Too many errors, stopping session ${sessionId}`);
           await this.stopMonitoring(sessionId);
         }
       }
@@ -224,24 +204,24 @@ export class MonitorManager {
       const confirmations = receipt ? Number(currentBlock - receipt.blockNumber) : 0;
       const status = receipt ? (receipt.status === 'success' ? 'confirmed' : 'failed') : 'pending';
 
-      logInfo(`TX ${config.txHash.slice(0, 10)}... - Status: ${status}, Confirmations: ${confirmations}`);
+      logInfo(false, `TX ${config.txHash.slice(0, 10)}... - Status: ${status}, Confirmations: ${confirmations}`);
 
       if (receipt && (status === 'failed' || confirmations >= (config.confirmations || 12))) {
         if (status === 'failed') {
-          logError(`Transaction ${config.txHash.slice(0, 10)}... failed`);
+          logError(false, `Transaction ${config.txHash.slice(0, 10)}... failed`);
         } else {
-          logSuccess(`Transaction ${config.txHash.slice(0, 10)}... confirmed with ${confirmations} confirmations`);
+          logSuccess(false, `Transaction ${config.txHash.slice(0, 10)}... confirmed with ${confirmations} confirmations`);
         }
         await this.stopMonitoring(session.id);
       }
 
     } catch (error: any) {
       if (error.message?.includes('not found') || error.message?.includes('pending')) {
-        logWarning(`Transaction ${config.txHash.slice(0, 10)}... not found or pending`);
+        logWarning(false, `Transaction ${config.txHash.slice(0, 10)}... not found or pending`);
       } else {
-        logError(`Error checking transaction ${config.txHash.slice(0, 10)}...: ${error.message || error}`);
+        logError(false, `Error checking transaction ${config.txHash.slice(0, 10)}...: ${error.message || error}`);
         if (session.checkCount > 10) {
-          logWarning(`Too many errors, stopping monitoring`);
+          logWarning(false, `Too many errors, stopping monitoring`);
           await this.stopMonitoring(session.id);
         }
       }
@@ -254,22 +234,22 @@ export class MonitorManager {
     try {
       if (config.monitorBalance) {
         const currentBalance = await this.publicClient.getBalance({ address: config.address });
-        logInfo(`Address ${config.address.slice(0, 10)}... - Balance: ${currentBalance} wei`);
+        logInfo(false, `Address ${config.address.slice(0, 10)}... - Balance: ${currentBalance} wei`);
       }
 
       if (config.monitorTransactions) {
-        logInfo(`Checking transactions for ${config.address.slice(0, 10)}...`);
+        logInfo(false, `Checking transactions for ${config.address.slice(0, 10)}...`);
       }
 
     } catch (error: any) {
       if (error.message?.includes('Invalid address')) {
-        logError(`Invalid address format: ${config.address}`);
-        logWarning(`Stopping monitoring for invalid address`);
+        logError(false, `Invalid address format: ${config.address}`);
+        logWarning(false, `Stopping monitoring for invalid address`);
         await this.stopMonitoring(session.id);
       } else if (error.message?.includes('rate limit') || error.message?.includes('too many requests')) {
-        logWarning(`Rate limited, will retry later`);
+        logWarning(false, `Rate limited, will retry later`);
       } else {
-        logError(`Error checking address ${config.address.slice(0, 10)}...: ${error.message || error}`);
+        logError(false, `Error checking address ${config.address.slice(0, 10)}...: ${error.message || error}`);
       }
     }
   }
@@ -288,7 +268,7 @@ export class MonitorManager {
         }
       }
     } catch (error) {
-      logWarning(`Could not load monitoring state: ${error}`);
+      logWarning(false, `Could not load monitoring state: ${error}`);
     }
   }
 
@@ -305,7 +285,7 @@ export class MonitorManager {
 
       fs.writeFileSync(this.stateFilePath, JSON.stringify(state, null, 2));
     } catch (error) {
-      logError(`Could not save monitoring state: ${error}`);
+      logError(false, `Could not save monitoring state: ${error}`);
     }
   }
 } 
