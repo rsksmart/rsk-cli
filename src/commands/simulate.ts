@@ -1,6 +1,6 @@
 import ViemProvider from "../utils/viemProvider.js";
 import chalk from "chalk";
-import { Address, formatEther, parseEther } from "viem";
+import { Address, formatEther, parseEther, PublicClient, WalletClient } from "viem";
 import { loadWalletData, selectWallet, createErrorResult } from "../utils/walletLoader.js";
 import { getTokenInfo, isERC20Contract } from "../utils/tokenHelper.js";
 import { 
@@ -10,7 +10,7 @@ import {
   createValidationTable, 
   formatGasPrice 
 } from "../utils/simulationUtils.js";
-import { logMessage, logError, logInfo } from "../utils/logger.js";
+import { logMessage, logError, logInfo, logWarning } from "../utils/logger.js";
 
 export interface TransactionSimulationOptions {
   testnet: boolean;
@@ -59,8 +59,8 @@ export interface SimulationResult {
 
 async function simulateERC20Transfer(
   params: TransactionSimulationOptions,
-  publicClient: any,
-  walletClient: any,
+  publicClient: PublicClient,
+  walletClient: WalletClient,
   walletAddress: Address
 ): Promise<SimulationResult> {
   const { tokenAddress, toAddress, value, gasPrice } = params;
@@ -74,11 +74,16 @@ async function simulateERC20Transfer(
     return createErrorResult("The provided address is not a valid ERC20 token contract.");
   }
 
-  const { balance: tokenBalance, decimals, name: tokenName, symbol: tokenSymbol } =
+  const { balance: tokenBalance, decimals, symbol: tokenSymbol } =
     await getTokenInfo(publicClient, tokenAddress, walletAddress);
 
-  const currentTokenBalance = Number(tokenBalance) / (10 ** decimals);
-  const transferAmountBigInt = BigInt(value * (10 ** decimals));
+  const decimalsBigInt = BigInt(10 ** decimals);
+  const currentTokenBalance = tokenBalance / decimalsBigInt;
+  const transferAmountBigInt = BigInt(value) * decimalsBigInt;
+
+  if (!walletClient.account) {
+    return createErrorResult("Wallet client account is not available.");
+  }
 
   const rbtcBalance = await publicClient.getBalance({ address: walletAddress });
   const currentRbtcBalance = Number(formatEther(rbtcBalance));
@@ -92,10 +97,15 @@ async function simulateERC20Transfer(
     gasPrice
   );
 
-  const sufficientTokenBalance = currentTokenBalance >= value;
+  if (gasResult.usedFallback) {
+    logWarning(params.isExternal || false, `⚠️  Gas estimation failed. Using fallback value of ${gasResult.gasEstimate.toString()} gas units. Actual gas cost may differ.`);
+  }
+
+  const valueBigInt = BigInt(value);
+  const sufficientTokenBalance = currentTokenBalance >= valueBigInt;
   const sufficientGas = currentRbtcBalance >= Number(gasResult.totalGasCostRBTC);
   const balanceAfterGas = currentRbtcBalance - Number(gasResult.totalGasCostRBTC);
-  const balanceAfterTransfer = currentTokenBalance - value;
+  const balanceAfterTransfer = currentTokenBalance - valueBigInt;
   const networkName = params.testnet ? "Rootstock Testnet" : "Rootstock Mainnet";
 
   logMessage(params.isExternal || false, "\n" + chalk.cyan("📊 SIMULATION RESULTS") + "\n");
@@ -104,14 +114,14 @@ async function simulateERC20Transfer(
     network: networkName,
     transactionType: "ERC20 Token Transfer",
     transferAmount: `${value} ${tokenSymbol}`,
-    currentBalance: `${currentTokenBalance.toFixed(6)} ${tokenSymbol}`,
+    currentBalance: `${(Number(currentTokenBalance) / Number(decimalsBigInt)).toFixed(6)} ${tokenSymbol}`,
     estimatedGas: gasResult.gasEstimate.toString(),
     gasPrice: formatGasPrice(gasResult.gasPrice),
     totalGasCost: `${gasResult.totalGasCostRBTC} RBTC`,
     balanceAfter: `${currentRbtcBalance.toFixed(6)} RBTC`,
     extraRows: [
       ['RBTC Balance After Gas', `${balanceAfterGas.toFixed(6)} RBTC`],
-      ['Token Balance After Transfer', `${balanceAfterTransfer.toFixed(6)} ${tokenSymbol}`]
+      ['Token Balance After Transfer', `${(Number(balanceAfterTransfer) / Number(decimalsBigInt)).toFixed(6)} ${tokenSymbol}`]
     ]
   });
   logMessage(params.isExternal || false, simulationTable);
@@ -124,7 +134,7 @@ async function simulateERC20Transfer(
       passed: sufficientTokenBalance,
       details: sufficientTokenBalance ?
         'Enough tokens for transfer' :
-        `Need ${(value - currentTokenBalance).toFixed(6)} more ${tokenSymbol}`
+        `Need ${(Number(valueBigInt - currentTokenBalance) / Number(decimalsBigInt)).toFixed(6)} more ${tokenSymbol}`
     },
     {
       name: 'Sufficient Gas Balance',
@@ -150,7 +160,7 @@ async function simulateERC20Transfer(
   logMessage(params.isExternal || false, summaryMessage, isSuccessful ? chalk.green : chalk.red);
 
   return {
-    success: true,
+    success: isSuccessful,
     data: {
       transaction: {
         from: walletAddress,
@@ -167,8 +177,8 @@ async function simulateERC20Transfer(
         totalGasCostRBTC: gasResult.totalGasCostRBTC,
       },
       balances: {
-        currentBalance: currentTokenBalance.toString(),
-        balanceAfterTransfer: balanceAfterTransfer.toString(),
+        currentBalance: (Number(currentTokenBalance) / Number(decimalsBigInt)).toString(),
+        balanceAfterTransfer: (Number(balanceAfterTransfer) / Number(decimalsBigInt)).toString(),
         balanceAfterGas: balanceAfterGas.toString(),
         tokenSymbol: tokenSymbol,
       },
@@ -183,11 +193,15 @@ async function simulateERC20Transfer(
 
 async function simulateRBTCTransfer(
   params: TransactionSimulationOptions,
-  publicClient: any,
-  walletClient: any,
+  publicClient: PublicClient,
+  walletClient: WalletClient,
   walletAddress: Address
 ): Promise<SimulationResult> {
   const { toAddress, value, gasPrice, data } = params;
+
+  if (!walletClient.account) {
+    return createErrorResult("Wallet client account is not available.");
+  }
 
   const rbtcBalance = await publicClient.getBalance({ address: walletAddress });
   const currentRbtcBalance = Number(formatEther(rbtcBalance));
@@ -201,6 +215,10 @@ async function simulateRBTCTransfer(
     data,
     gasPrice
   );
+
+  if (gasResult.usedFallback) {
+    logWarning(params.isExternal || false, `⚠️  Gas estimation failed. Using fallback value of ${gasResult.gasEstimate.toString()} gas units. Actual gas cost may differ.`);
+  }
 
   const totalCost = value + Number(gasResult.totalGasCostRBTC);
   const sufficientBalance = currentRbtcBalance >= totalCost;
@@ -251,7 +269,7 @@ async function simulateRBTCTransfer(
   logMessage(params.isExternal || false, summaryMessage, isSuccessful ? chalk.green : chalk.red);
 
   return {
-    success: true,
+    success: isSuccessful,
     data: {
       transaction: {
         from: walletAddress,
@@ -289,11 +307,13 @@ export async function simulateCommand(
   try {
     const walletResult = loadWalletData();
     if (!walletResult.success) {
+      logError(simulationOptions.isExternal || false, walletResult.error);
       return walletResult;
     }
 
     const walletSelection = selectWallet(walletResult.data, simulationOptions.name);
     if (!walletSelection.success) {
+      logError(simulationOptions.isExternal || false, walletSelection.error);
       return walletSelection;
     }
 
@@ -304,7 +324,9 @@ export async function simulateCommand(
     const walletClient = await provider.getWalletClient(simulationOptions.name);
 
     if (!walletClient || !walletClient.account) {
-      return createErrorResult("Failed to get wallet client or account.");
+      const errorResult = createErrorResult("Failed to get wallet client or account.");
+      logError(simulationOptions.isExternal || false, errorResult.error);
+      return errorResult;
     }
 
     logInfo(simulationOptions.isExternal || false, `🔮 Simulating Transaction`);

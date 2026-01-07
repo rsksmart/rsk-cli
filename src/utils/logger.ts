@@ -25,7 +25,3 @@ export function logInfo(isExternal: boolean, message: string) {
 export function logWarning(isExternal: boolean, message: string) {
   logMessage(isExternal, message, chalk.yellow);
 }
-
-export function capitalize(str: string): string {
-  return str.charAt(0).toUpperCase() + str.slice(1);
-}

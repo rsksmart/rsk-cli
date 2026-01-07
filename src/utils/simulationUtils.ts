@@ -1,4 +1,4 @@
-import { PublicClient, Account, Address, parseEther, formatEther } from "viem";
+import { PublicClient, Account, Address, formatEther } from "viem";
 import chalk from "chalk";
 import Table from "cli-table3";
 
@@ -19,6 +19,7 @@ export interface GasEstimationResult {
   totalGasCostRBTC: string;
   simulationSucceeded: boolean;
   errorMessage?: string;
+  usedFallback?: boolean;
 }
 
 export async function estimateERC20Gas(
@@ -32,6 +33,7 @@ export async function estimateERC20Gas(
   let gasEstimate = BigInt(100000);
   let simulationSucceeded = true;
   let errorMessage: string | undefined;
+  let usedFallback = false;
 
   try {
     await publicClient.simulateContract({
@@ -52,6 +54,7 @@ export async function estimateERC20Gas(
   } catch (error: any) {
     simulationSucceeded = false;
     errorMessage = error.message || 'Unknown error';
+    usedFallback = true;
   }
 
   const currentGasPrice = gasPrice || await publicClient.getGasPrice();
@@ -62,7 +65,8 @@ export async function estimateERC20Gas(
     gasPrice: currentGasPrice,
     totalGasCostRBTC: formatEther(totalGasCost),
     simulationSucceeded,
-    errorMessage
+    errorMessage,
+    usedFallback
   };
 }
 
@@ -77,6 +81,7 @@ export async function estimateRBTCGas(
   let gasEstimate = BigInt(21000);
   let simulationSucceeded = true;
   let errorMessage: string | undefined;
+  let usedFallback = false;
 
   try {
     gasEstimate = await publicClient.estimateGas({
@@ -88,6 +93,7 @@ export async function estimateRBTCGas(
   } catch (error: any) {
     simulationSucceeded = false;
     errorMessage = error.message || 'Unknown error';
+    usedFallback = true;
   }
 
   const currentGasPrice = gasPrice || await publicClient.getGasPrice();
@@ -98,7 +104,8 @@ export async function estimateRBTCGas(
     gasPrice: currentGasPrice,
     totalGasCostRBTC: formatEther(totalGasCost),
     simulationSucceeded,
-    errorMessage
+    errorMessage,
+    usedFallback
   };
 }
 
