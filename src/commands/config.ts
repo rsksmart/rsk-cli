@@ -2,6 +2,7 @@ import inquirer from "inquirer";
 import chalk from "chalk";
 import fs from "fs";
 import path from "path";
+import { logError, logSuccess, logInfo, logWarning } from "../utils/logger.js";
 
 interface ConfigData {
   defaultNetwork: "mainnet" | "testnet";
@@ -45,7 +46,7 @@ function loadConfig(): ConfigData {
       return { ...defaultConfig, ...config };
     }
   } catch (error) {
-    console.log(chalk.yellow("⚠️ Error loading config, using defaults"));
+    logWarning(false, "⚠️ Error loading config, using defaults");
   }
   return defaultConfig;
 }
@@ -53,41 +54,41 @@ function loadConfig(): ConfigData {
 function saveConfig(config: ConfigData): void {
   try {
     fs.writeFileSync(configFilePath, JSON.stringify(config, null, 2));
-    console.log(chalk.green("✅ Configuration saved successfully!"));
+    logSuccess(false, "✅ Configuration saved successfully!");
   } catch (error) {
-    console.error(chalk.red("❌ Error saving configuration:"), error);
+    logError(false, `❌ Error saving configuration: ${error}`);
   }
 }
 
 function displayCurrentConfig(config: ConfigData): void {
-  console.log(chalk.blue("📋 Current Configuration:"));
-  console.log("");
-  
-  console.log(chalk.white(`🌐 Default Network: ${chalk.green(config.defaultNetwork)}`));
-  console.log(chalk.white(`⛽ Default Gas Limit: ${chalk.green(config.defaultGasLimit.toLocaleString())}`));
-  console.log(chalk.white(`💰 Default Gas Price: ${chalk.green(config.defaultGasPrice === 0 ? "Auto" : `${config.defaultGasPrice} Gwei`)}`));
-  
+  logInfo(false, "📋 Current Configuration:");
+  logInfo(false, "");
+
+  logInfo(false, `🌐 Default Network: ${chalk.green(config.defaultNetwork)}`);
+  logInfo(false, `⛽ Default Gas Limit: ${chalk.green(config.defaultGasLimit.toLocaleString())}`);
+  logInfo(false, `💰 Default Gas Price: ${chalk.green(config.defaultGasPrice === 0 ? "Auto" : `${config.defaultGasPrice} Gwei`)}`);
+
   if (!config.alchemyApiKey) {
-    console.log(chalk.white(`🔑 Alchemy API Key: ${chalk.red("Not set")}`));
+    logInfo(false, `🔑 Alchemy API Key: ${chalk.red("Not set")}`);
   }
-  
-  console.log("");
-  console.log(chalk.white("🎨 Display Preferences:"));
-  console.log(chalk.white(`  🔗 Show Explorer Links: ${config.displayPreferences.showExplorerLinks ? chalk.green("Yes") : chalk.red("No")}`));
-  console.log(chalk.white(`  ⛽ Show Gas Details: ${config.displayPreferences.showGasDetails ? chalk.green("Yes") : chalk.red("No")}`));
-  console.log(chalk.white(`  📦 Show Block Details: ${config.displayPreferences.showBlockDetails ? chalk.green("Yes") : chalk.red("No")}`));
-  console.log(chalk.white(`  📱 Compact Mode: ${config.displayPreferences.compactMode ? chalk.green("Yes") : chalk.red("No")}`));
-  
-  console.log("");
-  console.log(chalk.white("👛 Wallet Preferences:"));
-  console.log(chalk.white(`  ✅ Auto Confirm Transactions: ${config.walletPreferences.autoConfirmTransactions ? chalk.green("Yes") : chalk.red("No")}`));
+
+  logInfo(false, "");
+  logInfo(false, "🎨 Display Preferences:");
+  logInfo(false, `  🔗 Show Explorer Links: ${config.displayPreferences.showExplorerLinks ? chalk.green("Yes") : chalk.red("No")}`);
+  logInfo(false, `  ⛽ Show Gas Details: ${config.displayPreferences.showGasDetails ? chalk.green("Yes") : chalk.red("No")}`);
+  logInfo(false, `  📦 Show Block Details: ${config.displayPreferences.showBlockDetails ? chalk.green("Yes") : chalk.red("No")}`);
+  logInfo(false, `  📱 Compact Mode: ${config.displayPreferences.compactMode ? chalk.green("Yes") : chalk.red("No")}`);
+
+  logInfo(false, "");
+  logInfo(false, "👛 Wallet Preferences:");
+  logInfo(false, `  ✅ Auto Confirm Transactions: ${config.walletPreferences.autoConfirmTransactions ? chalk.green("Yes") : chalk.red("No")}`);
   if (config.walletPreferences.defaultWallet) {
-    console.log(chalk.white(`  🏦 Default Wallet: ${chalk.green(config.walletPreferences.defaultWallet)}`));
+    logInfo(false, `  🏦 Default Wallet: ${chalk.green(config.walletPreferences.defaultWallet)}`);
   } else {
-    console.log(chalk.white(`  🏦 Default Wallet: ${chalk.red("Not set")}`));
+    logInfo(false, `  🏦 Default Wallet: ${chalk.red("Not set")}`);
   }
-  
-  console.log("");
+
+  logInfo(false, "");
 }
 
 async function configureNetwork(config: ConfigData): Promise<ConfigData> {
@@ -251,7 +252,7 @@ async function resetToDefaults(): Promise<ConfigData> {
   ]);
   
   if (confirm) {
-    console.log(chalk.yellow("🔄 Resetting configuration to defaults..."));
+    logWarning(false, "🔄 Resetting configuration to defaults...");
     return defaultConfig;
   }
   
@@ -260,8 +261,8 @@ async function resetToDefaults(): Promise<ConfigData> {
 
 export async function configCommand(): Promise<void> {
   try {
-    console.log(chalk.blue("⚙️ RSK CLI Configuration Manager"));
-    console.log("");
+    logInfo(false, "⚙️ RSK CLI Configuration Manager");
+    logInfo(false, "");
     
     let config = loadConfig();
     
@@ -293,27 +294,27 @@ export async function configCommand(): Promise<void> {
           
         case "🌐 Configure Network Settings":
           config = await configureNetwork(config);
-          console.log(chalk.green("✅ Network settings updated!"));
+          logSuccess(false, "✅ Network settings updated!");
           break;
           
         case "⛽ Configure Gas Settings":
           config = await configureGasSettings(config);
-          console.log(chalk.green("✅ Gas settings updated!"));
+          logSuccess(false, "✅ Gas settings updated!");
           break;
           
         case "🔑 Configure API Keys":
           config = await configureApiKey(config);
-          console.log(chalk.green("✅ API key settings updated!"));
+          logSuccess(false, "✅ API key settings updated!");
           break;
           
         case "🎨 Configure Display Preferences":
           config = await configureDisplayPreferences(config);
-          console.log(chalk.green("✅ Display preferences updated!"));
+          logSuccess(false, "✅ Display preferences updated!");
           break;
           
         case "👛 Configure Wallet Preferences":
           config = await configureWalletPreferences(config);
-          console.log(chalk.green("✅ Wallet preferences updated!"));
+          logSuccess(false, "✅ Wallet preferences updated!");
           break;
           
         case "🔄 Reset to Defaults":
@@ -322,14 +323,14 @@ export async function configCommand(): Promise<void> {
           
         case "💾 Save and Exit":
           saveConfig(config);
-          console.log(chalk.blue("👋 Configuration saved. Goodbye!"));
+          logInfo(false, "👋 Configuration saved. Goodbye!");
           return;
       }
       
-      console.log("");
+      logInfo(false, "");
     }
   } catch (error: any) {
-    console.error(chalk.red("❌ Error in configuration manager:"), error.message);
+    logError(false, `❌ Error in configuration manager: ${error.message}`);
   }
 }
 

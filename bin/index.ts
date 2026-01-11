@@ -7,6 +7,7 @@ import { txCommand } from "../src/commands/tx.js";
 import figlet from "figlet";
 import chalk from "chalk";
 import { deployCommand } from "../src/commands/deploy.js";
+import { logError } from "../src/utils/logger.js";
 import { verifyCommand } from "../src/commands/verify.js";
 import { ReadContract } from "../src/commands/contract.js";
 import { Address } from "viem";
@@ -51,6 +52,12 @@ interface CommandOptions {
   gasLimit?: string;
   gasPrice?: string;
   data?: string;
+  attestDeployment?: boolean;
+  attestVerification?: boolean;
+  attestTransfer?: boolean;
+  attestSchemaUid?: string;
+  attestRecipient?: string;
+  attestReason?: string;
   rns?: string;
 }
 
@@ -123,12 +130,22 @@ program
   .option("--gas-limit <limit>", "Custom gas limit")
   .option("--gas-price <price>", "Custom gas price in RBTC")
   .option("--data <data>", "Custom transaction data (hex)")
+  .option("--attest-transfer", "Create attestation for significant transfers")
+  .option("--attest-schema-uid <uid>", "Custom schema UID for attestation")
+  .option("--attest-recipient <address>", "Custom recipient for attestation (default: transfer recipient)")
+  .option("--attest-reason <reason>", "Reason/purpose for the transfer (e.g., 'Grant payment', 'Bounty reward')")
   .action(async (options: CommandOptions) => {
     try {
       if (options.interactive) {
         await batchTransferCommand({
           testnet: !!options.testnet,
           interactive: true,
+          attestation: {
+            enabled: !!options.attestTransfer,
+            schemaUID: options.attestSchemaUid,
+            recipient: options.attestRecipient,
+            reason: options.attestReason
+          }
         });
         return;
       }
@@ -181,13 +198,16 @@ program
           value: value,
           name: options.wallet!,
           tokenAddress: options.token as `0x${string}` | undefined,
+          attestation: {
+            enabled: !!options.attestTransfer,
+            schemaUID: options.attestSchemaUid,
+            recipient: options.attestRecipient,
+            reason: options.attestReason
+          }
         }
       );
     } catch (error: any) {
-      console.error(
-        chalk.red("Error during transfer:"),
-        error.message || error
-      );
+      logError(false, `Error during transfer: ${error.message || error}`);
     }
   });
 
@@ -220,6 +240,9 @@ program
   .option("--wallet <wallet>", "Name of the wallet")
   .option("--args <args...>", "Constructor arguments (space-separated)")
   .option("-t, --testnet", "Deploy on the testnet")
+  .option("--attest-deployment", "Create attestation for deployment")
+  .option("--attest-schema-uid <uid>", "Custom schema UID for attestation")
+  .option("--attest-recipient <address>", "Custom recipient for attestation (default: contract address)")
   .action(async (options: CommandOptions) => {
     const args = options.args || [];
     await deployCommand(
@@ -229,6 +252,11 @@ program
         testnet: options.testnet,
         args: args,
         name: options.wallet!,
+        attestation: {
+          enabled: !!options.attestDeployment,
+          schemaUID: options.attestSchemaUid,
+          recipient: options.attestRecipient
+        }
       }
     );
   });
@@ -244,6 +272,9 @@ program
     "--decodedArgs <args...>",
     "Decoded Constructor arguments (space-separated)"
   )
+  .option("--attest-verification", "Create attestation for contract verification")
+  .option("--attest-schema-uid <uid>", "Custom schema UID for attestation")
+  .option("--attest-recipient <address>", "Custom recipient for attestation (default: contract address)")
   .action(async (options: CommandOptions) => {
     const args = options.decodedArgs || [];
     await verifyCommand(
@@ -253,6 +284,11 @@ program
         name: options.name!,
         testnet:  options.testnet === undefined ? undefined : !!options.testnet,
         args: args,
+        attestation: {
+          enabled: !!options.attestVerification,
+          schemaUID: options.attestSchemaUid,
+          recipient: options.attestRecipient
+        }
       }
     );
   });
@@ -310,11 +346,7 @@ program
       const resolveRNS = !!options.rns;
 
       if (interactive && file) {
-        console.error(
-          chalk.red(
-            "🚨 Cannot use both interactive mode and file input simultaneously."
-          )
-        );
+        logError(false, "Cannot use both interactive mode and file input simultaneously.");
         return;
       }
 
@@ -325,10 +357,7 @@ program
         resolveRNS: resolveRNS,
       });
     } catch (error: any) {
-      console.error(
-        chalk.red("🚨 Error during batch transfer:"),
-        chalk.yellow(error.message || "Unknown error")
-      );
+      logError(false, `Error during batch transfer: ${error.message || "Unknown error"}`);
     }
   });
 
@@ -378,10 +407,7 @@ program
         }
       );
     } catch (error: any) {
-      console.error(
-        chalk.red("Error during transaction:"),
-        error.message || error
-      );
+      logError(false, `Error during transaction: ${error.message || error}`);
     }
   });
 
@@ -426,10 +452,7 @@ program
         isExternal: false
       });
     } catch (error: any) {
-      console.error(
-        chalk.red("Error during monitoring:"),
-        error.message || error
-      );
+      logError(false, `Error during monitoring: ${error.message || error}`);
     }
   });
 
