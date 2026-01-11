@@ -72,47 +72,43 @@ node dist/bin/index.js verify \
 
 | Option | Description |
 |--------|-------------|
-| `--attest-transfer` | Enable attestation for transfers (testnet only) |
+| `--attest-transfer` | Enable attestation for transfers |
 | `--attest-deployment` | Enable attestation for deployments |
 | `--attest-verification` | Enable attestation for verifications |
-| `--attest-schema-uid <UID>` | Schema UID (required for deployment/verification) |
+| `--attest-schema-uid <UID>` | Schema UID (required for all attestation types) |
 | `--attest-recipient <address>` | Custom attestation recipient (optional) |
 | `--attest-reason <text>` | Reason for transfer (optional) |
 
 ## Schema Information
 
-### Transfer Schema (Testnet)
+### Transfer Schema
 
-**UID:** `0x44d562ac1d7cd77e232978687fea027ace48f719cf1d58c7888e509663bb87fc`
-
-**Fields:**
-```
-address sender
-address recipient
-string amount
-address tokenAddress
-string tokenSymbol
-bytes32 transactionHash
-uint256 blockNumber
-uint256 timestamp
-string reason
-string transferType
-```
-
-### Deployment Schema
-
-**Note:** You must provide your own schema UID using `--attest-schema-uid <UID>` when creating deployment attestations.
+**Note:** You must register a schema and provide its UID using `--attest-schema-uid <UID>` when creating transfer attestations.
 
 **Schema Definition:**
 ```
-string contractName
-address contractAddress
-address deployer
-uint256 blockNumber
-bytes32 transactionHash
-uint256 timestamp
-string abiHash
-string bytecodeHash
+address sender,address recipient,string amount,address tokenAddress,string tokenSymbol,bytes32 transactionHash,uint256 blockNumber,uint256 timestamp,string reason,string transferType
+```
+
+**Description:**
+- `sender`: Address that sent the transfer
+- `recipient`: Address that received the transfer
+- `amount`: Amount transferred (as string to preserve precision)
+- `tokenAddress`: Address of the token contract (0x0 for RBTC)
+- `tokenSymbol`: Symbol of the token (e.g., "RBTC", "RIF")
+- `transactionHash`: Transaction hash of the transfer
+- `blockNumber`: Block number when the transfer occurred
+- `timestamp`: Unix timestamp of the transfer
+- `reason`: Optional reason for the transfer
+- `transferType`: Type of transfer (e.g., "RBTC", "ERC20")
+
+### Deployment Schema
+
+**Note:** You must register a schema and provide its UID using `--attest-schema-uid <UID>` when creating deployment attestations.
+
+**Schema Definition:**
+```
+string contractName,address contractAddress,address deployer,uint256 blockNumber,bytes32 transactionHash,uint256 timestamp,string abiHash,string bytecodeHash
 ```
 
 **Description:**
@@ -122,24 +118,16 @@ string bytecodeHash
 - `blockNumber`: Block number when the contract was deployed
 - `transactionHash`: Transaction hash of the deployment
 - `timestamp`: Unix timestamp of the deployment
-- `abiHash`: Keccak256 hash of the contract ABI (optional)
-- `bytecodeHash`: Keccak256 hash of the contract bytecode (optional)
+- `abiHash`: Keccak256 hash of the contract ABI
+- `bytecodeHash`: Keccak256 hash of the contract bytecode
 
 ### Verification Schema
 
-**Note:** You must provide your own schema UID using `--attest-schema-uid <UID>` when creating verification attestations.
+**Note:** You must register a schema and provide its UID using `--attest-schema-uid <UID>` when creating verification attestations.
 
 **Schema Definition:**
 ```
-string contractName
-address contractAddress
-address verifier
-string sourceCodeHash
-string compilationTarget
-string compilerVersion
-bool optimizationUsed
-uint256 timestamp
-string verificationTool
+string contractName,address contractAddress,address verifier,string sourceCodeHash,string compilationTarget,string compilerVersion,bool optimizationUsed,uint256 timestamp,string verificationTool
 ```
 
 **Description:**
@@ -153,9 +141,55 @@ string verificationTool
 - `timestamp`: Unix timestamp of the verification
 - `verificationTool`: Tool used for verification (e.g., "rsk-cli")
 
-### Custom Schemas
+## How to Register Schemas
 
-For custom use cases, you can register your own schemas. Refer to the [Rootstock Attestation Service documentation](https://dev.rootstock.io/dev-tools/attestations/ras/) for schema registration information.
+Before you can create attestations, you must register the appropriate schema on the RSK Attestation Service. Schema registration is an on-chain operation that requires RBTC for gas fees.
+
+### Using the Rootstock Explorer
+
+1. Visit the Rootstock Explorer attestation service:
+   - Testnet: [https://explorer.testnet.rootstock.io/ras](https://explorer.testnet.rootstock.io/ras)
+   - Mainnet: [https://explorer.rootstock.io/ras](https://explorer.rootstock.io/ras)
+
+2. Navigate to the "Schemas" section
+
+3. Click "Create Schema +" button
+
+4. Enter your schema definition using one of the structures documented above
+
+5. Submit the transaction (you'll need RBTC for gas fees)
+
+6. Copy the returned Schema UID
+
+7. Use the Schema UID with the `--attest-schema-uid` flag when creating attestations
+
+### Using the Schema Registry Contract Directly
+
+Alternatively, you can interact directly with the Schema Registry contract:
+
+**Testnet:** `0x679c62956cD2801AbAbF80e9D430f18859Eea2d5`
+**Mainnet:** `0xeF29675d82CC5967069d6d9C17F2719f67728F5B`
+
+### Example: Registering a Transfer Schema
+
+1. Go to [https://explorer.testnet.rootstock.io/ras](https://explorer.testnet.rootstock.io/ras)
+2. Navigate to the Schemas section and click "Create Schema +"
+3. Enter the transfer schema definition:
+   ```
+   address sender,address recipient,string amount,address tokenAddress,string tokenSymbol,bytes32 transactionHash,uint256 blockNumber,uint256 timestamp,string reason,string transferType
+   ```
+4. Set revocable to `true` (recommended for flexibility)
+5. Submit the transaction and wait for confirmation
+6. Copy the returned Schema UID (e.g., `0x1234...`)
+7. Use it in your transfer command:
+   ```bash
+   node dist/bin/index.js transfer \
+     --testnet \
+     --address 0x... \
+     --value 0.001 \
+     --attest-transfer \
+     --attest-schema-uid 0x1234...
+   ```
 
 ## MCP Server Integration
 
@@ -169,7 +203,8 @@ When using this CLI as an MCP server, attestations are fully supported with auto
 
 ## Notes
 
-- Transfer attestations on testnet work automatically without schema registration
-- Deployment and verification attestations require a registered schema UID
+- **All attestation types require a registered schema UID** - there are no default schemas
+- Schema UIDs must match the exact data structure for the attestation type
 - All attestations incur additional gas costs
 - Attestations are permanent and immutable on-chain
+- Each attestation type (transfer, deployment, verification) requires its own specific schema

@@ -386,12 +386,6 @@ export class AttestationService {
   }
 
   static async getDefaultSchemaUID(isTestnet: boolean = false, type: 'deployment' | 'verification' | 'transfer' = 'deployment'): Promise<string | undefined> {
-    if (isTestnet) {
-      if (type === 'transfer') {
-        return '0x44d562ac1d7cd77e232978687fea027ace48f719cf1d58c7888e509663bb87fc';
-      }
-      return undefined;
-    }
     return undefined;
   }
 }
@@ -418,7 +412,10 @@ export async function createDeploymentAttestation(
 
     if (!schemaUID) {
       logInfo(!!options.isExternal, '⚠️  No schema UID provided for deployment attestation');
-      logInfo(!!options.isExternal, '   To enable attestations, use --attest-schema-uid <UID>');
+      logInfo(!!options.isExternal, '   To enable attestations, register a schema matching this structure:');
+      logInfo(!!options.isExternal, `   ${DEPLOYMENT_SCHEMA}`);
+      logInfo(!!options.isExternal, '   Then use --attest-schema-uid <UID>');
+      logInfo(!!options.isExternal, '   See: https://dev.rootstock.io/dev-tools/attestations/ras/');
       return null;
     }
 
@@ -457,7 +454,10 @@ export async function createVerificationAttestation(
 
     if (!schemaUID) {
       logInfo(!!options.isExternal, '⚠️  No schema UID provided for verification attestation');
-      logInfo(!!options.isExternal, '   To enable attestations, use --attest-schema-uid <UID>');
+      logInfo(!!options.isExternal, '   To enable attestations, register a schema matching this structure:');
+      logInfo(!!options.isExternal, `   ${VERIFICATION_SCHEMA}`);
+      logInfo(!!options.isExternal, '   Then use --attest-schema-uid <UID>');
+      logInfo(!!options.isExternal, '   See: https://dev.rootstock.io/dev-tools/attestations/ras/');
       return null;
     }
 
@@ -496,8 +496,10 @@ export async function createTransferAttestation(
 
     if (!schemaUID) {
       logInfo(!!options.isExternal, '⚠️  No schema UID provided for transfer attestation');
-      logInfo(!!options.isExternal, '   To enable attestations, register a transfer schema and use --attest-schema-uid <UID>');
-      logInfo(!!options.isExternal, '   See documentation: https://dev.rootstock.io/dev-tools/attestations/ras/');
+      logInfo(!!options.isExternal, '   To enable attestations, register a schema matching this structure:');
+      logInfo(!!options.isExternal, `   ${TRANSFER_SCHEMA}`);
+      logInfo(!!options.isExternal, '   Then use --attest-schema-uid <UID>');
+      logInfo(!!options.isExternal, '   See: https://dev.rootstock.io/dev-tools/attestations/ras/');
       return null;
     }
 
@@ -513,8 +515,10 @@ export async function createTransferAttestation(
 
     if (errorMessage.includes('0xbf37b20e') || errorMessage.includes('InvalidSchema')) {
       logError(!!options.isExternal, '❌ Invalid or unregistered schema UID');
-      logInfo(!!options.isExternal, '   The schema UID provided does not exist on RSK EAS');
-      logInfo(!!options.isExternal, '   Register your schema or contact RSK team for valid schema UIDs');
+      logInfo(!!options.isExternal, '   The schema UID provided does not match the transfer data structure');
+      logInfo(!!options.isExternal, '   Required schema structure:');
+      logInfo(!!options.isExternal, `   ${TRANSFER_SCHEMA}`);
+      logInfo(!!options.isExternal, '   Register a schema with this structure at: https://dev.rootstock.io/dev-tools/attestations/ras/');
     } else {
       logError(!!options.isExternal, `Transfer attestation creation failed: ${errorMessage}`);
     }
