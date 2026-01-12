@@ -141,15 +141,7 @@ export async function transferCommand(
     const publicClient = await provider.getPublicClient();
     
     let walletClient;
-    if (params.isExternal) {
-      if (!params.name || !params.password || !params.walletsData) {
-        const errorMessage = "Wallet name, password and wallets data are required.";
-        logError(params, errorMessage);
-        return {
-          error: errorMessage,
-          success: false,
-        };
-      }
+    if (params.isExternal && params.walletsData && params.password && params.name) {
       walletClient = await provider.getWalletClientExternal(
         params.walletsData,
         params.name,

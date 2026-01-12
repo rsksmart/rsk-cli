@@ -240,7 +240,7 @@ async function executeCommand(
 
   const pipeOptions: any = {
     ...options,
-    isExternal: true,
+    isExternal: params?.isExternal ?? false,
     pipeInput: inputData
   };
 
@@ -285,7 +285,7 @@ async function executeCommand(
       value: parsedValue,
       name: pipeOptions.wallet,
       tokenAddress: pipeOptions.token as Address,
-      isExternal: true
+      isExternal: pipeOptions.isExternal
     });
   } else if (name === 'tx') {
     const txHash = inputData?.transactionHash || pipeOptions.txid;
@@ -303,7 +303,7 @@ async function executeCommand(
     result = await txCommand({
       testnet: !!pipeOptions.testnet,
       txid: txHash,
-      isExternal: true
+      isExternal: pipeOptions.isExternal
     });
   } else if (name === 'deploy') {
     if (!pipeOptions.abi || !pipeOptions.bytecode) {
@@ -315,7 +315,7 @@ async function executeCommand(
       testnet: !!pipeOptions.testnet,
       args: pipeOptions.args || [],
       name: pipeOptions.wallet,
-      isExternal: true
+      isExternal: pipeOptions.isExternal
     });
   } else if (name === 'verify') {
     const contractAddress = inputData?.contractAddress || pipeOptions.address;
@@ -339,13 +339,13 @@ async function executeCommand(
       name: pipeOptions.name,
       testnet: !!pipeOptions.testnet,
       args: pipeOptions.decodedArgs || [],
-      isExternal: true
+      isExternal: pipeOptions.isExternal
     });
   } else if (name === 'balance') {
     result = await balanceCommand({
       testnet: !!pipeOptions.testnet,
       walletName: pipeOptions.wallet,
-      isExternal: true
+      isExternal: pipeOptions.isExternal
     });
   } else {
     return {
@@ -395,7 +395,12 @@ export async function pipeCommand(
 
   for (let i = 0; i < commands.length; i++) {
     const command = commands[i];
-    startSpinner(params, spinner, `⏳ Executing ${command.name} (${i + 1}/${commands.length})...`);
+    
+    if (spinner.isSpinning) {
+      spinner.stop();
+    }
+    
+    logInfo(params, `⏳ Executing ${command.name} (${i + 1}/${commands.length})...`);
 
     const result = await executeCommand(command, currentData, params);
     lastResult = result;
@@ -406,7 +411,7 @@ export async function pipeCommand(
       return { success: false, error: result.error };
     }
 
-    succeedSpinner(params, spinner, `${command.name} completed`);
+    logSuccess(params, `${command.name} completed`);
 
     if (result.data) {
       currentData = result.data;
