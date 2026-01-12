@@ -213,7 +213,7 @@ async function estimateTransactionGas(options: GasEstimateOptions) {
     }
 
     if (options.optimize) {
-      displayOptimizationTips('transaction');
+      displayOptimizationTips('transaction', options);
     }
 
   } catch (error: any) {
@@ -282,7 +282,7 @@ async function estimateContractGas(options: GasEstimateOptions) {
     }
 
     if (options.optimize) {
-      displayOptimizationTips('contract');
+      displayOptimizationTips('contract', options);
     }
 
   } catch (error: any) {
@@ -394,8 +394,8 @@ function displayGasAnalysis(analysis: GasAnalysis, options: GasEstimateOptions) 
   logMessage(options, table.toString());
 }
 
-function displayOptimizationTips(context: 'transaction' | 'contract') {
-  console.log(chalk.cyan.bold('\n💡 Gas Optimization Tips:\n'));
+function displayOptimizationTips(context: 'transaction' | 'contract', options: GasEstimateOptions) {
+  logMessage(options, '\n💡 Gas Optimization Tips:\n', chalk.cyan.bold);
 
   const tips: OptimizationTip[] = context === 'contract' ? [
     {
@@ -462,20 +462,20 @@ function displayOptimizationTips(context: 'transaction' | 'contract') {
   ];
 
   tips.forEach((tip, index) => {
-    console.log(chalk.yellow(`${index + 1}. ${tip.title}`) + chalk.gray(` (${tip.category})`));
-    console.log(chalk.white(`   ${tip.description}`));
-    console.log(chalk.green(`   💰 Savings: ${tip.potentialSavings}\n`));
+    logMessage(options, chalk.yellow(`${index + 1}. ${tip.title}`) + chalk.gray(` (${tip.category})`));
+    logMessage(options, chalk.white(`   ${tip.description}`));
+    logMessage(options, chalk.green(`   💰 Savings: ${tip.potentialSavings}\n`));
   });
 
-  console.log(chalk.cyan.bold('🔧 Advanced Optimization Tools:\n'));
-  console.log(chalk.white('• Hardhat Gas Reporter: Track gas usage in tests'));
-  console.log(chalk.white('• Solidity Optimizer: Enable with high runs for frequently called functions'));
-  console.log(chalk.white('• Function Profiling: Use Tenderly for detailed execution analysis'));
-  console.log(chalk.white('• Storage Layout: Analyze with hardhat-storage-layout plugin\n'));
+  logMessage(options, chalk.cyan.bold('🔧 Advanced Optimization Tools:\n'));
+  logMessage(options, chalk.white('• Hardhat Gas Reporter: Track gas usage in tests'));
+  logMessage(options, chalk.white('• Solidity Optimizer: Enable with high runs for frequently called functions'));
+  logMessage(options, chalk.white('• Function Profiling: Use Tenderly for detailed execution analysis'));
+  logMessage(options, chalk.white('• Storage Layout: Analyze with hardhat-storage-layout plugin\n'));
 }
 
 async function interactiveGasEstimation(testnet: boolean) {
-  console.log(chalk.cyan('🔍 Interactive Gas Estimation\n'));
+  logMessage({ testnet, isExternal: false } as GasEstimateOptions, '🔍 Interactive Gas Estimation\n', chalk.cyan);
 
   const { estimationType } = await inquirer.prompt([
     {
@@ -632,6 +632,7 @@ async function interactiveContractEstimation(testnet: boolean) {
 }
 
 async function interactiveDeploymentEstimation(testnet: boolean) {
+  const options: GasEstimateOptions = { testnet, isExternal: false };
   const answers = await inquirer.prompt([
     {
       type: 'input',
@@ -680,14 +681,14 @@ async function interactiveDeploymentEstimation(testnet: boolean) {
       estimatedCostInRBTC: formatEther(estimatedGas * gasPrice),
     };
 
-    console.log(chalk.cyan.bold('\n📝 Contract Deployment Details:\n'));
-    console.log(chalk.white(`Bytecode Size: ${bytecodeLength} bytes`));
-    console.log(chalk.white(`Network: ${testnet ? 'Testnet' : 'Mainnet'}\n`));
+    logMessage(options, '\n📝 Contract Deployment Details:\n', chalk.cyan.bold);
+    logMessage(options, `Bytecode Size: ${bytecodeLength} bytes`);
+    logMessage(options, `Network: ${testnet ? 'Testnet' : 'Mainnet'}\n`);
 
-    displayGasAnalysis(analysis, { testnet, isExternal: false });
+    displayGasAnalysis(analysis, options);
 
     if (answers.optimize) {
-      displayOptimizationTips('contract');
+      displayOptimizationTips('contract', { testnet, isExternal: false } as GasEstimateOptions);
     }
 
   } catch (error: any) {
@@ -697,6 +698,7 @@ async function interactiveDeploymentEstimation(testnet: boolean) {
 }
 
 async function interactiveBatchEstimation(testnet: boolean) {
+  const options: GasEstimateOptions = { testnet, isExternal: false };
   const answers = await inquirer.prompt([
     {
       type: 'number',
@@ -750,7 +752,7 @@ async function interactiveBatchEstimation(testnet: boolean) {
   const totalGasBatched = totalGasIndividual - batchSavings;
   const totalCostBatched = formatEther(totalGasBatched * gasPrice);
 
-  console.log(chalk.cyan.bold('\n💰 Batch Operation Analysis:\n'));
+  logMessage(options, '\n💰 Batch Operation Analysis:\n', chalk.cyan.bold);
 
   const table = new Table({
     head: [chalk.cyan('Metric'), chalk.cyan('Individual'), chalk.cyan('Batched'), chalk.cyan('Savings')],
@@ -767,17 +769,17 @@ async function interactiveBatchEstimation(testnet: boolean) {
     ['Efficiency', '100%', `${(100 - parseFloat(savedPercentage)).toFixed(2)}%`, `${savedPercentage}%`]
   );
 
-  console.log(table.toString());
+  logMessage(options, table.toString());
 
-  console.log(chalk.green.bold(`\n✨ By batching ${count} operations, you save ${savedRBTC} RBTC (${savedPercentage}% reduction)!\n`));
+  logMessage(options, `\n✨ By batching ${count} operations, you save ${savedRBTC} RBTC (${savedPercentage}% reduction)!\n`, chalk.green.bold);
 
-  console.log(chalk.cyan('💡 Batching Benefits:'));
-  console.log(chalk.white('  • Save base transaction cost (21,000 gas) per operation'));
-  console.log(chalk.white('  • Atomic execution - all succeed or all fail'));
-  console.log(chalk.white('  • Reduced blockchain footprint'));
-  console.log(chalk.white('  • Simpler transaction management\n'));
+  logMessage(options, '💡 Batching Benefits:', chalk.cyan);
+  logMessage(options, '  • Save base transaction cost (21,000 gas) per operation');
+  logMessage(options, '  • Atomic execution - all succeed or all fail');
+  logMessage(options, '  • Reduced blockchain footprint');
+  logMessage(options, '  • Simpler transaction management\n');
 
-  console.log(chalk.yellow('📌 Use the batch-transfer command to execute batched operations:\n'));
-  console.log(chalk.gray('   rsk-cli batch-transfer --interactive' + (testnet ? ' --testnet' : '')));
-  console.log();
+  logMessage(options, '📌 Use the batch-transfer command to execute batched operations:\n', chalk.yellow);
+  logMessage(options, '   rsk-cli batch-transfer --interactive' + (testnet ? ' --testnet' : ''), chalk.gray);
+  logMessage(options, '');
 }

@@ -766,6 +766,63 @@ Output example:
 > - Both checksummed and non-checksummed addresses are supported
 > - The command will show appropriate error messages if the name or address cannot be resolved
 
+### 12. Gas Estimator
+
+The `gas` command allows you to estimate gas costs for transactions and contract interactions on the Rootstock blockchain. It provides detailed analysis including gas price, estimated gas limits, and optimization tips.
+
+#### Interactive Mode
+
+Use the `-i` or `--interactive` flag to use the interactive gas estimator:
+
+```bash
+# Interactive mode on testnet
+rsk-cli gas --testnet -i
+
+# Interactive mode on mainnet
+rsk-cli gas -i
+```
+
+This mode allows you to:
+- View current gas prices and network metrics
+- Estimate simple transaction costs
+- Estimate contract function call costs
+- Estimate contract deployment costs
+- Analyze batch operation savings
+
+#### Quick Gas Check
+
+Check current gas prices and network status:
+
+```bash
+rsk-cli gas
+rsk-cli gas --testnet
+```
+
+#### Transaction Estimation
+
+Estimate gas for a simple transfer:
+
+```bash
+rsk-cli gas --to 0xRecipientAddress --value 0.1
+```
+
+#### Contract Estimation
+
+Estimate gas for a contract function call:
+
+```bash
+rsk-cli gas --contractAddress 0xContractAddress --abiPath ./abi.json --functionName myMethod --args '["arg1", 123]'
+```
+
+#### Output
+
+The command provides:
+- Current network gas price
+- Estimated gas units
+- Cost in RBTC and Wei
+- Recommended gas limits (with buffers)
+- Optimization tips (if applicable)
+
 ## Contributing
 
 We welcome contributions from the community. Please fork the repository and submit pull requests with your changes. Ensure your code adheres to the project's main objective.
