@@ -20,6 +20,8 @@
     "tx-status": "pnpm run build && node dist/bin/index.js tx --testnet --txid 0x876a0a9b167889350c41930a4204e5d9acf5704a7f201447a337094189af961c4",
     "batch-transfer": "pnpm run build && node dist/bin/index.js batch-transfer",
     "history": "pnpm run build && node dist/bin/index.js history",
+    "gas": "pnpm run build && node dist/bin/index.js gas --testnet",
+    "gas:interactive": "pnpm run build && node dist/bin/index.js gas --testnet --interactive",
     "config": "pnpm run build && node dist/bin/index.js config"
   },
   "keywords": [
