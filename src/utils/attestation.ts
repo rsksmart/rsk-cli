@@ -66,6 +66,19 @@ export const VERIFICATION_SCHEMA = "string contractName,address contractAddress,
 
 export const TRANSFER_SCHEMA = "address sender,address recipient,string amount,address tokenAddress,string tokenSymbol,bytes32 transactionHash,uint256 blockNumber,uint256 timestamp,string reason,string transferType";
 
+export const DEFAULT_SCHEMA_UIDS = {
+  testnet: {
+    deployment: "0xf245ae37980c898c1cdb9a41c868210743448c6eeacbab780ee7e9e765b5c75b",
+    verification: "0x1aad4cd717cd17bd98b001bd8be917de48727c33b1d6bbe122162022ad274278",
+    transfer: "0x1916e2c6b032722c363eb00ef0de54d33710fc3b0af926bf013088ec98de41fa"
+  },
+  mainnet: {
+    deployment: "",
+    verification: "",
+    transfer: ""
+  }
+};
+
 function startSpinner(
   isExternal: boolean,
   spinner: any,
@@ -385,8 +398,13 @@ export class AttestationService {
     }
   }
 
-  static async getDefaultSchemaUID(isTestnet: boolean = false, type: 'deployment' | 'verification' | 'transfer' = 'deployment'): Promise<string | undefined> {
-    return undefined;
+  static async getDefaultSchemaUID(
+    isTestnet: boolean = false, 
+    type: 'deployment' | 'verification' | 'transfer' = 'deployment'
+  ): Promise<string | undefined> {
+    const network = isTestnet ? 'testnet' : 'mainnet';
+    const uid = DEFAULT_SCHEMA_UIDS[network][type];
+    return uid || undefined;
   }
 }
 

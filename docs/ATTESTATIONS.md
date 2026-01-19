@@ -52,8 +52,7 @@ node dist/bin/index.js deploy \
   --testnet \
   --abi path/to/abi.json \
   --bytecode 0x... \
-  --attest-deployment \
-  --attest-schema-uid <SCHEMA_UID>
+  --attest-deployment
 ```
 
 ### Verification Attestations
@@ -64,8 +63,7 @@ Create attestations when verifying contracts:
 node dist/bin/index.js verify \
   --testnet \
   --contract 0x... \
-  --attest-verification \
-  --attest-schema-uid <SCHEMA_UID>
+  --attest-verification
 ```
 
 ## CLI Options
@@ -75,15 +73,25 @@ node dist/bin/index.js verify \
 | `--attest-transfer` | Enable attestation for transfers |
 | `--attest-deployment` | Enable attestation for deployments |
 | `--attest-verification` | Enable attestation for verifications |
-| `--attest-schema-uid <UID>` | Schema UID (required for all attestation types) |
+| `--attest-schema-uid <UID>` | Custom schema UID (optional on testnet, required on mainnet) |
 | `--attest-recipient <address>` | Custom attestation recipient (optional) |
 | `--attest-reason <text>` | Reason for transfer (optional) |
 
 ## Schema Information
 
-### Transfer Schema
+### Testnet Default Schemas
 
-**Note:** You must register a schema and provide its UID using `--attest-schema-uid <UID>` when creating transfer attestations.
+Testnet has pre-registered default schemas for all attestation types. You can use attestations without specifying a schema UID:
+
+- **Transfer Schema UID**: `0x1916e2c6b032722c363eb00ef0de54d33710fc3b0af926bf013088ec98de41fa`
+- **Deployment Schema UID**: `0xf245ae37980c898c1cdb9a41c868210743448c6eeacbab780ee7e9e765b5c75b`
+- **Verification Schema UID**: `0x1aad4cd717cd17bd98b001bd8be917de48727c33b1d6bbe122162022ad274278`
+
+### Mainnet Schemas
+
+Mainnet currently has no default schemas. You must register your own schema and provide its UID using `--attest-schema-uid <UID>`.
+
+### Transfer Schema
 
 **Schema Definition:**
 ```
@@ -104,8 +112,6 @@ address sender,address recipient,string amount,address tokenAddress,string token
 
 ### Deployment Schema
 
-**Note:** You must register a schema and provide its UID using `--attest-schema-uid <UID>` when creating deployment attestations.
-
 **Schema Definition:**
 ```
 string contractName,address contractAddress,address deployer,uint256 blockNumber,bytes32 transactionHash,uint256 timestamp,string abiHash,string bytecodeHash
@@ -123,8 +129,6 @@ string contractName,address contractAddress,address deployer,uint256 blockNumber
 
 ### Verification Schema
 
-**Note:** You must register a schema and provide its UID using `--attest-schema-uid <UID>` when creating verification attestations.
-
 **Schema Definition:**
 ```
 string contractName,address contractAddress,address verifier,string sourceCodeHash,string compilationTarget,string compilerVersion,bool optimizationUsed,uint256 timestamp,string verificationTool
@@ -141,21 +145,19 @@ string contractName,address contractAddress,address verifier,string sourceCodeHa
 - `timestamp`: Unix timestamp of the verification
 - `verificationTool`: Tool used for verification (e.g., "rsk-cli")
 
-## How to Register Schemas
+## How to Register Schemas (Mainnet Only)
 
-Before you can create attestations, you must register the appropriate schema on the RSK Attestation Service. Schema registration is an on-chain operation that requires RBTC for gas fees.
+For mainnet deployments, you must register schemas before creating attestations. Schema registration is an on-chain operation that requires RBTC for gas fees.
 
-### Using the Rootstock Explorer
+### Using EAS Scan
 
-1. Visit the Rootstock Explorer attestation service:
-   - Testnet: [https://explorer.testnet.rootstock.io/ras](https://explorer.testnet.rootstock.io/ras)
-   - Mainnet: [https://explorer.rootstock.io/ras](https://explorer.rootstock.io/ras)
+1. Visit [https://easscan.org/schema/create](https://easscan.org/schema/create)
 
-2. Navigate to the "Schemas" section
+2. Connect your wallet and select the Rootstock network
 
-3. Click "Create Schema +" button
+3. Enter your schema definition using one of the structures documented above
 
-4. Enter your schema definition using one of the structures documented above
+4. Set revocable to `true` (recommended for flexibility)
 
 5. Submit the transaction (you'll need RBTC for gas fees)
 
@@ -165,31 +167,7 @@ Before you can create attestations, you must register the appropriate schema on 
 
 ### Using the Schema Registry Contract Directly
 
-Alternatively, you can interact directly with the Schema Registry contract:
-
-**Testnet:** `0x679c62956cD2801AbAbF80e9D430f18859Eea2d5`
-**Mainnet:** `0xeF29675d82CC5967069d6d9C17F2719f67728F5B`
-
-### Example: Registering a Transfer Schema
-
-1. Go to [https://explorer.testnet.rootstock.io/ras](https://explorer.testnet.rootstock.io/ras)
-2. Navigate to the Schemas section and click "Create Schema +"
-3. Enter the transfer schema definition:
-   ```
-   address sender,address recipient,string amount,address tokenAddress,string tokenSymbol,bytes32 transactionHash,uint256 blockNumber,uint256 timestamp,string reason,string transferType
-   ```
-4. Set revocable to `true` (recommended for flexibility)
-5. Submit the transaction and wait for confirmation
-6. Copy the returned Schema UID (e.g., `0x1234...`)
-7. Use it in your transfer command:
-   ```bash
-   node dist/bin/index.js transfer \
-     --testnet \
-     --address 0x... \
-     --value 0.001 \
-     --attest-transfer \
-     --attest-schema-uid 0x1234...
-   ```
+Alternatively, you can interact directly with the Schema Registry contract at `0xeF29675d82CC5967069d6d9C17F2719f67728F5B`.
 
 ## MCP Server Integration
 
@@ -203,8 +181,7 @@ When using this CLI as an MCP server, attestations are fully supported with auto
 
 ## Notes
 
-- **All attestation types require a registered schema UID** - there are no default schemas
-- Schema UIDs must match the exact data structure for the attestation type
+- Testnet uses default schemas - no schema UID required
+- Mainnet requires schema registration and the `--attest-schema-uid` flag
 - All attestations incur additional gas costs
 - Attestations are permanent and immutable on-chain
-- Each attestation type (transfer, deployment, verification) requires its own specific schema
