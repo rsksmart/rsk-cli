@@ -1,9 +1,9 @@
 import { loadWallets } from "../utils/index.js";
 import inquirer from "inquirer";
-import chalk from "chalk";
 import { Address } from "viem";
+import { logError } from "../utils/logger.js";
 
-export async function selectAddress(): Promise<Address> {
+export async function selectAddress(isExternal: boolean = false): Promise<Address> {
 	try {
 		const walletsDataString = loadWallets();
 		const walletsData = JSON.parse(walletsDataString);
@@ -42,10 +42,7 @@ export async function selectAddress(): Promise<Address> {
 
 		return selectedAddress;
 	} catch (error: any) {
-		console.error(
-			chalk.red("❌ Error selecting address:"),
-			chalk.yellow(error.message || error)
-		);
+		logError(isExternal, `Error selecting address: ${error.message || error}`);
 		throw error;
 	}
 }
