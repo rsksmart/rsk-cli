@@ -285,7 +285,7 @@ program
 program
   .command("history")
   .description("Fetch history for current wallet")
-  .option("--apiKey <apiKey", "Alchemy API key")
+  .option("--apiKey <apiKey>", "Alchemy API key")
   .option("--number <number>", "Number of transactions to fetch")
   .option("-t, --testnet", "History of wallet on the testnet")
   .action(async (options: CommandOptions) => {
