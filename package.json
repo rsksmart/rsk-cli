@@ -18,6 +18,9 @@
     "transfer": "pnpm run build && node dist/bin/index.js transfer --testnet --address 0xa5f45f5bddefC810C48aCC1D5CdA5e5a4c6BC59E --value 0.000001",
     "transferToken": "pnpm run build && node dist/bin/index.js transfer --testnet --token 0x32Cd6c5831531F96f57d1faf4DDdf0222c4Af8AB --address 0x8A0d290b2EE35eFde47810CA8fF057e109e4190B --value 0.000001",
     "tx-status": "pnpm run build && node dist/bin/index.js tx --testnet --txid 0x876a0a9b167889350c41930a4204e5d9acf5704a7f201447a337094189af961c4",
+    "swap:liquidity": "pnpm run build && node dist/bin/index.js swap --testnet --liquidity",
+    "swap:pegin": "pnpm run build && node dist/bin/index.js swap --testnet --pegin --amount 0.1",
+    "swap:pegout": "pnpm run build && node dist/bin/index.js swap --testnet --pegout --amount 0.00001 --btc-address",
     "batch-transfer": "pnpm run build && node dist/bin/index.js batch-transfer",
     "history": "pnpm run build && node dist/bin/index.js history",
     "config": "pnpm run build && node dist/bin/index.js config"
@@ -47,6 +50,7 @@
   },
   "dependencies": {
     "@openzeppelin/contracts": "^5.0.2",
+    "@rsksmart/flyover-sdk": "^1.8.0",
     "@rsksmart/rns-resolver.js": "^1.1.0",
     "@rsksmart/rsk-precompiled-abis": "^6.0.0-ARROWHEAD",
     "@types/fs-extra": "^11.0.4",
