@@ -705,7 +705,80 @@ Output example:
 ⛽ Gas Used: 21000
 ```
 
-### 11. RNS Resolve
+### 11. Flyover Swap - Check Liquidity
+
+The `swap` command allows you to check available liquidity providers for BTC ↔ RBTC conversions using the Flyover Protocol. View real-time information about providers, their minimum/maximum amounts, fees, and confirmations required.
+
+**What this command does:**
+- 🔍 Displays all available liquidity providers
+- 💰 Shows minimum and maximum swap amounts
+- 📊 Lists fees and confirmation requirements
+- 🌐 Works for both mainnet and testnet
+- ✅ **No wallet required** - read-only information
+
+#### Check Available Liquidity
+
+##### Mainnet
+
+```bash
+rsk-cli swap --liquidity
+```
+
+##### Testnet
+
+```bash
+rsk-cli swap --testnet --liquidity
+```
+
+#### Example Output
+
+```
+✅ Liquidity Information Retrieved!
+
+💧 Available Liquidity Providers:
+──────────────────────────────────────────────────
+
+📍 Provider: RSK Provider
+   Address: 0x7C4890A0f1D4bBf2C669Ac2d1efFa185c505359b
+   API: https://lps.testnet.flyover.rif.technology
+   🔹 Peg-In (BTC → RBTC):
+      Min: 0.005 BTC
+      Max: 15 BTC
+      Confirmations: 7
+   🔸 Peg-Out (RBTC → BTC):
+      Min: 0.001 RBTC
+      Max: 15 RBTC
+      Confirmations: 120
+
+──────────────────────────────────────────────────
+🌐 Network: Rootstock Testnet
+
+💡 To execute swaps (BTC ↔ RBTC):
+   → https://powpeg.rootstock.io
+
+   The web interface provides the same secure Flyover protocol
+   with full functionality for peg-in and peg-out operations.
+```
+
+#### To Execute Actual Swaps
+
+After checking liquidity, use the **Flyover web interface** to execute swaps:
+
+**🌐 https://powpeg.rootstock.io**
+
+The web interface provides:
+- ✅ Full peg-in (BTC → RBTC) functionality
+- ✅ Full peg-out (RBTC → BTC) functionality
+- ✅ Automatic captcha handling
+- ✅ Real-time quotes and fee calculations
+- ✅ Secure wallet integration
+- ✅ Transaction tracking
+
+#### Why Use Web Interface for Swaps?
+
+Liquidity providers require browser-based captcha verification for security. The CLI is perfect for checking liquidity and getting information, but actual swap execution is best done through the web interface which handles all security requirements automatically.
+
+### 12. RNS Resolve
 
 The `resolve` command allows you to interact with the RIF Name Service (RNS) on the Rootstock blockchain. You can perform both forward resolution (domain to address) and reverse resolution (address to domain name).
 
