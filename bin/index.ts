@@ -11,6 +11,7 @@ import { verifyCommand } from "../src/commands/verify.js";
 import { ReadContract } from "../src/commands/contract.js";
 import { Address } from "viem";
 import { bridgeCommand } from "../src/commands/bridge.js";
+import { swapCommand } from "../src/commands/swap.js";
 import { batchTransferCommand } from "../src/commands/batchTransfer.js";
 import { historyCommand } from "../src/commands/history.js";
 import { selectAddress } from "../src/commands/selectAddress.js";
@@ -280,6 +281,27 @@ program
       testnet: options.testnet === undefined ? undefined : !!options.testnet,
       name: options.wallet!,
     });
+  });
+
+program
+  .command("swap")
+  .description("Check Flyover liquidity providers for BTC ↔ RBTC swaps")
+  .option("-t, --testnet", "Use testnet")
+  .option("--liquidity", "Check available liquidity providers (default behavior)")
+  .action(async (options: CommandOptions & {
+    liquidity?: boolean;
+  }) => {
+    try {
+      await swapCommand({
+        testnet: !!options.testnet,
+        liquidity: true, // Always check liquidity
+      });
+    } catch (error: any) {
+      console.error(
+        chalk.red("Error checking liquidity:"),
+        error.message || error
+      );
+    }
   });
 
 program
