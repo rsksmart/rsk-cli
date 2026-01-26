@@ -19,6 +19,7 @@ import { resolveCommand } from "../src/commands/resolve.js";
 import { configCommand } from "../src/commands/config.js";
 import { transactionCommand } from "../src/commands/transaction.js";
 import { monitorCommand, listMonitoringSessions, stopMonitoringSession } from "../src/commands/monitor.js";
+import { simulateCommand, TransactionSimulationOptions } from "../src/commands/simulate.js";
 import { parseEther } from "viem";
 import { resolveRNSToAddress } from "../src/utils/rnsHelper.js";
 import { validateAndFormatAddressRSK } from "../src/utils/index.js";
@@ -450,6 +451,57 @@ program
     } catch (error: any) {
       console.error(
         chalk.red("Error during monitoring:"),
+        error.message || error
+      );
+    }
+  });
+
+program
+  .command("simulate")
+  .description("Simulate RBTC or ERC20 token transfers without execution")
+  .option("-t, --testnet", "Simulate on the testnet")
+  .option("--wallet <wallet>", "Name of the wallet")
+  .requiredOption("-a, --address <address>", "Recipient address")
+  .option("--token <address>", "ERC20 token contract address (optional, for token transfers)")
+  .requiredOption("--value <value>", "Amount to transfer")
+  .option("--gas-limit <limit>", "Custom gas limit")
+  .option("--gas-price <price>", "Custom gas price in RBTC")
+  .option("--data <data>", "Custom transaction data (hex)")
+  .action(async (options: CommandOptions) => {
+    try {
+      if (!options.value) {
+        throw new Error("Value is required for the simulation.");
+      }
+
+      const value = parseFloat(options.value);
+
+      if (isNaN(value) || value <= 0) {
+        throw new Error("Invalid value specified for simulation.");
+      }
+
+      const address = options.address
+        ? (`0x${options.address.replace(/^0x/, "")}` as `0x${string}`)
+        : null;
+
+      if (!address) {
+        throw new Error("Recipient address is required for simulation.");
+      }
+
+      const simulateOptions: TransactionSimulationOptions = {
+        testnet: !!options.testnet,
+        toAddress: address,
+        value: value,
+        name: options.wallet,
+        tokenAddress: options.token as `0x${string}` | undefined,
+        ...(options.gasLimit && { gasLimit: BigInt(options.gasLimit) }),
+        ...(options.gasPrice && { gasPrice: parseEther(options.gasPrice.toString()) }),
+        ...(options.data && { data: options.data as `0x${string}` })
+      };
+
+      await simulateCommand(simulateOptions);
+    } catch (error: any) {
+      console.error(
+        chalk.red("Error during simulation:"),
         error.message || error
       );
     }
