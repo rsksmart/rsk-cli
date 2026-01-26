@@ -168,7 +168,7 @@ export async function swapCommand(
 
       // Show web interface link for actual swaps
       logMessage(params, chalk.yellow(`\n💡 To execute swaps (BTC ↔ RBTC):`));
-      logMessage(params, chalk.cyan.bold(`   → https://app.flyover.rif.technology`));
+      logMessage(params, chalk.cyan.bold(`   → https://powpeg.rootstock.io`));
       logMessage(params, chalk.gray(`\n   The web interface provides the same secure Flyover protocol`));
       logMessage(params, chalk.gray(`   with full functionality for peg-in and peg-out operations.\n`));
 
