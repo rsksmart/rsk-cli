@@ -537,4 +537,37 @@ program
     });
   });
 
+program
+  .command("rns:transfer <domain> <recipient>")
+  .description("Transfer ownership of an RNS domain to another address")
+  .option("-t, --testnet", "Use testnet")
+  .option("--wallet <wallet>", "Wallet to use")
+  .action(async (domain, recipient, options) => {
+    const { rnsTransferCommand } = await import("../src/commands/rnsTransfer.js");
+    await rnsTransferCommand({
+      domain,
+      recipient,
+      wallet: options.wallet,
+      testnet: !!options.testnet,
+    });
+  });
+
+program
+  .command("rns:update <domain>")
+  .description("Update resolver records for an RNS domain")
+  .option("-t, --testnet", "Use testnet")
+  .option("--wallet <wallet>", "Wallet to use")
+  .option("--address <address>", "New address to set in resolver")
+  .option("--content <hash>", "Content hash to set in resolver")
+  .action(async (domain, options) => {
+    const { rnsUpdateCommand } = await import("../src/commands/rnsUpdate.js");
+    await rnsUpdateCommand({
+      domain,
+      wallet: options.wallet,
+      testnet: !!options.testnet,
+      address: options.address,
+      content: options.content,
+    });
+  });
+
 program.parse(process.argv);
