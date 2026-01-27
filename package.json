@@ -48,6 +48,7 @@
   "dependencies": {
     "@openzeppelin/contracts": "^5.0.2",
     "@rsksmart/rns-resolver.js": "^1.1.0",
+    "@rsksmart/rns-sdk": "^1.0.0-beta.9",
     "@rsksmart/rsk-precompiled-abis": "^6.0.0-ARROWHEAD",
     "@types/fs-extra": "^11.0.4",
     "@types/zxcvbn": "^4.4.5",

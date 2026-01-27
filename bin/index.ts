@@ -17,11 +17,19 @@ import { selectAddress } from "../src/commands/selectAddress.js";
 import { resolveCommand } from "../src/commands/resolve.js";
 import { configCommand } from "../src/commands/config.js";
 import { transactionCommand } from "../src/commands/transaction.js";
-import { monitorCommand, listMonitoringSessions, stopMonitoringSession } from "../src/commands/monitor.js";
-import { simulateCommand, TransactionSimulationOptions } from "../src/commands/simulate.js";
+import {
+  monitorCommand,
+  listMonitoringSessions,
+  stopMonitoringSession,
+} from "../src/commands/monitor.js";
+import {
+  simulateCommand,
+  TransactionSimulationOptions,
+} from "../src/commands/simulate.js";
 import { parseEther } from "viem";
 import { resolveRNSToAddress } from "../src/utils/rnsHelper.js";
 import { validateAndFormatAddressRSK } from "../src/utils/index.js";
+import { rnsRegisterCommand } from "../src/commands/rnsRegister.js";
 
 interface CommandOptions {
   testnet?: boolean;
@@ -96,14 +104,14 @@ program
       const resolvedAddress = await resolveRNSToAddress({
         name: options.rns,
         testnet: !!options.testnet,
-        isExternal: false
+        isExternal: false,
       });
       if (!resolvedAddress) {
         throw new Error(`Failed to resolve RNS domain: ${options.rns}`);
       }
       holderAddress = resolvedAddress;
     }
-    
+
     await balanceCommand({
       testnet: options.testnet,
       walletName: options.wallet!,
@@ -118,7 +126,10 @@ program
   .option("--wallet <wallet>", "Name of the wallet")
   .option("-a, --address <address>", "Recipient address")
   .option("--rns <domain>", "Recipient RNS domain (e.g., alice.rsk)")
-  .option("--token <address>", "ERC20 token contract address (optional, for token transfers)")
+  .option(
+    "--token <address>",
+    "ERC20 token contract address (optional, for token transfers)"
+  )
   .option("--value <value>", "Amount to transfer")
   .option("-i, --interactive", "Execute interactively and input transactions")
   .option("--gas-limit <limit>", "Custom gas limit")
@@ -149,18 +160,26 @@ program
         const resolvedAddress = await resolveRNSToAddress({
           name: options.rns,
           testnet: !!options.testnet,
-          isExternal: false
+          isExternal: false,
         });
         if (!resolvedAddress) {
           throw new Error(`Failed to resolve RNS domain: ${options.rns}`);
         }
-        const formatted = validateAndFormatAddressRSK(resolvedAddress as string, !!options.testnet);
+        const formatted = validateAndFormatAddressRSK(
+          resolvedAddress as string,
+          !!options.testnet
+        );
         if (!formatted) {
-          throw new Error(`Invalid resolved address for domain: ${options.rns}`);
+          throw new Error(
+            `Invalid resolved address for domain: ${options.rns}`
+          );
         }
         address = formatted as `0x${string}`;
       } else if (options.address) {
-        const formatted = validateAndFormatAddressRSK(String(options.address), !!options.testnet);
+        const formatted = validateAndFormatAddressRSK(
+          String(options.address),
+          !!options.testnet
+        );
         if (!formatted) {
           throw new Error("Invalid recipient address");
         }
@@ -171,19 +190,19 @@ program
 
       const txOptions = {
         ...(options.gasLimit && { gasLimit: BigInt(options.gasLimit) }),
-        ...(options.gasPrice && { gasPrice: parseEther(options.gasPrice.toString()) }),
-        ...(options.data && { data: options.data as `0x${string}` })
+        ...(options.gasPrice && {
+          gasPrice: parseEther(options.gasPrice.toString()),
+        }),
+        ...(options.data && { data: options.data as `0x${string}` }),
       };
 
-      await transferCommand(
-        {
-          testnet: !!options.testnet,
-          toAddress: address,
-          value: value,
-          name: options.wallet!,
-          tokenAddress: options.token as `0x${string}` | undefined,
-        }
-      );
+      await transferCommand({
+        testnet: !!options.testnet,
+        toAddress: address,
+        value: value,
+        name: options.wallet!,
+        tokenAddress: options.token as `0x${string}` | undefined,
+      });
     } catch (error: any) {
       console.error(
         chalk.red("Error during transfer:"),
@@ -198,7 +217,10 @@ program
   .option("-t, --testnet", "Check the transaction status on the testnet")
   .requiredOption("-i, --txid <txid>", "Transaction ID")
   .option("--monitor", "Keep monitoring the transaction until confirmation")
-  .option("--confirmations <number>", "Required confirmations for monitoring (default: 12)")
+  .option(
+    "--confirmations <number>",
+    "Required confirmations for monitoring (default: 12)"
+  )
   .action(async (options: CommandOptions) => {
     const formattedTxId = options.txid!.startsWith("0x")
       ? options.txid
@@ -209,7 +231,9 @@ program
       txid: formattedTxId as `0x${string}`,
       isExternal: false,
       monitor: !!options.monitor,
-      confirmations: options.confirmations ? parseInt(options.confirmations.toString()) : undefined,
+      confirmations: options.confirmations
+        ? parseInt(options.confirmations.toString())
+        : undefined,
     });
   });
 
@@ -223,15 +247,13 @@ program
   .option("-t, --testnet", "Deploy on the testnet")
   .action(async (options: CommandOptions) => {
     const args = options.args || [];
-    await deployCommand(
-      {
-        abiPath: options.abi!,
-        bytecodePath: options.bytecode!,
-        testnet: options.testnet,
-        args: args,
-        name: options.wallet!,
-      }
-    );
+    await deployCommand({
+      abiPath: options.abi!,
+      bytecodePath: options.bytecode!,
+      testnet: options.testnet,
+      args: args,
+      name: options.wallet!,
+    });
   });
 
 program
@@ -247,15 +269,13 @@ program
   )
   .action(async (options: CommandOptions) => {
     const args = options.decodedArgs || [];
-    await verifyCommand(
-      {
-        jsonPath: options.json!,
-        address: options.address!,
-        name: options.name!,
-        testnet:  options.testnet === undefined ? undefined : !!options.testnet,
-        args: args,
-      }
-    );
+    await verifyCommand({
+      jsonPath: options.json!,
+      address: options.address!,
+      name: options.name!,
+      testnet: options.testnet === undefined ? undefined : !!options.testnet,
+      args: args,
+    });
   });
 
 program
@@ -335,14 +355,16 @@ program
 
 program
   .command("resolve <name>")
-  .description("Resolve RNS names to addresses or reverse lookup addresses to names")
+  .description(
+    "Resolve RNS names to addresses or reverse lookup addresses to names"
+  )
   .option("-t, --testnet", "Use testnet (currently mainnet only)")
   .option("-r, --reverse", "Reverse lookup: address to name")
   .action(async (name: string, options: CommandOptions) => {
     await resolveCommand({
       name,
       testnet: !!options.testnet,
-      reverse: !!options.reverse
+      reverse: !!options.reverse,
     });
   });
 
@@ -359,7 +381,10 @@ program
   .option("-t, --testnet", "Execute on the testnet")
   .option("--wallet <wallet>", "Name of the wallet")
   .option("-a, --address <address>", "Recipient address")
-  .option("--token <address>", "ERC20 token contract address (optional, for token transfers)")
+  .option(
+    "--token <address>",
+    "ERC20 token contract address (optional, for token transfers)"
+  )
   .option("--value <value>", "Amount to transfer")
   .option("--gas-limit <limit>", "Custom gas limit")
   .option("--gas-price <price>", "Custom gas price in RBTC")
@@ -374,8 +399,10 @@ program
         options.token as `0x${string}` | undefined,
         {
           ...(options.gasLimit && { gasLimit: BigInt(options.gasLimit) }),
-          ...(options.gasPrice && { gasPrice: parseEther(options.gasPrice.toString()) }),
-          ...(options.data && { data: options.data as `0x${string}` })
+          ...(options.gasPrice && {
+            gasPrice: parseEther(options.gasPrice.toString()),
+          }),
+          ...(options.data && { data: options.data as `0x${string}` }),
         }
       );
     } catch (error: any) {
@@ -392,7 +419,10 @@ program
   .option("-t, --testnet", "Monitor on the testnet")
   .option("-a, --address <address>", "Address to monitor")
   .option("--tx <txid>", "Transaction ID to monitor")
-  .option("--confirmations <number>", "Required confirmations for transaction monitoring (default: 12)")
+  .option(
+    "--confirmations <number>",
+    "Required confirmations for transaction monitoring (default: 12)"
+  )
   .option("--balance", "Monitor address balance changes")
   .option("--transactions", "Monitor address transaction history")
   .option("--list", "List active monitoring sessions")
@@ -414,7 +444,9 @@ program
         : undefined;
 
       const tx = options.tx
-        ? (options.tx.startsWith("0x") ? options.tx : `0x${options.tx}`) as `0x${string}`
+        ? ((options.tx.startsWith("0x")
+            ? options.tx
+            : `0x${options.tx}`) as `0x${string}`)
         : undefined;
 
       await monitorCommand({
@@ -423,8 +455,10 @@ program
         monitorBalance: options.balance !== false,
         monitorTransactions: !!options.transactions,
         tx,
-        confirmations: options.confirmations ? parseInt(options.confirmations.toString()) : undefined,
-        isExternal: false
+        confirmations: options.confirmations
+          ? parseInt(options.confirmations.toString())
+          : undefined,
+        isExternal: false,
       });
     } catch (error: any) {
       console.error(
@@ -440,7 +474,10 @@ program
   .option("-t, --testnet", "Simulate on the testnet")
   .option("--wallet <wallet>", "Name of the wallet")
   .requiredOption("-a, --address <address>", "Recipient address")
-  .option("--token <address>", "ERC20 token contract address (optional, for token transfers)")
+  .option(
+    "--token <address>",
+    "ERC20 token contract address (optional, for token transfers)"
+  )
   .requiredOption("--value <value>", "Amount to transfer")
   .option("--gas-limit <limit>", "Custom gas limit")
   .option("--gas-price <price>", "Custom gas price in RBTC")
@@ -472,8 +509,10 @@ program
         name: options.wallet,
         tokenAddress: options.token as `0x${string}` | undefined,
         ...(options.gasLimit && { gasLimit: BigInt(options.gasLimit) }),
-        ...(options.gasPrice && { gasPrice: parseEther(options.gasPrice.toString()) }),
-        ...(options.data && { data: options.data as `0x${string}` })
+        ...(options.gasPrice && {
+          gasPrice: parseEther(options.gasPrice.toString()),
+        }),
+        ...(options.data && { data: options.data as `0x${string}` }),
       };
 
       await simulateCommand(simulateOptions);
@@ -483,6 +522,19 @@ program
         error.message || error
       );
     }
+  });
+
+program
+  .command("rns:register <domain>")
+  .description("Register a new RNS domain")
+  .option("-t, --testnet", "Use testnet")
+  .option("--wallet <wallet>", "Wallet to use")
+  .action(async (domain, options) => {
+    await rnsRegisterCommand({
+      domain,
+      wallet: options.wallet,
+      testnet: !!options.testnet,
+    });
   });
 
 program.parse(process.argv);
