@@ -1,6 +1,13 @@
 import { Address } from "viem";
 
-export const RNS: Record<string, Record<string, Address>> = {
+type Network = "mainnet" | "testnet";
+
+type RnsAddressKey =
+  | "rnsRegistryAddress"
+  | "rskOwnerAddress"
+  | "fifsAddrRegistrarAddress";
+
+export const RNSADDRESSES: Record<RnsAddressKey, Record<Network, Address>> = {
   rnsRegistryAddress: {
     mainnet: "0xcb868aeabd31e2b66f74e9a55cf064abb31a4ad5",
     testnet: "0x7d284aaac6e925aad802a53c0c69efe3764597b8",
