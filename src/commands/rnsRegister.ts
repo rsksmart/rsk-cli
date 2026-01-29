@@ -1,4 +1,3 @@
-import { RSKRegistrar } from "@rsksmart/rns-sdk/dist/index.js";
 import chalk from "chalk";
 import { BigNumber, Signer } from "ethers";
 import { RNSADDRESSES } from "../constants/rnsAddress.js";
@@ -11,6 +10,8 @@ import {
   logWarning,
   logMessage,
 } from "../utils/logger.js";
+import rnsSdk from "@rsksmart/rns-sdk";
+const { RSKRegistrar } = rnsSdk;
 
 interface RnsRegisterOptions {
   domain: string;
@@ -21,7 +22,6 @@ interface RnsRegisterOptions {
 
 export async function rnsRegisterCommand(options: RnsRegisterOptions) {
   const { domain, wallet, testnet, isExternal = false } = options;
-
   const network = testnet ? "testnet" : "mainnet";
   const rpcUrl = testnet
     ? "https://public-node.testnet.rsk.co"
