@@ -5,9 +5,29 @@
 
 # rsk-cli
 
+
 ## Description
 
 `rsk-cli` is a command-line tool for interacting with Rootstock blockchain
+
+## Table of Contents
+- [Installation](#installation)
+- [Configuration](#configuration)
+- [Features](#features)
+  1. [Manage Wallet](#1-manage-wallet)
+  2. [Check Balance](#2-check-balance)
+  3. [Transfer](#3-transfer-rbtc-and-erc20)
+  4. [Check Transaction Status](#4-check-transaction-status)
+  5. [Deploy Smart Contract](#5-deploy-smart-contract)
+  6. [Verify Smart Contract](#6-verify-smart-contract)
+  7. [Interact with Verified Contracts](#7-interact-with-verified-smart-contracts)
+  8. [Interact with RSK Bridge](#8-interact-with-rsk-bridge-contract)
+  9. [Fetch Wallet History](#9-fetch-wallet-history)
+  10. [Batch Transfer](#10-batch-transfer)
+  11. [Transaction Simulation](#11-transaction-simulation)
+  12. [RNS Resolve](#12-rns-resolve)
+  13. [RNS Register](#13-rns-register)
+- [Contributing](#contributing)
 
 ## Installation
 
@@ -911,6 +931,50 @@ Output example:
 > - The `.rsk` extension is automatically appended if not provided
 > - Both checksummed and non-checksummed addresses are supported
 > - The command will show appropriate error messages if the name or address cannot be resolved
+
+### 13. RNS Register
+The `rns:register` command allows you to secure a `.rsk` domain name through the RIF Name Service. It implements a two-step commitment process to ensure secure registration and prevent front-running.
+
+**Requirements**
+
+- **Gas**: You must have a small amount of **RBTC/tRBTC** to cover transaction fees.
+- **Fees**: You must have sufficient **RIF/tRIF** balance (and allowance) for the registration price.
+- **Patience**: The process involves a **1-minute wait** between steps to satisfy the RNS commitment maturity requirement.
+
+**Usage**
+##### Mainnet
+
+```bash
+rsk-cli rns:register <domain_name>.rsk --wallet <wallet_name>
+```
+
+##### Testnet
+
+```bash
+rsk-cli rns:register <domain_name>.rsk --wallet <wallet_name> --testnet
+```
+**Process Details**
+
+- **Sanity Checks**: The tool automatically checks domain availability, RIF balance, and rBTC balance.
+- **Commitment**: Submits a commitment hash to the blockchain.
+- **Maturity Wait**: The CLI monitors the chain until the commitment is ready to be revealed (approx. 60 seconds).
+- **Registration**: Submits the final registration transaction to claim the domain.
+
+**Output example:**
+
+```
+🔍 Checking availability for 'mycoolname.rsk'...
+Price: 2.0 tRIF
+Step 1/2: Sending commitment...
+✅ Commitment sent.
+⏳ Waiting for commitment maturity (approx 1 min)...
+.........
+Step 2/2: Registering domain...
+Tx Hash: 0xabcd0cef80bdae3d3293e5b31cacc7426e9083b1c03199ce3bc3afc20fd7c00e
+✅ Success! 'mycoolname.rsk' is now registered to 0x123...FFf
+
+```
+
 
 ## Contributing
 
