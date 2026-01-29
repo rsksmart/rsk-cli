@@ -45,9 +45,9 @@ export async function rnsRegisterCommand(options: RnsRegisterOptions) {
     }
     const duration = BigNumber.from(1); // Default 1 year
     const price = await registrar.price(label, duration as any);
-    console.log(chalk.dim(`Price: ${price.toString()} units (wei/RIF)`));
+    logMessage(isExternal,`Price: ${price.toString()} units (wei/RIF)`, chalk.dim);
 
-    console.log(chalk.yellow("Step 1/2: Sending commitment..."));
+    logMessage(isExternal,"Step 1/2: Sending commitment...", chalk.yellow);
     const { makeCommitmentTransaction, secret, canReveal } =
       await registrar.commitToRegister(label, signer.address);
 
