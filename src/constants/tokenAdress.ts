@@ -2,7 +2,7 @@ import { Address } from "viem";
 
 export const TOKENS: Record<string, Record<string, Address>> = {
   RIF: {
-    mainnet: "0x2acc95758f8b5F583470ba265eb685a8f45fc9d5",
+    mainnet: "0x2aCc95758f8b5F583470bA265Eb685a8f45fC9D5",
     testnet: "0x19f64674d8a5b4e652319f5e239efd3bc969a1fe",
   },
   USDRIF: {
@@ -15,3 +15,15 @@ export const TOKENS: Record<string, Record<string, Address>> = {
   },
 };
 
+export const TOKENS_METADATA = {
+  RIF: {
+    mainnet: "RIF",
+    testnet: "tRIF",
+    faucet : {link : "https://faucet.rootstock.io/"}
+  },
+  RBTC: {
+    mainnet: "rBTC",
+    testnet: "tRBTC",
+    faucet : {link : "https://faucet.rifos.org/"},
+  },
+} as const;
