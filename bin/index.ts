@@ -30,6 +30,8 @@ import { parseEther } from "viem";
 import { resolveRNSToAddress } from "../src/utils/rnsHelper.js";
 import { validateAndFormatAddressRSK } from "../src/utils/index.js";
 import { rnsRegisterCommand } from "../src/commands/rnsRegister.js";
+import { rnsTransferCommand } from "../src/commands/rnsTransfer.js";
+import { rnsUpdateCommand } from "../src/commands/rnsUpdate.js";
 
 interface CommandOptions {
   testnet?: boolean;
@@ -543,7 +545,6 @@ program
   .option("-t, --testnet", "Use testnet")
   .option("--wallet <wallet>", "Wallet to use")
   .action(async (domain, recipient, options) => {
-    const { rnsTransferCommand } = await import("../src/commands/rnsTransfer.js");
     await rnsTransferCommand({
       domain,
       recipient,
@@ -560,7 +561,6 @@ program
   .option("--address <address>", "New address to set in resolver")
   .option("--content <hash>", "Content hash to set in resolver")
   .action(async (domain, options) => {
-    const { rnsUpdateCommand } = await import("../src/commands/rnsUpdate.js");
     await rnsUpdateCommand({
       domain,
       wallet: options.wallet,

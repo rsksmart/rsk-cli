@@ -1,5 +1,5 @@
 import chalk from "chalk";
-import { BigNumber, Signer, ethers } from "ethers";
+import { BigNumber, ethers } from "ethers";
 import { RNSADDRESSES } from "../constants/rnsAddress.js";
 import { TOKENS, TOKENS_METADATA } from "../constants/tokenAdress.js";
 import { getEthersSigner } from "../utils/ethersWallet.js";
