@@ -12,6 +12,7 @@ import {
 } from "../utils/logger.js";
 import { rootstock, rootstockTestnet } from "viem/chains";
 import rnsSdk from "@rsksmart/rns-sdk";
+import { EXPLORER } from "../constants/explorer.js";
 const { RSKRegistrar } = rnsSdk;
 
 interface RnsRegisterOptions {
@@ -126,7 +127,11 @@ export async function rnsRegisterCommand(options: RnsRegisterOptions) {
       duration,
       price
     );
-    logMessage(isExternal, `Tx Hash: ${registerTx.hash}`, chalk.dim);
+    logMessage(
+      isExternal,
+      `Tx: ${EXPLORER.BLOCKSCOUT[network]}/tx/${registerTx.hash}`,
+      chalk.dim
+    );
     await registerTx.wait();
 
     logSuccess(
