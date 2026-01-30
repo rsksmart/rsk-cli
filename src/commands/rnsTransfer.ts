@@ -1,6 +1,5 @@
 import chalk from "chalk";
 import { ethers } from "ethers";
-import { RNSADDRESSES } from "../constants/rnsAddress.js";
 import { TOKENS, TOKENS_METADATA } from "../constants/tokenAdress.js";
 import { getEthersSigner } from "../utils/ethersWallet.js";
 import {
@@ -36,11 +35,9 @@ export async function rnsTransferCommand(options: RnsTransferOptions) {
     const partnerRegistrar = new PartnerRegistrar(signer, network);
 
     const label = domain.replace(".rsk", "");
-    const cleanRecipient = ethers.utils.getAddress(recipient.toLowerCase());
-
+    const cleanRecipientAddress = ethers.utils.getAddress(recipient.toLowerCase());
     // Check if the domain is registered
     const isAvailable = await partnerRegistrar.available(label);
-
     if (isAvailable) {
       logError(
         isExternal,
@@ -59,9 +56,17 @@ export async function rnsTransferCommand(options: RnsTransferOptions) {
       return;
     }
 
+    if (owner.toLowerCase() !== cleanRecipientAddress) {
+      logError(
+        isExternal,
+        `❌ You already own '${domain}'. Can't transfer to Owner!`
+      );
+      return;
+    }
+
     logInfo(
       isExternal,
-      `Preparing to transfer '${domain}' to ${cleanRecipient}...`
+      `Preparing to transfer '${domain}' to ${cleanRecipientAddress}...`
     );
 
     // Check Gas Balance
@@ -71,6 +76,13 @@ export async function rnsTransferCommand(options: RnsTransferOptions) {
         isExternal,
         `❌ Insufficient ${TOKENS_METADATA.RBTC[network]} for gas.`
       );
+      if (network == "testnet") {
+        logMessage(
+          isExternal,
+          `💡 Get test rBTC here: ${TOKENS_METADATA.RBTC.faucet.link}`,
+          chalk.yellow
+        );
+      }
       return;
     }
 
@@ -80,7 +92,7 @@ export async function rnsTransferCommand(options: RnsTransferOptions) {
 
     const transferTxHash = await partnerRegistrar.transfer(
       label,
-      cleanRecipient
+      cleanRecipientAddress
     );
 
     // logMessage(isExternal, `Tx Hash: ${transferTx}`, chalk.dim);
@@ -92,7 +104,7 @@ export async function rnsTransferCommand(options: RnsTransferOptions) {
 
     logSuccess(
       isExternal,
-      `✅ Success! '${domain}' has been transferred to ${cleanRecipient}`
+      `✅ Success! '${domain}' has been transferred to ${cleanRecipientAddress}`
     );
   } catch (error: any) {
     const errorMessage = error.reason || error.message || error;

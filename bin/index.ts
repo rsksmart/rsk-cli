@@ -559,14 +559,12 @@ program
   .option("-t, --testnet", "Use testnet")
   .option("--wallet <wallet>", "Wallet to use")
   .option("--address <address>", "New address to set in resolver")
-  .option("--content <hash>", "Content hash to set in resolver")
   .action(async (domain, options) => {
     await rnsUpdateCommand({
       domain,
       wallet: options.wallet,
       testnet: !!options.testnet,
       address: options.address,
-      content: options.content,
     });
   });
 

@@ -1033,6 +1033,44 @@ Tx: https://rootstock-testnet.blockscout.com/tx/0x_transaction_hash
 
 ```
 
+### 15. RNS Update
+
+The `rns:update` command allows you to change the resolution address of a `.rsk` domain. This determines which wallet address or contract the domain "points to" when users send funds to it.
+
+**Requirements**
+
+- **Authority**: You must be the owner or controller of the domain you are trying to update records for.
+- **Gas**: You must have a small amount of **RBTC/tRBTC** to cover transaction fees.
+- **Target**: A valid Rootstock address to set as the new destination.
+
+**Process Details**
+
+- **Ownership Check**: The CLI verifies that you have the authority to modify the domain records.
+- **Registry Update**: It sends a transaction to the RNS Registry to update the `addr` record for your domain.
+
+**Usage**
+
+##### Mainnet
+
+```bash
+rsk-cli rns:transfer <domain_name>.rsk <recipient_address> --wallet <wallet_name>
+```
+
+##### Testnet
+
+```bash
+rsk-cli rns:update blessings.rsk --address <new_address> --testnet
+```
+
+**Output example:**
+
+```
+Preparing to update records for 'mycoolname.rsk'...
+🔄 Setting resolution address to 0x123...FFf
+Tx: https://rootstock-testnet.blockscout.com/tx/0x_transaction_hash
+✅ Success! 'mycoolname.rsk' now resolves to 0x123...FFf
+```
+
 ## Contributing
 
 We welcome contributions from the community. Please fork the repository and submit pull requests with your changes. Ensure your code adheres to the project's main objective.

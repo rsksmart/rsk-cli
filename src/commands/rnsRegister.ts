@@ -92,7 +92,7 @@ export async function rnsRegisterCommand(options: RnsRegisterOptions) {
       if (network == "testnet") {
         logMessage(
           isExternal,
-          `💡 Get test rBTC here: ${TOKENS_METADATA.RIF.faucet.link}`,
+          `💡 Get test tRIF here: ${TOKENS_METADATA.RIF.faucet.link}`,
           chalk.yellow
         );
       }
