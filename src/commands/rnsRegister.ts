@@ -112,6 +112,7 @@ export async function rnsRegisterCommand(options: RnsRegisterOptions) {
       chalk.cyan
     );
 
+    // wait for confirmation completion
     while (!(await canReveal())) {
       await new Promise((r) => setTimeout(r, 5000)); // check every 5s
       if (!isExternal) process.stdout.write(".");
@@ -120,6 +121,7 @@ export async function rnsRegisterCommand(options: RnsRegisterOptions) {
 
     logWarning(isExternal, "Step 2/2: Registering domain...");
 
+    // register domain
     const registerTx = await registrar.register(
       label,
       signer.address,

@@ -5,12 +5,12 @@
 
 # rsk-cli
 
-
 ## Description
 
 `rsk-cli` is a command-line tool for interacting with Rootstock blockchain
 
 ## Table of Contents
+
 - [Installation](#installation)
 - [Configuration](#configuration)
 - [Features](#features)
@@ -27,6 +27,8 @@
   11. [Transaction Simulation](#11-transaction-simulation)
   12. [RNS Resolve](#12-rns-resolve)
   13. [RNS Register](#13-rns-register)
+  14. [RNS Transfer](#14-rns-transfer)
+  15. [RNS Update](#15-rns-update)
 - [Contributing](#contributing)
 
 ## Installation
@@ -48,19 +50,23 @@ rsk-cli config
 This command provides the following configuration options:
 
 ### Network Settings
+
 - Default Network: Choose between mainnet/testnet
 - Example: `rsk-cli config --network testnet`
 
 ### Gas Settings
+
 - Default Gas Limit: Set default gas limit (max 30M)
 - Default Gas Price: Set gas price in Gwei (0 for auto)
 - Example: `rsk-cli config --gas-limit 2000000 --gas-price 10`
 
 ### API Key Management
+
 - Alchemy API Key: Store API key for history command
 - Example: `rsk-cli config --alchemy-key YOUR_API_KEY`
 
 ### Display Preferences
+
 - Show Explorer Links: Toggle transaction explorer links
 - Show Gas Details: Toggle gas information display
 - Show Block Details: Toggle block information display
@@ -68,16 +74,19 @@ This command provides the following configuration options:
 - Example: `rsk-cli config --show-explorer true --compact-mode false`
 
 ### Wallet Preferences
+
 - Auto Confirm: Skip password prompts for transactions
 - Default Wallet: Set preferred wallet name
 - Example: `rsk-cli config --auto-confirm true --default-wallet myWallet`
 
 All settings are stored securely in `rsk-cli-config.json`. You can reset to default settings using:
+
 ```bash
 rsk-cli config --reset
 ```
 
 Example output:
+
 ```
 🔧 Current Configuration:
 Network Settings:
@@ -252,7 +261,7 @@ Use the `-t` or `--testnet` flag to check the balance on the Rootstock testnet.
 # Check balance on testnet
 rsk-cli balance -t
 
-# Check balance using RNS domain on testnet  
+# Check balance using RNS domain on testnet
 rsk-cli balance -t --rns testing.rsk
 ```
 
@@ -314,6 +323,7 @@ rsk-cli transfer --address 0x08C4E4BdAb2473E454B8B2a4400358792786d341 --value 0.
 ```
 
 Output example for RBTC transfer:
+
 ```
 📄 Wallet Address: 0x08C4E4BdAb2473E454B8B2a4400358792786d341
 🎯 Recipient Address: 0x08C4E4BdAb2473E454B8B2a4400358792786d341
@@ -352,6 +362,7 @@ rsk-cli transfer --testnet --token 0x32Cd6c5831531F96f57d1faf4DDdf0222c4Af8AB --
 ```
 
 Output example for ERC20 transfer:
+
 ```
 🔑 Wallet account: 0x6ad6b3926Fd18b0A8c9a20d659A25c9F6a69c8e0
 📄 Token Information:
@@ -382,6 +393,7 @@ The transfer command supports the following options:
 - `--data`: Custom transaction data (hexadecimal format)
 
 > **Note**: Before making any transfer, ensure you have:
+>
 > 1. A wallet configured with sufficient balance (RBTC or ERC20 tokens)
 > 2. The correct ERC20 token contract address (when transferring tokens)
 > 3. A valid recipient address
@@ -927,12 +939,14 @@ Output example:
 🌐 Network: Rootstock Testnet
 ```
 
-> **Note**: 
+> **Note**:
+>
 > - The `.rsk` extension is automatically appended if not provided
 > - Both checksummed and non-checksummed addresses are supported
 > - The command will show appropriate error messages if the name or address cannot be resolved
 
 ### 13. RNS Register
+
 The `rns:register` command allows you to secure a `.rsk` domain name through the RIF Name Service. It implements a two-step commitment process to ensure secure registration and prevent front-running.
 
 **Requirements**
@@ -941,7 +955,15 @@ The `rns:register` command allows you to secure a `.rsk` domain name through the
 - **Fees**: You must have sufficient **RIF/tRIF** balance (and allowance) for the registration price.
 - **Patience**: The process involves a **1-minute wait** between steps to satisfy the RNS commitment maturity requirement.
 
+**Process Details**
+
+- **Sanity Checks**: The tool automatically checks domain availability, RIF balance, and rBTC balance.
+- **Commitment**: Submits a commitment hash to the blockchain.
+- **Maturity Wait**: The CLI monitors the chain until the commitment is ready to be revealed (approx. 60 seconds).
+- **Registration**: Submits the final registration transaction to claim the domain.
+
 **Usage**
+
 ##### Mainnet
 
 ```bash
@@ -953,12 +975,6 @@ rsk-cli rns:register <domain_name>.rsk --wallet <wallet_name>
 ```bash
 rsk-cli rns:register <domain_name>.rsk --wallet <wallet_name> --testnet
 ```
-**Process Details**
-
-- **Sanity Checks**: The tool automatically checks domain availability, RIF balance, and rBTC balance.
-- **Commitment**: Submits a commitment hash to the blockchain.
-- **Maturity Wait**: The CLI monitors the chain until the commitment is ready to be revealed (approx. 60 seconds).
-- **Registration**: Submits the final registration transaction to claim the domain.
 
 **Output example:**
 
@@ -970,12 +986,52 @@ Step 1/2: Sending commitment...
 ⏳ Waiting for commitment maturity (approx 1 min)...
 .........
 Step 2/2: Registering domain...
-Tx: https://rootstock-testnet.blockscout.com/tx/0xtransactionhash
+Tx: https://rootstock-testnet.blockscout.com/tx/0x_transaction_hash
 
 ✅ Success! 'mycoolname.rsk' is now registered to 0x123...FFf
 
 ```
 
+### 14. RNS Transfer
+
+The `rns:transfer` command allows you to transfer the ownership of an existing `.rsk` domain to another wallet address. This is a single-step transaction that updates the registrant of the domain on the Rootstock blockchain..
+
+**Requirements**
+
+- **Ownership**: You must be the current owner of the domain you are trying to transfer.
+- **Gas**: You must have a small amount of **RBTC/tRBTC** to cover transaction fees.
+- **Recipient**: A valid Rootstock address or RNS domain to receive the ownership.
+
+**Process Details**
+
+- **Ownership Validation**: The tool verifies that the selected wallet is the actual owner of the domain before attempting the transfer.
+- **Address Checksumming**: Automatically handles Rootstock address checksums to ensure the domain is sent to the correct destination.
+- **Maturity Wait**: The CLI monitors the chain until the commitment is ready to be revealed (approx. 60 seconds).
+- **Single Transaction**: Unlike registration, a transfer is executed in a single transaction without a waiting period.
+
+**Usage**
+
+##### Mainnet
+
+```bash
+rsk-cli rns:transfer <domain_name>.rsk <recipient_address> --wallet <wallet_name>
+```
+
+##### Testnet
+
+```bash
+rsk-cli rns:transfer <domain_name>.rsk <recipient_address> --wallet <wallet_name> --testnet
+```
+
+**Output example:**
+
+```
+Preparing to transfer 'mycoolname.rsk' to 0x123...FFf
+🔄 Transferring ownership...
+Tx: https://rootstock-testnet.blockscout.com/tx/0x_transaction_hash
+✅ Success! 'mycoolname.rsk' has been transferred to 0x123...FFf
+
+```
 
 ## Contributing
 
