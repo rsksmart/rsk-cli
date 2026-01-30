@@ -95,7 +95,6 @@ export async function rnsTransferCommand(options: RnsTransferOptions) {
       cleanRecipientAddress
     );
 
-    // logMessage(isExternal, `Tx Hash: ${transferTx}`, chalk.dim);
     logMessage(
       isExternal,
       `Tx: ${EXPLORER.BLOCKSCOUT[network]}/tx/${transferTxHash}`,

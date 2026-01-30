@@ -14,7 +14,7 @@ import { rootstock, rootstockTestnet } from "viem/chains";
 import rnsSdk from "@rsksmart/rns-sdk";
 import { EXPLORER } from "../constants/explorer.js";
 
-const { AddrResolver, RNS, PartnerRegistrar } = rnsSdk;
+const { AddrResolver, PartnerRegistrar } = rnsSdk;
 
 interface RnsUpdateOptions {
   domain: string;
@@ -36,7 +36,6 @@ export async function rnsUpdateCommand(options: RnsUpdateOptions) {
     const registryAddress = ethers.utils.getAddress(
       RNSADDRESSES.rnsRegistryAddress[network]
     );
-    const rnsRegistry = new RNS(registryAddress, signer);
     const partnerRegistrar = new PartnerRegistrar(signer, network);
 
     const addrResolver = new AddrResolver(registryAddress, signer);
