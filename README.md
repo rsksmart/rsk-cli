@@ -764,6 +764,152 @@ The pipe command currently supports the following command combinations:
 
 If any command in the pipe fails, the entire pipe execution stops and displays the error message. This ensures that subsequent commands don't execute with invalid data.
 
+### 12. Transaction Simulation
+
+The `simulate` command allows you to simulate RBTC or ERC20 token transfers before executing them. This feature helps you estimate gas costs, validate balances, and ensure your transaction will succeed without actually executing it on the blockchain.
+
+#### Benefits of Transaction Simulation
+
+- Estimate accurate gas costs before sending transactions
+- Validate that you have sufficient balance for both transfer and gas fees
+- Verify transaction parameters without risking real funds
+- Preview the impact on your wallet balance
+- Identify potential transaction failures before execution
+
+#### Simulate RBTC Transfer
+
+##### Mainnet
+
+```bash
+# Basic RBTC transfer simulation
+rsk-cli simulate --address 0xRecipientAddress --value 0.001
+
+# With custom gas parameters
+rsk-cli simulate --address 0xRecipientAddress --value 0.001 --gas-limit 21000 --gas-price 0.00000006
+
+# With custom transaction data
+rsk-cli simulate --address 0xRecipientAddress --value 0.001 --data 0x1234abcd
+```
+
+##### Testnet
+
+```bash
+# Basic RBTC transfer simulation on testnet
+rsk-cli simulate --testnet --address 0x08C4E4BdAb2473E454B8B2a4400358792786d341 --value 0.001
+
+# Using specific wallet
+rsk-cli simulate --testnet --wallet myWallet --address 0x08C4E4BdAb2473E454B8B2a4400358792786d341 --value 0.001
+```
+
+Output example for RBTC simulation:
+
+```
+🔮 Simulating Transaction
+🔑 From Address: 0xb4eb1352Ac339766727Df550A24D21f90935E78c
+🎯 To Address: 0x08C4E4BdAb2473E454B8B2a4400358792786d341
+💵 Amount: 0.001 RBTC
+
+📊 SIMULATION RESULTS
+
+Network: Rootstock Testnet
+Transaction Type: RBTC Transfer
+Transfer Amount: 0.001 RBTC
+Current Balance: 0.501586 RBTC
+Estimated Gas: 21000
+Gas Price: 0.06 Gwei
+Total Gas Cost: 0.000001 RBTC
+Balance After: 0.500585 RBTC
+Total Transaction Cost: 0.001001 RBTC
+
+✅ VALIDATION RESULTS
+
+Sufficient Balance: ✅ Enough RBTC for transfer + gas
+Transaction Validity: ✅ Transaction simulation successful
+
+✅ Transaction simulation successful! Transaction is ready to execute.
+```
+
+#### Simulate ERC20 Token Transfer
+
+Add the `--token` flag with the token contract address to simulate ERC20 token transfers:
+
+##### Mainnet
+
+```bash
+# Basic token transfer simulation
+rsk-cli simulate --token 0xTokenAddress --address 0xRecipientAddress --value 10
+
+# With custom gas parameters
+rsk-cli simulate --token 0xTokenAddress --address 0xRecipientAddress --value 10 --gas-limit 65000
+```
+
+##### Testnet
+
+```bash
+# Basic token transfer simulation on testnet
+rsk-cli simulate --testnet --token 0x32Cd6c5831531F96f57d1faf4DDdf0222c4Af8AB --address 0x8A0d290b2EE35eFde47810CA8fF057e109e4190B --value 10
+
+# Using specific wallet
+rsk-cli simulate --testnet --wallet myWallet --token 0x32Cd6c5831531F96f57d1faf4DDdf0222c4Af8AB --address 0x8A0d290b2EE35eFde47810CA8fF057e109e4190B --value 10
+```
+
+Output example for ERC20 simulation:
+
+```
+🔮 Simulating Transaction
+🔑 From Address: 0x6ad6b3926Fd18b0A8c9a20d659A25c9F6a69c8e0
+🎯 To Address: 0x8A0d290b2EE35eFde47810CA8fF057e109e4190B
+💵 Amount: 10 tokens
+
+📊 SIMULATION RESULTS
+
+Network: Rootstock Testnet
+Transaction Type: ERC20 Token Transfer
+Transfer Amount: 10 MTK
+Current Balance: 100.000000 MTK
+Estimated Gas: 35460
+Gas Price: 0.06 Gwei
+Total Gas Cost: 0.000002 RBTC
+Balance After: 0.501584 RBTC
+RBTC Balance After Gas: 0.501584 RBTC
+Token Balance After Transfer: 90.000000 MTK
+
+✅ VALIDATION RESULTS
+
+Sufficient Token Balance: ✅ Enough tokens for transfer
+Sufficient Gas Balance: ✅ Enough RBTC for gas
+Transaction Validity: ✅ Transaction simulation successful
+
+✅ Transaction simulation successful! Transaction is ready to execute.
+```
+
+#### Available Options
+
+The simulate command supports the following options:
+
+- `-t, --testnet`: Simulate on Rootstock testnet network
+- `-a, --address <address>`: Recipient address (required)
+- `--value <value>`: Amount to transfer (required)
+- `--token <address>`: ERC20 token contract address (for token transfers)
+- `--wallet <wallet>`: Name of the wallet to use
+- `--gas-limit <limit>`: Custom gas limit for the transaction
+- `--gas-price <price>`: Custom gas price in RBTC
+- `--data <data>`: Custom transaction data in hexadecimal format
+
+#### Understanding Simulation Results
+
+The simulation provides comprehensive information:
+
+1. **Transaction Details**: From/to addresses, amount, and network
+2. **Gas Estimation**: Estimated gas units, gas price, and total gas cost
+3. **Balance Preview**: Current balance and projected balance after transaction
+4. **Validation Checks**:
+   - Sufficient balance for transfer amount
+   - Sufficient RBTC for gas fees
+   - Transaction validity (whether it would succeed)
+
+> **Note**: Simulation uses real blockchain state but does not execute transactions. It provides accurate estimates based on current network conditions. Gas prices may vary, so actual costs might differ slightly from simulation results.
+
 ### 12. RNS Resolve
 
 The `resolve` command allows you to interact with the RIF Name Service (RNS) on the Rootstock blockchain. You can perform both forward resolution (domain to address) and reverse resolution (address to domain name).

@@ -136,8 +136,7 @@ function parseCommandString(commandString: string, params?: PipeCommandOptions):
         
         if (nextPart && !nextPart.startsWith('-')) {
           options[optionName] = nextPart;
-          i++; 
-        } else {
+          i++;       } else {
           options[optionName] = true;
         }
       } else if (part.startsWith('-') && part.length === 2) {
@@ -151,7 +150,7 @@ function parseCommandString(commandString: string, params?: PipeCommandOptions):
         
         if (nextPart && !nextPart.startsWith('-')) {
           options[optionName] = nextPart;
-          i++; 
+          i++;
         } else {
           options[optionName] = true;
         }
