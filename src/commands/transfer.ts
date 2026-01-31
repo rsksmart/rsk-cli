@@ -15,7 +15,6 @@ type TransferCommandOptions = {
   isExternal?: boolean;
   walletsData?: any;
   password?: string;
-  pipeInput?: any;
 };
 
 type TransferResult = {
@@ -141,7 +140,15 @@ export async function transferCommand(
     const publicClient = await provider.getPublicClient();
     
     let walletClient;
-    if (params.isExternal && params.walletsData && params.password && params.name) {
+    if (params.isExternal) {
+      if (!params.walletsData || !params.password || !params.name) {
+        const errorMessage = "Missing required parameters for external execution (walletsData, password, name).";
+        logError(params, errorMessage);
+        return {
+          error: errorMessage,
+          success: false,
+        };
+      }
       walletClient = await provider.getWalletClientExternal(
         params.walletsData,
         params.name,

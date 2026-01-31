@@ -214,7 +214,7 @@ export function extractPipeableData(result: any, commandName: string): PipeableD
     case 'balance':
       return {
         balance: data.balance,
-        address: data.address,
+        address: data.walletAddress,
         network: data.network,
         token: data.token
       };
@@ -293,7 +293,8 @@ async function executeCommand(
       return { success: false, error: 'Transaction hash is required for tx command' };
     }
 
-    if (!txHash.startsWith('0x') || txHash.length !== 66) {
+    const txHashRegex = /^0x[a-fA-F0-9]{64}$/;
+    if (!txHashRegex.test(txHash)) {
       return {
         success: false,
         error: `Invalid transaction hash format: ${txHash}. Expected 64 hex characters with 0x prefix.`
@@ -342,9 +343,14 @@ async function executeCommand(
       isExternal: pipeOptions.isExternal
     });
   } else if (name === 'balance') {
+    const balanceAddress = inputData?.to || inputData?.address || inputData?.contractAddress || pipeOptions.address;
+    
     result = await balanceCommand({
       testnet: !!pipeOptions.testnet,
       walletName: pipeOptions.wallet,
+      address: balanceAddress,
+      token: pipeOptions.token,
+      customTokenAddress: pipeOptions.customTokenAddress,
       isExternal: pipeOptions.isExternal
     });
   } else {
@@ -415,7 +421,6 @@ export async function pipeCommand(
 
     if (result.data) {
       currentData = result.data;
-      logSuccess(params, `Command ${i + 1} completed successfully`);
 
       if (i < commands.length - 1) {
         const nextCommand = commands[i + 1];

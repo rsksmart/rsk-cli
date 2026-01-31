@@ -7,10 +7,7 @@
     "strict": true,
     "skipLibCheck": true,
     "outDir": "./dist",
-    "typeRoots": ["./node_modules/@types"],
-    "paths": {
-      "@rsksmart/rns-resolver.js": ["./node_modules/@rsksmart/rns-resolver.js/lib/index.d.ts"]
-    }
+    "typeRoots": ["./node_modules/@types"]
   },
   "include": ["src/**/*.ts", "bin/**/*.ts"]
 }

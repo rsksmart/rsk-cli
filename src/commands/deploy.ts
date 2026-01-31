@@ -14,7 +14,6 @@ type DeployCommandOptions = {
   isExternal?: boolean;
   walletsData?: any;
   password?: string;
-  pipeInput?: any;
 };
 
 function logMessage(
@@ -119,7 +118,15 @@ export async function deployCommand(
     }
 
     let walletClient;
-    if (params.isExternal && params.password) {
+    if (params.isExternal) {
+      if (!params.password) {
+        const errorMessage = "Password is required for external execution.";
+        logError(params, errorMessage);
+        return {
+          error: errorMessage,
+          success: false,
+        };
+      }
       const { privateKeyToAccount } = await import("viem/accounts");
       const { createWalletClient, http } = await import("viem");
       const crypto = await import("crypto");
@@ -127,8 +134,8 @@ export async function deployCommand(
       const wallet = walletsData.wallets[walletName];
       const { encryptedPrivateKey, iv } = wallet;
       
-       let decryptedPrivateKey: string;
-       try {         
+      let decryptedPrivateKey: string;
+      try {         
         const password = params.password;
         const decipherIv = Uint8Array.from(Buffer.from(iv, "hex"));
         const key = crypto.scryptSync(password, decipherIv, 32);
