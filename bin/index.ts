@@ -53,6 +53,7 @@ interface CommandOptions {
   gasPrice?: string;
   data?: string;
   abiPath?: string;
+  function?: string;
   functionName?: string;
   simulate?: boolean;
   optimize?: boolean;
@@ -358,7 +359,7 @@ program
         testnet: !!options.testnet,
         contractAddress: options.contract as Address | undefined,
         abiPath: options.abi,
-        functionName: options.functionName,
+        functionName: options.function,
         args: options.args,
         to: options.address as Address | undefined,
         value: options.value,

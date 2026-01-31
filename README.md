@@ -811,7 +811,7 @@ rsk-cli gas --to 0xRecipientAddress --value 0.1
 Estimate gas for a contract function call:
 
 ```bash
-rsk-cli gas --contractAddress 0xContractAddress --abiPath ./abi.json --functionName myMethod --args '["arg1", 123]'
+rsk-cli gas --contract 0xContractAddress --abi ./abi.json --function myMethod --args '["arg1", 123]'
 ```
 
 #### Output

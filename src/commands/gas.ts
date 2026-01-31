@@ -3,7 +3,7 @@ import chalk from "chalk";
 import ora from "ora";
 import fs from "fs";
 import inquirer from "inquirer";
-import { Address, formatEther, parseEther, formatGwei } from "viem";
+import { Address, formatEther, parseEther, formatGwei, isAddress } from "viem";
 import { walletFilePath } from "../utils/constants.js";
 import Table from "cli-table3";
 
@@ -190,9 +190,13 @@ async function estimateTransactionGas(options: GasEstimateOptions) {
   try {
     const gasPrice = await publicClient.getGasPrice();
     
+    if (!options.to || !isAddress(options.to)) {
+      throw new Error("Invalid recipient address");
+    }
+
     const estimatedGas = await publicClient.estimateGas({
       account: account.address,
-      to: options.to!,
+      to: options.to,
       value: options.value ? parseEther(options.value) : 0n,
       data: options.data as `0x${string}` | undefined,
     });
@@ -522,7 +526,7 @@ async function interactiveTransactionEstimation(testnet: boolean) {
       name: 'to',
       message: 'Recipient address:',
       validate: (input) => {
-        if (!input.startsWith('0x') || input.length !== 42) {
+        if (!isAddress(input)) {
           return 'Please enter a valid Ethereum address';
         }
         return true;
@@ -667,10 +671,24 @@ async function interactiveDeploymentEstimation(testnet: boolean) {
     const bytecode = fs.readFileSync(answers.bytecodePath, 'utf8').trim();
     const gasPrice = await publicClient.getGasPrice();
 
-    const bytecodeLength = bytecode.length / 2; 
-    const creationCost = 32000n;
-    const codeCost = BigInt(bytecodeLength) * 200n;
-    const estimatedGas = creationCost + codeCost;
+    let accountAddress: Address | undefined;
+    if (fs.existsSync(walletFilePath)) {
+      try {
+        const walletsData = JSON.parse(fs.readFileSync(walletFilePath, 'utf8'));
+        if (walletsData.currentWallet && walletsData.wallets[walletsData.currentWallet]) {
+          accountAddress = walletsData.wallets[walletsData.currentWallet].address as Address;
+        }
+      } catch (e: any) {
+        logMessage(options, `\n⚠️ Warning: Failed to load local wallet context: ${e.message}`, chalk.yellow);
+      }
+    }
+
+    const estimatedGas = await publicClient.estimateGas({
+      account: accountAddress,
+      data: bytecode as `0x${string}`,
+    });
+    
+    const bytecodeLength = bytecode.length / 2;
 
     spinner.succeed('Deployment estimation complete');
 
