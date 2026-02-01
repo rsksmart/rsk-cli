@@ -19,7 +19,7 @@ const { AddrResolver, PartnerRegistrar } = rnsSdk;
 interface RnsUpdateOptions {
   domain: string;
   wallet: string;
-  address: string; // The new address the domain should resolve to
+  address: string;
   testnet?: boolean;
   isExternal?: boolean;
 }
@@ -45,7 +45,6 @@ export async function rnsUpdateCommand(options: RnsUpdateOptions) {
 
     logInfo(isExternal, `Preparing to update records for '${domain}'...`);
 
-    // gas check
     const rbtcBalance = await signer.getBalance();
     if (rbtcBalance.eq(0)) {
       logError(
@@ -63,7 +62,7 @@ export async function rnsUpdateCommand(options: RnsUpdateOptions) {
     }
 
     const label = domain.replace(".rsk", "");
-    // Check if the domain is registered
+
     const isAvailable = await partnerRegistrar.available(label);
     if (isAvailable) {
       logError(
@@ -73,7 +72,6 @@ export async function rnsUpdateCommand(options: RnsUpdateOptions) {
       return;
     }
 
-    // Check Ownership
     const owner = await partnerRegistrar.ownerOf(label);
     if (owner.toLowerCase() !== signer.address.toLowerCase()) {
       logError(
@@ -87,7 +85,7 @@ export async function rnsUpdateCommand(options: RnsUpdateOptions) {
       isExternal,
       `🔄 Setting resolution address to ${cleanRecipientAddress}...`
     );
-    // execute update
+
     const updateTx = await addrResolver.setAddr(domain, cleanRecipientAddress);
     logMessage(
       isExternal,

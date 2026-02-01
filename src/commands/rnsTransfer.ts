@@ -35,8 +35,10 @@ export async function rnsTransferCommand(options: RnsTransferOptions) {
     const partnerRegistrar = new PartnerRegistrar(signer, network);
 
     const label = domain.replace(".rsk", "");
-    const cleanRecipientAddress = ethers.utils.getAddress(recipient.toLowerCase());
-    // Check if the domain is registered
+    const cleanRecipientAddress = ethers.utils.getAddress(
+      recipient.toLowerCase()
+    );
+
     const isAvailable = await partnerRegistrar.available(label);
     if (isAvailable) {
       logError(
@@ -46,7 +48,6 @@ export async function rnsTransferCommand(options: RnsTransferOptions) {
       return;
     }
 
-    // Check Ownership
     const owner = await partnerRegistrar.ownerOf(label);
     if (owner.toLowerCase() !== signer.address.toLowerCase()) {
       logError(
@@ -69,7 +70,6 @@ export async function rnsTransferCommand(options: RnsTransferOptions) {
       `Preparing to transfer '${domain}' to ${cleanRecipientAddress}...`
     );
 
-    // Check Gas Balance
     const rbtcBalance = await signer.getBalance();
     if (rbtcBalance.eq(0)) {
       logError(
@@ -87,8 +87,6 @@ export async function rnsTransferCommand(options: RnsTransferOptions) {
     }
 
     logWarning(isExternal, `🔄 Transferring ownership...`);
-
-    // Execute Transfer : the transfer method handles everything and returns the hash
 
     const transferTxHash = await partnerRegistrar.transfer(
       label,

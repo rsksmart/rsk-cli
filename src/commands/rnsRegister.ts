@@ -49,7 +49,7 @@ export async function rnsRegisterCommand(options: RnsRegisterOptions) {
       logError(isExternal, `❌ Domain '${label}.rsk' is already taken.`);
       return;
     }
-    const duration = BigNumber.from(1); // Default 1 year
+    const duration = BigNumber.from(1);
     const price = await registrar.price(label, duration as any);
     logMessage(
       isExternal,
@@ -58,7 +58,7 @@ export async function rnsRegisterCommand(options: RnsRegisterOptions) {
       }`,
       chalk.dim
     );
-    // check if the caller has enough gas for transaction and to purchase domain
+
     const rbtcBalance = await signer.getBalance();
     if (rbtcBalance.eq(0)) {
       logError(
@@ -74,7 +74,7 @@ export async function rnsRegisterCommand(options: RnsRegisterOptions) {
       }
       return;
     }
-    // 2. Check tRIF Balance (for Registration Fee)
+
     const rifAddress = TOKENS["RIF"][network];
     const rifAbi = ["function balanceOf(address) view returns (uint256)"];
     const rifContract = new ethers.Contract(rifAddress, rifAbi, signer);
@@ -112,16 +112,14 @@ export async function rnsRegisterCommand(options: RnsRegisterOptions) {
       chalk.cyan
     );
 
-    // wait for confirmation completion
     while (!(await canReveal())) {
-      await new Promise((r) => setTimeout(r, 5000)); // check every 5s
+      await new Promise((r) => setTimeout(r, 5000));
       if (!isExternal) process.stdout.write(".");
     }
     if (!isExternal) console.log("");
 
     logWarning(isExternal, "Step 2/2: Registering domain...");
 
-    // register domain
     const registerTx = await registrar.register(
       label,
       signer.address,
