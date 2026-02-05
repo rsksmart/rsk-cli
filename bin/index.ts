@@ -22,6 +22,9 @@ import { simulateCommand, TransactionSimulationOptions } from "../src/commands/s
 import { parseEther } from "viem";
 import { resolveRNSToAddress } from "../src/utils/rnsHelper.js";
 import { validateAndFormatAddressRSK } from "../src/utils/index.js";
+import { rnsUpdateCommand } from "../src/commands/rnsUpdate.js";
+import { rnsTransferCommand } from "../src/commands/rnsTransfer.js";
+import { rnsRegisterCommand } from "../src/commands/rnsRegister.js";
 
 interface CommandOptions {
   testnet?: boolean;
@@ -103,7 +106,7 @@ program
       }
       holderAddress = resolvedAddress;
     }
-    
+
     await balanceCommand({
       testnet: options.testnet,
       walletName: options.wallet!,
@@ -483,6 +486,48 @@ program
         error.message || error
       );
     }
+  });
+
+  program
+  .command("rns:register <domain>")
+  .description("Register a new RNS domain")
+  .option("-t, --testnet", "Use testnet")
+  .option("--wallet <wallet>", "Wallet to use")
+  .action(async (domain, options) => {
+    await rnsRegisterCommand({
+      domain,
+      wallet: options.wallet,
+      testnet: !!options.testnet,
+    });
+  });
+
+program
+  .command("rns:transfer <domain> <recipient>")
+  .description("Transfer ownership of an RNS domain to another address")
+  .option("-t, --testnet", "Use testnet")
+  .option("--wallet <wallet>", "Wallet to use")
+  .action(async (domain, recipient, options) => {
+    await rnsTransferCommand({
+      domain,
+      recipient,
+      wallet: options.wallet,
+      testnet: !!options.testnet,
+    });
+  });
+
+program
+  .command("rns:update <domain>")
+  .description("Update resolver records for an RNS domain")
+  .option("-t, --testnet", "Use testnet")
+  .option("--wallet <wallet>", "Wallet to use")
+  .option("--address <address>", "New address to set in resolver")
+  .action(async (domain, options) => {
+    await rnsUpdateCommand({
+      domain,
+      wallet: options.wallet,
+      testnet: !!options.testnet,
+      address: options.address,
+    });
   });
 
 program.parse(process.argv);
