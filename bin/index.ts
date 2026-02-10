@@ -22,6 +22,7 @@ import { simulateCommand, TransactionSimulationOptions } from "../src/commands/s
 import { parseEther } from "viem";
 import { resolveRNSToAddress } from "../src/utils/rnsHelper.js";
 import { validateAndFormatAddressRSK } from "../src/utils/index.js";
+import { txExplainCommand } from "../src/commands/txExplain.js";
 
 interface CommandOptions {
   testnet?: boolean;
@@ -53,6 +54,7 @@ interface CommandOptions {
   gasPrice?: string;
   data?: string;
   rns?: string;
+  raw?: boolean;
 }
 
 const orange = chalk.rgb(255, 165, 0);
@@ -103,7 +105,7 @@ program
       }
       holderAddress = resolvedAddress;
     }
-    
+
     await balanceCommand({
       testnet: options.testnet,
       walletName: options.wallet!,
@@ -480,6 +482,28 @@ program
     } catch (error: any) {
       console.error(
         chalk.red("Error during simulation:"),
+        error.message || error
+      );
+    }
+  });
+
+program
+  .command("tx-explain <txhash>")
+  .description("Transform raw hexadecimal blockchain data into a human-readable summary")
+  .option("-t, --testnet", "Query the transaction on the Rootstock testnet")
+  .option("--raw", "Display raw calldata without decoding attempt")
+  .action(async (txhash: string, options: CommandOptions) => {
+    try {
+      const formattedTxHash = txhash.startsWith("0x") ? txhash : `0x${txhash}`;
+
+      await txExplainCommand({
+        testnet: !!options.testnet,
+        txhash: formattedTxHash as `0x${string}`,
+        raw: !!options.raw
+      });
+    } catch (error: any) {
+      console.error(
+        chalk.red("Error explaining transaction:"),
         error.message || error
       );
     }
