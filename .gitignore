@@ -2,7 +2,7 @@
 
 rootstock-wallet.json
 rootstock-wallet-dev.json
-#lock files 
+#lock files
 pnpm-lock.yaml
 bun.lockb
 # Logs
@@ -162,7 +162,7 @@ dist
 .tern-port
 
 # Stores VSCode versions used for testing VSCode extensions
-
+.vscode
 .vscode-test
 
 # yarn v2
