@@ -32,6 +32,9 @@ export const txExplainCommand = async (options: TxExplainOptions) => {
     const txExplorerUrl = `${explorer}/tx/${txhash}`;
     logMessage(isExternal, "\nTRANSACTION SUMMARY", chalk.bold.underline);
 
+    const networkName = testnet ? "Rootstock Testnet" : "Rootstock Mainnet";
+    logMessage(isExternal, `${chalk.blue("Network:")} ${chalk.gray(networkName)}`);
+
     const statusText = receipt.status === 1 ? "✅ Success" : "❌ Failed";
     logMessage(isExternal, `${chalk.blue("Status:")} ${statusText}`);
     logMessage(isExternal, `${chalk.blue("Block:")} ${receipt.blockNumber}`);
@@ -67,7 +70,7 @@ async function decodeExecutionTier(calldata: string, to: string, isTestnet: bool
   const selector = calldata.slice(0, 10);
   logMessage(
     isExternal,
-    `${chalk.blue("Function Selector:")} ${chalk.gray(selector)}`
+    `${chalk.blue("Function Selector:")} ${chalk.white(selector)}`
   );
   try {
     const abi = await fetchContractABI(to, isTestnet);
