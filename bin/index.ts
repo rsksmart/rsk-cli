@@ -19,6 +19,7 @@ import { configCommand } from "../src/commands/config.js";
 import { transactionCommand } from "../src/commands/transaction.js";
 import { monitorCommand, listMonitoringSessions, stopMonitoringSession } from "../src/commands/monitor.js";
 import { simulateCommand, TransactionSimulationOptions } from "../src/commands/simulate.js";
+import { devmetricsCommand } from "../src/commands/devmetrics.js";
 import { parseEther } from "viem";
 import { resolveRNSToAddress } from "../src/utils/rnsHelper.js";
 import { validateAndFormatAddressRSK } from "../src/utils/index.js";
@@ -482,6 +483,111 @@ program
         chalk.red("Error during simulation:"),
         error.message || error
       );
+    }
+  });
+
+program
+  .command("dev-metrics")
+  .description(
+    "Aggregate GitHub and Rootstock on-chain data into a single developer health report",
+  )
+  .option(
+    "-r, --repo <repo>",
+    "GitHub repository in format owner/repo (can be used multiple times)",
+  )
+  .option(
+    "-c, --contract <address>",
+    "Rootstock contract address (can be used multiple times)",
+  )
+  .option(
+    "-f, --format <format>",
+    "Output format: table, json, or markdown",
+    "table",
+  )
+  .option("--ci", "CI/CD mode: outputs JSON format", false)
+  .option("--github-token <token>", "GitHub personal access token")
+  .option("-t, --testnet", "Use Rootstock testnet network")
+  .action(async (options: any) => {
+    try {
+      const repos = Array.isArray(options.repo)
+        ? options.repo
+        : options.repo
+        ? [options.repo]
+        : [];
+      const contracts = Array.isArray(options.contract)
+        ? options.contract
+        : options.contract
+        ? [options.contract]
+        : [];
+
+      if (repos.length === 0) {
+        console.error(
+          chalk.red("Error: At least one repository (--repo) is required"),
+        );
+        return;
+      }
+
+      if (contracts.length === 0) {
+        console.error(
+          chalk.red(
+            "Error: At least one contract address (--contract) is required",
+          ),
+        );
+        return;
+      }
+
+      let format: "table" | "json" | "markdown" = "table";
+      if (options.ci) {
+        format = "json";
+      } else if (options.format) {
+        const validFormats: Array<"table" | "json" | "markdown"> = [
+          "table",
+          "json",
+          "markdown",
+        ];
+        if (validFormats.includes(options.format)) {
+          format = options.format;
+        } else {
+          console.error(
+            chalk.red(
+              `Invalid format: ${options.format}. Must be one of: ${validFormats.join(
+                ", ",
+              )}`,
+            ),
+          );
+          return;
+        }
+      }
+
+      const { reports, errors } = await devmetricsCommand({
+        repos,
+        contracts,
+        format,
+        ci: !!options.ci,
+        githubToken: options.githubToken,
+        testnet: !!options.testnet,
+        isExternal: false,
+      });
+
+      if (errors.length > 0) {
+        if (format === "json" || options.ci) {
+          console.error(JSON.stringify({ errors }, null, 2));
+        } else {
+          console.error(chalk.red("\n❌ Errors encountered:"));
+          errors.forEach(({ repo, contract, error }) => {
+            console.error(chalk.red(`  ${repo} / ${contract}: ${error}`));
+          });
+        }
+        if (reports.length === 0) {
+          process.exit(1);
+        }
+      }
+    } catch (error: any) {
+      console.error(
+        chalk.red("Error during dev-metrics:"),
+        error?.message || error,
+      );
+      process.exit(1);
     }
   });
 

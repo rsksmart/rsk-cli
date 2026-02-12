@@ -851,7 +851,47 @@ The simulation provides comprehensive information:
 
 > **Note**: Simulation uses real blockchain state but does not execute transactions. It provides accurate estimates based on current network conditions. Gas prices may vary, so actual costs might differ slightly from simulation results.
 
-### 12. RNS Resolve
+### 12. Developer Metrics (GitHub + Rootstock)
+
+The `dev-metrics` command aggregates GitHub repository activity and Rootstock on-chain usage into a single developer health report. It supports table, JSON, and Markdown output formats and can be used both from the terminal and programmatically (for example via the MCP server integration).
+
+```bash
+# Basic usage (mainnet)
+rsk-cli dev-metrics \
+  --repo owner/repo \
+  --contract 0xYourContractAddress
+
+# Testnet
+rsk-cli dev-metrics \
+  --repo owner/repo \
+  --contract 0xYourContractAddress \
+  --testnet
+
+# JSON (CI/CD)
+rsk-cli dev-metrics \
+  --repo owner/repo \
+  --contract 0xYourContractAddress \
+  --format json
+
+# Markdown
+rsk-cli dev-metrics \
+  --repo owner/repo \
+  --contract 0xYourContractAddress \
+  --format markdown
+```
+
+Supported options:
+
+- `-r, --repo <repo>`: GitHub repository in `owner/repo` format (repeatable)
+- `-c, --contract <address>`: Rootstock contract address (repeatable)
+- `-f, --format <format>`: `table`, `json`, or `markdown` (default: `table`)
+- `--ci`: CI/CD mode, equivalent to JSON output
+- `--github-token <token>`: GitHub personal access token (or use the `GITHUB_TOKEN` environment variable)
+- `-t, --testnet`: Use Rootstock testnet
+
+When used from the MCP server, the underlying command can be called in "external" mode to return structured data (`reports` and `errors`) without printing logs or spinners.
+
+### 13. RNS Resolve
 
 The `resolve` command allows you to interact with the RIF Name Service (RNS) on the Rootstock blockchain. You can perform both forward resolution (domain to address) and reverse resolution (address to domain name).
 
