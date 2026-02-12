@@ -46,6 +46,7 @@
     "typescript": "^5.0.0"
   },
   "dependencies": {
+    "@octokit/rest": "^22.0.1",
     "@openzeppelin/contracts": "^5.0.2",
     "@rsksmart/rns-resolver.js": "^1.1.0",
     "@rsksmart/rsk-precompiled-abis": "^6.0.0-ARROWHEAD",
@@ -60,6 +61,7 @@
     "ora": "^8.0.1",
     "uuid": "^9.0.1",
     "viem": "^2.19.4",
+    "zod": "^3.25.0",
     "zxcvbn": "^4.4.2"
   }
 }
