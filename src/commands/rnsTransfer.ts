@@ -57,10 +57,10 @@ export async function rnsTransferCommand(options: RnsTransferOptions) {
       return;
     }
 
-    if (owner.toLowerCase() !== cleanRecipientAddress) {
+    if (owner.toLowerCase() === cleanRecipientAddress.toLowerCase()) {
       logError(
         isExternal,
-        `❌ You already own '${domain}'. Can't transfer to Owner!`
+        `❌ You already own '${domain}'. Can't transfer to yourself!`
       );
       return;
     }
