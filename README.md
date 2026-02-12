@@ -25,10 +25,7 @@
   9. [Fetch Wallet History](#9-fetch-wallet-history)
   10. [Batch Transfer](#10-batch-transfer)
   11. [Transaction Simulation](#11-transaction-simulation)
-  12. [RNS Resolve](#12-rns-resolve)
-  13. [RNS Register](#13-rns-register)
-  14. [RNS Transfer](#14-rns-transfer)
-  15. [RNS Update](#15-rns-update)
+  12. [RNS Operations](#12-rns-operations)
 - [Contributing](#contributing)
 
 ## Installation
@@ -873,27 +870,113 @@ The simulation provides comprehensive information:
 
 > **Note**: Simulation uses real blockchain state but does not execute transactions. It provides accurate estimates based on current network conditions. Gas prices may vary, so actual costs might differ slightly from simulation results.
 
-### 12. RNS Resolve
+### 12. RNS Operations
+The `rns` command provides a unified interface to interact with the RIF Name Service (RNS). You can Register, Transfer, Update, and Resolve domains using specific flags.
 
-The `resolve` command allows you to interact with the RIF Name Service (RNS) on the Rootstock blockchain. You can perform both forward resolution (domain to address) and reverse resolution (address to domain name).
+#### 1. Register a Domain
 
-#### Forward Resolution (Domain to Address)
+Secure a `.rsk` domain name through a two-step commitment process. Requires a wallet with RBTC for gas and RIF for the registration fee.
+
+##### Mainnet
+
+```bash
+rsk-cli rns --register <domain_name>.rsk --wallet <wallet_name>
+```
+
+##### Testnet
+
+```bash
+rsk-cli rns --register <domain_name>.rsk --wallet <wallet_name> --testnet
+```
+
+##### Output example:
+
+```
+🔍 Checking availability for 'mycoolname.rsk'...
+Price: 2.0 tRIF
+Step 1/2: Sending commitment...
+✅ Commitment sent.
+⏳ Waiting for commitment maturity (approx 1 min)...
+.........
+Step 2/2: Registering domain...
+Tx: https://rootstock-testnet.blockscout.com/tx/0x_transaction_hash
+
+✅ Success! 'mycoolname.rsk' is now registered to 0x123...FFf
+
+```
+
+#### 2. Transfer Ownership
+
+Transfer the ownership of an existing domain to another address. Requires: `--recipient` flag.
+
+##### Mainnet
+
+```bash
+rsk-cli rns --transfer <domain_name>.rsk --recipient <recipient_address> --wallet <wallet_name>
+```
+
+##### Testnet
+
+```bash
+rsk-cli rns --transfer <domain_name>.rsk <recipient_address> --wallet <wallet_name> --testnet
+```
+
+##### Output example:
+
+```
+Preparing to transfer 'mycoolname.rsk' to 0x123...FFf
+🔄 Transferring ownership...
+Tx: https://rootstock-testnet.blockscout.com/tx/0x_transaction_hash
+✅ Success! 'mycoolname.rsk' has been transferred to 0x123...FFf
+
+```
+
+#### 3. Update Resolver
+
+Change the resolution address of a domain (where the domain "points" to). Requires: `--address` flag.
+
+##### Mainnet
+
+```bash
+rsk-cli rns --update blessings.rsk --address <new_address>
+```
+
+##### Testnet
+
+```bash
+rsk-cli rns --update blessings.rsk --address <new_address> --testnet
+```
+
+##### Output example:
+
+```
+Preparing to update records for 'mycoolname.rsk'...
+🔄 Setting resolution address to 0x123...FFf
+Tx: https://rootstock-testnet.blockscout.com/tx/0x_transaction_hash
+✅ Success! 'mycoolname.rsk' now resolves to 0x123...FFf
+```
+
+#### 4. Resolve Domain
+
+Perform both forward resolution (domain to address) and reverse resolution (address to domain name).
+
+**Forward Resolution (Domain to Address):**
 
 Convert an RNS domain name to its associated address:
 
 ##### Mainnet
 
 ```bash
-rsk-cli resolve testing.rsk
+rsk-cli rns --resolve testing.rsk
 ```
 
 ##### Testnet
 
 ```bash
-rsk-cli resolve testing.rsk --testnet
+rsk-cli rns --resolve testing.rsk --testnet
 ```
 
-Output example:
+##### Output example:
 
 ```
 🔍 Resolving testing.rsk...
@@ -903,20 +986,20 @@ Output example:
 🌐 Network: Rootstock Mainnet
 ```
 
-#### Reverse Resolution (Address to Domain)
+**Reverse Resolution (Address to Domain):**
 
 Convert an address back to its RNS domain name:
 
 ##### Mainnet
 
 ```bash
-rsk-cli resolve 0x123456789abcdef0123456789abcdef012345678 --reverse
+rsk-cli rns --resolve 0x123456789abcdef0123456789abcdef012345678 --reverse
 ```
 
 ##### Testnet
 
 ```bash
-rsk-cli resolve 0x123456789abcdef0123456789abcdef012345678 --reverse --testnet
+rsk-cli rns --resolve 0x123456789abcdef0123456789abcdef012345678 --reverse --testnet
 ```
 
 Output example:
@@ -934,131 +1017,6 @@ Output example:
 > - Both checksummed and non-checksummed addresses are supported
 > - The command will show appropriate error messages if the name or address cannot be resolved
 
-### 13. RNS Register
-
-The `rns:register` command allows you to secure a `.rsk` domain name through the RIF Name Service. It implements a two-step commitment process to ensure secure registration and prevent front-running.
-
-**Requirements**
-
-- **Gas**: You must have a small amount of **RBTC/tRBTC** to cover transaction fees.
-- **Fees**: You must have sufficient **RIF/tRIF** balance (and allowance) for the registration price.
-- **Patience**: The process involves a **1-minute wait** between steps to satisfy the RNS commitment maturity requirement.
-
-**Process Details**
-
-- **Sanity Checks**: The tool automatically checks domain availability, RIF balance, and rBTC balance.
-- **Commitment**: Submits a commitment hash to the blockchain.
-- **Maturity Wait**: The CLI monitors the chain until the commitment is ready to be revealed (approx. 60 seconds).
-- **Registration**: Submits the final registration transaction to claim the domain.
-
-**Usage**
-
-##### Mainnet
-
-```bash
-rsk-cli rns:register <domain_name>.rsk --wallet <wallet_name>
-```
-
-##### Testnet
-
-```bash
-rsk-cli rns:register <domain_name>.rsk --wallet <wallet_name> --testnet
-```
-
-**Output example:**
-
-```
-🔍 Checking availability for 'mycoolname.rsk'...
-Price: 2.0 tRIF
-Step 1/2: Sending commitment...
-✅ Commitment sent.
-⏳ Waiting for commitment maturity (approx 1 min)...
-.........
-Step 2/2: Registering domain...
-Tx: https://rootstock-testnet.blockscout.com/tx/0x_transaction_hash
-
-✅ Success! 'mycoolname.rsk' is now registered to 0x123...FFf
-
-```
-
-### 14. RNS Transfer
-
-The `rns:transfer` command allows you to transfer the ownership of an existing `.rsk` domain to another wallet address. This is a single-step transaction that updates the registrant of the domain on the Rootstock blockchain..
-
-**Requirements**
-
-- **Ownership**: You must be the current owner of the domain you are trying to transfer.
-- **Gas**: You must have a small amount of **RBTC/tRBTC** to cover transaction fees.
-- **Recipient**: A valid Rootstock address or RNS domain to receive the ownership.
-
-**Process Details**
-
-- **Ownership Validation**: The tool verifies that the selected wallet is the actual owner of the domain before attempting the transfer.
-- **Address Checksumming**: Automatically handles Rootstock address checksums to ensure the domain is sent to the correct destination.
-- **Maturity Wait**: The CLI monitors the chain until the commitment is ready to be revealed (approx. 60 seconds).
-- **Single Transaction**: Unlike registration, a transfer is executed in a single transaction without a waiting period.
-
-**Usage**
-
-##### Mainnet
-
-```bash
-rsk-cli rns:transfer <domain_name>.rsk <recipient_address> --wallet <wallet_name>
-```
-
-##### Testnet
-
-```bash
-rsk-cli rns:transfer <domain_name>.rsk <recipient_address> --wallet <wallet_name> --testnet
-```
-
-**Output example:**
-
-```
-Preparing to transfer 'mycoolname.rsk' to 0x123...FFf
-🔄 Transferring ownership...
-Tx: https://rootstock-testnet.blockscout.com/tx/0x_transaction_hash
-✅ Success! 'mycoolname.rsk' has been transferred to 0x123...FFf
-
-```
-
-### 15. RNS Update
-
-The `rns:update` command allows you to change the resolution address of a `.rsk` domain. This determines which wallet address or contract the domain "points to" when users send funds to it.
-
-**Requirements**
-
-- **Authority**: You must be the owner or controller of the domain you are trying to update records for.
-- **Gas**: You must have a small amount of **RBTC/tRBTC** to cover transaction fees.
-- **Target**: A valid Rootstock address to set as the new destination.
-
-**Process Details**
-
-- **Ownership Check**: The CLI verifies that you have the authority to modify the domain records.
-- **Registry Update**: It sends a transaction to the RNS Registry to update the `addr` record for your domain.
-
-**Usage**
-
-##### Mainnet
-
-```bash
-rsk-cli rns:transfer <domain_name>.rsk <recipient_address> --wallet <wallet_name>
-```
-
-##### Testnet
-
-```bash
-rsk-cli rns:update blessings.rsk --address <new_address> --testnet
-```
-
-**Output example:**
-
-```
-Preparing to update records for 'mycoolname.rsk'...
-🔄 Setting resolution address to 0x123...FFf
-Tx: https://rootstock-testnet.blockscout.com/tx/0x_transaction_hash
-✅ Success! 'mycoolname.rsk' now resolves to 0x123...FFf
-```
 
 ## Contributing
 
