@@ -82,10 +82,10 @@ export async function rnsRegisterCommand(options: RnsRegisterOptions) {
     if (userRifBalance.lt(price)) {
       logError(
         isExternal,
-        `❌ Insufficient tRIF. Have: ${ethers.utils.formatUnits(
+        `❌ Insufficient ${TOKENS_METADATA.RIF[network]}. Have: ${ethers.utils.formatUnits(
           userRifBalance,
           18
-        )} tRIF, Need: ${ethers.utils.formatUnits(price, 18)} ${
+        )} ${TOKENS_METADATA.RIF[network]}, Need: ${ethers.utils.formatUnits(price, 18)} ${
           TOKENS_METADATA.RIF[network]
         }`
       );

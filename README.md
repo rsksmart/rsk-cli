@@ -938,13 +938,13 @@ Change the resolution address of a domain (where the domain "points" to). Requir
 ##### Mainnet
 
 ```bash
-rsk-cli rns --update blessings.rsk --address <new_address>
+rsk-cli rns --update blessings.rsk --address <new_address> --wallet <wallet_name>
 ```
 
 ##### Testnet
 
 ```bash
-rsk-cli rns --update blessings.rsk --address <new_address> --testnet
+rsk-cli rns --update blessings.rsk --address <new_address> --wallet <wallet_name> --testnet
 ```
 
 ##### Output example:
