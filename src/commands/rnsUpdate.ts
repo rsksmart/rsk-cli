@@ -100,6 +100,6 @@ export async function rnsUpdateCommand(options: RnsUpdateOptions) {
     );
   } catch (error: any) {
     const errorMessage = error.reason || error.message || error;
-    logError(isExternal, `Transfer Error: ${errorMessage}`);
+    logError(isExternal, `Update Error: ${errorMessage}`);
   }
 }

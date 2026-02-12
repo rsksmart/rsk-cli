@@ -918,7 +918,7 @@ rsk-cli rns --transfer <domain_name>.rsk --recipient <recipient_address> --walle
 ##### Testnet
 
 ```bash
-rsk-cli rns --transfer <domain_name>.rsk <recipient_address> --wallet <wallet_name> --testnet
+rsk-cli rns --transfer <domain_name>.rsk --recipient <recipient_address> --wallet <wallet_name> --testnet
 ```
 
 ##### Output example:
