@@ -907,7 +907,7 @@ Tx: https://rootstock-testnet.blockscout.com/tx/0x_transaction_hash
 
 #### 2. Transfer Ownership
 
-Transfer the ownership of an existing domain to another address. Requires: `--recipient` flag.
+Transfer the ownership of an existing domain to another address. Note: Recipient must be a raw address `(0x...)`, RNS names are not supported as recipient; use the `resolve` command first if needed. Requires: `--recipient` flag.
 
 ##### Mainnet
 
