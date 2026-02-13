@@ -60,17 +60,17 @@ export const RSK_ATTESTATION_CONFIG = {
   }
 };
 
-export const DEPLOYMENT_SCHEMA = "string contractName,address contractAddress,address deployer,uint256 blockNumber,bytes32 transactionHash,uint256 timestamp,string abiHash,string bytecodeHash";
+export const DEPLOYMENT_SCHEMA = "string contractName,address contractAddress,address deployer,uint256 blockNumber,bytes32 transactionHash,uint256 timestamp,string abiHash,string bytecodeHash,string version";
 
-export const VERIFICATION_SCHEMA = "string contractName,address contractAddress,address verifier,string sourceCodeHash,string compilationTarget,string compilerVersion,bool optimizationUsed,uint256 timestamp,string verificationTool";
+export const VERIFICATION_SCHEMA = "string contractName,address contractAddress,address verifier,string sourceCodeHash,string compilationTarget,string compilerVersion,bool optimizationUsed,uint256 timestamp,string verificationTool,string version,string schemaVersion";
 
-export const TRANSFER_SCHEMA = "address sender,address recipient,string amount,address tokenAddress,string tokenSymbol,bytes32 transactionHash,uint256 blockNumber,uint256 timestamp,string reason,string transferType";
+export const TRANSFER_SCHEMA = "address sender,address recipient,string amount,address tokenAddress,string tokenSymbol,bytes32 transactionHash,uint256 blockNumber,uint256 timestamp,string reason,string transferType,string version";
 
 export const DEFAULT_SCHEMA_UIDS = {
   testnet: {
-    deployment: "0xf245ae37980c898c1cdb9a41c868210743448c6eeacbab780ee7e9e765b5c75b",
-    verification: "0x1aad4cd717cd17bd98b001bd8be917de48727c33b1d6bbe122162022ad274278",
-    transfer: "0x1916e2c6b032722c363eb00ef0de54d33710fc3b0af926bf013088ec98de41fa"
+    deployment: "0xac72a47948bf42cad950de323c51a0033346629ae4a42da45981ae9748118a72",
+    verification: "0xdf68ba5414a61a12f26d41df4f5a1ef3ffe2ab809fea94d9c76fa7cb84b8fb4a",
+    transfer: "0x0da2422c401f8810a6be8f4451aaa0c0a5a6601701cba17bba14f50bb0039dc8"
   },
   mainnet: {
     deployment: "",
@@ -184,7 +184,8 @@ export class AttestationService {
         { name: "transactionHash", value: data.transactionHash, type: "bytes32" },
         { name: "timestamp", value: data.timestamp, type: "uint256" },
         { name: "abiHash", value: data.abiHash || "", type: "string" },
-        { name: "bytecodeHash", value: data.bytecodeHash || "", type: "string" }
+        { name: "bytecodeHash", value: data.bytecodeHash || "", type: "string" },
+        { name: "version", value: "1.0", type: "string" }
       ]);
 
       const attestationData = {
@@ -291,7 +292,9 @@ export class AttestationService {
         { name: "compilerVersion", value: data.compilerVersion, type: "string" },
         { name: "optimizationUsed", value: data.optimizationUsed, type: "bool" },
         { name: "timestamp", value: data.timestamp, type: "uint256" },
-        { name: "verificationTool", value: data.verificationTool, type: "string" }
+        { name: "verificationTool", value: data.verificationTool, type: "string" },
+        { name: "version", value: "1.0", type: "string" },
+        { name: "schemaVersion", value: "2.0", type: "string" }
       ]);
 
       const attestationData = {
@@ -354,7 +357,8 @@ export class AttestationService {
         { name: "blockNumber", value: data.blockNumber, type: "uint256" },
         { name: "timestamp", value: data.timestamp, type: "uint256" },
         { name: "reason", value: data.reason || "", type: "string" },
-        { name: "transferType", value: data.transferType, type: "string" }
+        { name: "transferType", value: data.transferType, type: "string" },
+        { name: "version", value: "1.0", type: "string" }
       ]);
 
       const attestationData = {
