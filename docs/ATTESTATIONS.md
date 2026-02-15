@@ -83,9 +83,9 @@ node dist/bin/index.js verify \
 
 Testnet has pre-registered default schemas for all attestation types. You can use attestations without specifying a schema UID:
 
-- **Transfer Schema UID**: `0x1916e2c6b032722c363eb00ef0de54d33710fc3b0af926bf013088ec98de41fa`
-- **Deployment Schema UID**: `0xf245ae37980c898c1cdb9a41c868210743448c6eeacbab780ee7e9e765b5c75b`
-- **Verification Schema UID**: `0x1aad4cd717cd17bd98b001bd8be917de48727c33b1d6bbe122162022ad274278`
+- **Transfer Schema UID**: `0x0da2422c401f8810a6be8f4451aaa0c0a5a6601701cba17bba14f50bb0039dc8`
+- **Deployment Schema UID**: `0xac72a47948bf42cad950de323c51a0033346629ae4a42da45981ae9748118a72`
+- **Verification Schema UID**: `0xdf68ba5414a61a12f26d41df4f5a1ef3ffe2ab809fea94d9c76fa7cb84b8fb4a`
 
 ### Mainnet Schemas
 
@@ -95,7 +95,7 @@ Mainnet currently has no default schemas. You must register your own schema and 
 
 **Schema Definition:**
 ```
-address sender,address recipient,string amount,address tokenAddress,string tokenSymbol,bytes32 transactionHash,uint256 blockNumber,uint256 timestamp,string reason,string transferType
+address sender,address recipient,string amount,address tokenAddress,string tokenSymbol,bytes32 transactionHash,uint256 blockNumber,uint256 timestamp,string reason,string transferType,string version
 ```
 
 **Description:**
@@ -109,12 +109,13 @@ address sender,address recipient,string amount,address tokenAddress,string token
 - `timestamp`: Unix timestamp of the transfer
 - `reason`: Optional reason for the transfer
 - `transferType`: Type of transfer (e.g., "RBTC", "ERC20")
+- `version`: Schema version identifier (e.g., "1.0")
 
 ### Deployment Schema
 
 **Schema Definition:**
 ```
-string contractName,address contractAddress,address deployer,uint256 blockNumber,bytes32 transactionHash,uint256 timestamp,string abiHash,string bytecodeHash
+string contractName,address contractAddress,address deployer,uint256 blockNumber,bytes32 transactionHash,uint256 timestamp,string abiHash,string bytecodeHash,string version
 ```
 
 **Description:**
@@ -126,12 +127,13 @@ string contractName,address contractAddress,address deployer,uint256 blockNumber
 - `timestamp`: Unix timestamp of the deployment
 - `abiHash`: Keccak256 hash of the contract ABI
 - `bytecodeHash`: Keccak256 hash of the contract bytecode
+- `version`: Schema version identifier (e.g., "1.0")
 
 ### Verification Schema
 
 **Schema Definition:**
 ```
-string contractName,address contractAddress,address verifier,string sourceCodeHash,string compilationTarget,string compilerVersion,bool optimizationUsed,uint256 timestamp,string verificationTool
+string contractName,address contractAddress,address verifier,string sourceCodeHash,string compilationTarget,string compilerVersion,bool optimizationUsed,uint256 timestamp,string verificationTool,string version,string schemaVersion
 ```
 
 **Description:**
@@ -144,6 +146,8 @@ string contractName,address contractAddress,address verifier,string sourceCodeHa
 - `optimizationUsed`: Whether optimization was enabled during compilation
 - `timestamp`: Unix timestamp of the verification
 - `verificationTool`: Tool used for verification (e.g., "rsk-cli")
+- `version`: Schema version identifier (e.g., "1.0")
+- `schemaVersion`: Schema revision identifier (e.g., "2.0")
 
 ## How to Register Schemas (Mainnet Only)
 
