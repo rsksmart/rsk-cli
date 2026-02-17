@@ -1,5 +1,4 @@
 import { ethers } from "ethers";
-import { WalletClient } from "viem";
 import crypto from "crypto";
 import fs from "fs";
 import { walletFilePath } from "./constants.js";
