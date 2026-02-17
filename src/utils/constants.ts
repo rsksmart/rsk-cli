@@ -70,13 +70,13 @@ export const EXPLORER_URLS = {
     base: "https://explorer.rootstock.io",
     address: (address: string) => `https://explorer.rootstock.io/address/${address}`,
     tx: (txHash: string) => `https://explorer.rootstock.io/tx/${txHash}`,
-    attestation: (uid: string) => `https://explorer.rootstock.io/attestation/${uid}`
+    attestation: (uid: string) => `https://explorer.rootstock.io/ras/attestation/${uid}`
   },
   testnet: {
     base: "https://explorer.testnet.rootstock.io",
     address: (address: string) => `https://explorer.testnet.rootstock.io/address/${address}`,
     tx: (txHash: string) => `https://explorer.testnet.rootstock.io/tx/${txHash}`,
-    attestation: (uid: string) => `https://explorer.testnet.rootstock.io/attestation/${uid}`
+    attestation: (uid: string) => `https://explorer.testnet.rootstock.io/ras/attestation/${uid}`
   }
 } as const;
 
