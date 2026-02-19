@@ -46,6 +46,18 @@ export const txExplainCommand = async (options: TxExplainOptions) => {
 
     if (tx.input === "0x") {
       logWarning(isExternal, "Nature: Simple RBTC Transfer");
+    } else if (!tx.input) {
+      logWarning(isExternal, "Nature: Smart Contract Deployment");
+      if (receipt.contractAddress) {
+        logMessage(isExternal, `   └─ Deployed To: ${chalk.green(receipt.contractAddress)}`);
+      }
+      if (raw) {
+        logMessage(isExternal, `${chalk.gray("Raw Bytecode:")} ${tx.input}`);
+      } else {
+        const inputString = tx.input as string;
+        const bytecodeSize = (inputString.length - 2) / 2;
+        logMessage(isExternal, `${chalk.gray("Bytecode Size:")} ${bytecodeSize} bytes`);
+      }
     } else if (raw) {
       logMessage(isExternal, `${chalk.gray("Raw Calldata:")} ${tx.input}`);
     } else {
@@ -93,10 +105,11 @@ async function decodeExecutionTier(calldata: string, to: string, isTestnet: bool
         return;
       }
     }
-  } catch (error) {
+  } catch (error: any) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
     logWarning(
       isExternal,
-      `⚠️ ABI Decoding failed: ${error.message || "Unknown error"}. Falling back to signature database...`
+      `⚠️ ABI Decoding failed: ${errorMessage}. Falling back to signature database...`
     );
   }
   const knownSignatures: Record<string, string> = {
@@ -124,15 +137,20 @@ async function decodeExecutionTier(calldata: string, to: string, isTestnet: bool
 async function fetchContractABI(address: string, isTestnet: boolean): Promise<any | null> {
   const explorer = isTestnet ? EXPLORER.BLOCKSCOUT.testnet : EXPLORER.BLOCKSCOUT.mainnet;
   const baseUrl = `${explorer}/api?module=contract&action=getabi&address=${address}`;
-
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 10000);
   try {
     const response = await fetch(baseUrl);
+    clearTimeout(timeoutId);
+
     if (!response.ok) return null;
     const data = await response.json();
     if (data.status === "1") {
       return JSON.parse(data.result);
     }
-  } catch (e) {
+  } catch (error: any) {
+    clearTimeout(timeoutId);
+    if (error.name === "AbortError") return null;
     return null;
   }
   return null;
