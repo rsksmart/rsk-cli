@@ -26,8 +26,8 @@ export class WalletSignerService {
    * Get RPC URL for the current network
    */
   private getRpcUrl(): string {
-    return this.testnet 
-      ? "https://public-node.testnet.rsk.co" 
+    return this.testnet
+      ? "https://public-node.testnet.rsk.co"
       : "https://public-node.rsk.co";
   }
 
@@ -94,7 +94,7 @@ export class WalletSignerService {
   async createSigner(options: WalletSignerOptions = {}): Promise<ethers.Signer> {
     try {
       const walletsData = await this.loadWalletData(options);
-      
+
       if (!walletsData.wallets) {
         throw new Error("No wallets found in wallet data");
       }
@@ -111,12 +111,12 @@ export class WalletSignerService {
       }
 
       const privateKey = this.decryptPrivateKey(wallet, options.password);
-      
-      const formattedPrivateKey = privateKey.startsWith('0x') 
-        ? privateKey 
+
+      const formattedPrivateKey = privateKey.startsWith('0x')
+        ? privateKey
         : `0x${privateKey}`;
 
-      const provider = new ethers.JsonRpcProvider(this.getRpcUrl());
+      const provider = new ethers.providers.JsonRpcProvider(this.getRpcUrl());
       const signer = new ethers.Wallet(formattedPrivateKey, provider);
 
       return signer;
@@ -162,7 +162,7 @@ export class WalletSignerService {
 export async function createAttestationSigner(options: WalletSignerOptions = {}): Promise<ethers.Signer | null> {
   try {
     const signerService = new WalletSignerService(options.testnet);
-    
+
     const canCreate = await signerService.canCreateSigner(options);
     if (!canCreate) {
       return null;

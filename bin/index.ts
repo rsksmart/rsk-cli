@@ -524,6 +524,10 @@ program
         chalk.red("Error explaining transaction:"),
         error.message || error
       );
+    }
+  });
+
+  program
   .command("rns")
   .description("RNS Manager: Register, Transfer, Update, or Resolve domains")
   .option("--register <domain>", "Register a new RNS domain")

@@ -268,7 +268,7 @@ export class AttestationService {
   }
 
   static createHash(data: string): string {
-    return ethers.keccak256(ethers.toUtf8Bytes(data));
+    return ethers.utils.keccak256(ethers.utils.toUtf8Bytes(data));
   }
 
   async createVerificationAttestation(
@@ -299,7 +299,7 @@ export class AttestationService {
 
       const attestationData = {
         recipient: recipient || data.contractAddress,
-        expirationTime: 0n, 
+        expirationTime: 0n,
         revocable: true,
         data: encodedData
       };
@@ -403,7 +403,7 @@ export class AttestationService {
   }
 
   static async getDefaultSchemaUID(
-    isTestnet: boolean = false, 
+    isTestnet: boolean = false,
     type: 'deployment' | 'verification' | 'transfer' = 'deployment'
   ): Promise<string | undefined> {
     const network = isTestnet ? 'testnet' : 'mainnet';
