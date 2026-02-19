@@ -59,7 +59,7 @@ function logInfo(params: TxExplainOptions, message: string) {
 }
 
 export const txExplainCommand = async (params: TxExplainOptions) => {
-  const { testnet, txhash, raw, isExternal = false } = params;
+  const { testnet, txhash, raw } = params;
   try {
     const provider = new ViemProvider(testnet);
     const publicClient = await provider.getPublicClient();
@@ -91,7 +91,7 @@ export const txExplainCommand = async (params: TxExplainOptions) => {
 
     logMessage(params, "\nEXECUTION DETAILS", chalk.bold.underline);
 
-    let nature: "Simple Transfer" | "Contract Deployment" | "Contract Interaction" = "Contract Interaction";
+    let nature: "Simple Transfer" | "Contract Deployment" | "Contract Interaction";
     let methodName: string | null = null;
     let decodedArgs: DecodedArg[] | null = null;
 
@@ -113,14 +113,14 @@ export const txExplainCommand = async (params: TxExplainOptions) => {
       }
     } else {
       nature = "Contract Interaction";
-      if(raw){
+      if (raw) {
         logMessage(params, `${chalk.gray("Raw Calldata:")} ${tx.input}`);
-      }else{
+      } else {
         const inputString = tx.input as string;
         if (inputString.length > 130) {
-           logMessage(params, `${chalk.gray("Raw Calldata:")} ${inputString.slice(0, 130)}... [Truncated]`);
+          logMessage(params, `${chalk.gray("Raw Calldata:")} ${inputString.slice(0, 130)}... [Truncated]`);
         } else {
-           logMessage(params, `${chalk.gray("Raw Calldata:")} ${inputString}`);
+          logMessage(params, `${chalk.gray("Raw Calldata:")} ${inputString}`);
         }
         const executionResult = await decodeExecutionTier(tx.input as string, tx.to!, testnet, params);
         if (executionResult) {
@@ -163,7 +163,7 @@ export const txExplainCommand = async (params: TxExplainOptions) => {
   }
 }
 
-async function decodeExecutionTier(calldata: string, to: string, testnet: boolean, params: TxExplainOptions):Promise<{ methodName: string; decodedArgs: DecodedArg[] } | null> {
+async function decodeExecutionTier(calldata: string, to: string, testnet: boolean, params: TxExplainOptions): Promise<{ methodName: string; decodedArgs: DecodedArg[] } | null> {
   const selector = calldata.slice(0, 10);
   logMessage(
     params,
@@ -236,7 +236,7 @@ async function decodeExecutionTier(calldata: string, to: string, testnet: boolea
   } catch (fallbackError) {
     logInfo(params, "⚠️ Method: Unknown (Unverified Contract or Malformed Data)");
   }
-return null;
+  return null;
 }
 
 
