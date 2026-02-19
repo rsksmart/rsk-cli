@@ -495,6 +495,11 @@ program
   .action(async (txhash: string, options: CommandOptions) => {
     try {
       const formattedTxHash = txhash.startsWith("0x") ? txhash : `0x${txhash}`;
+      const isValidHash = /^0x[0-9a-fA-F]{64}$/.test(formattedTxHash);
+
+      if (!isValidHash) {
+        throw new Error("Invalid transaction hash format. It must be a valid 32-byte hex string (64 characters long).");
+      }
 
       await txExplainCommand({
         testnet: !!options.testnet,
