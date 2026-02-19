@@ -1,5 +1,5 @@
 import chalk from "chalk";
-import { formatEther, decodeFunctionData, Hex } from "viem";
+import { formatEther, decodeFunctionData, parseAbi, Hex } from "viem";
 import { rootstock, rootstockTestnet } from "viem/chains";
 import ViemProvider from "../utils/viemProvider.js";
 import { logError, logMessage, logSuccess, logWarning } from "../utils/logger.js";
@@ -112,23 +112,33 @@ async function decodeExecutionTier(calldata: string, to: string, isTestnet: bool
       `⚠️ ABI Decoding failed: ${errorMessage}. Falling back to signature database...`
     );
   }
-  const knownSignatures: Record<string, string> = {
-    "0xa9059cbb": "transfer(address to, uint256 amount)",
-    "0x095ea7b3": "approve(address spender, uint256 amount)",
-    "0x23b872dd": "transferFrom(address from, address to, uint256 amount)",
-    "0x70a08231": "balanceOf(address owner)"
-  };
-  if (knownSignatures[selector]) {
-    logSuccess(isExternal, `Decoded via Signature DB: ${knownSignatures[selector]}`);
+  try {
+    // We create a mini-ABI on the fly for the most common methods
+    const fallbackAbi = parseAbi([
+      "function transfer(address to, uint256 amount)",
+      "function approve(address spender, uint256 amount)",
+      "function transferFrom(address from, address to, uint256 amount)"
+    ]);
 
-    if (selector === "0xa9059cbb") {
-      const toAddress = "0x" + calldata.slice(34, 74);
-      const amount = BigInt("0x" + calldata.slice(74));
-      logMessage(isExternal, `   └─ to: ${toAddress}`);
-      logMessage(isExternal, `   └─ amount: ${amount.toString()}`);
+    // Viem will strictly validate the length and types here!
+    const decoded = decodeFunctionData({
+      abi: fallbackAbi,
+      data: calldata as Hex,
+    });
+
+    logSuccess(isExternal, `Decoded via Signature DB: ${decoded.functionName}()`);
+
+    const args = decoded.args as readonly any[];
+    if (decoded.functionName === "transfer" || decoded.functionName === "approve") {
+      logMessage(isExternal, `   └─ ${chalk.blue(decoded.functionName === "transfer" ? "to" : "spender")}: ${chalk.gray(args[0])}`);
+      logMessage(isExternal, `   └─ ${chalk.blue("amount")}: ${chalk.gray(args[1].toString())}`);
+    } else if (decoded.functionName === "transferFrom") {
+      logMessage(isExternal, `   └─ ${chalk.blue("from")}: ${chalk.gray(args[0])}`);
+      logMessage(isExternal, `   └─ ${chalk.blue("to")}: ${chalk.gray(args[1])}`);
+      logMessage(isExternal, `   └─ ${chalk.blue("amount")}: ${chalk.gray(args[2].toString())}`);
     }
-  } else {
-    logWarning(isExternal, "Method: Unknown (Unverified Contract)");
+  } catch (fallbackError) {
+    logWarning(isExternal, "Method: Unknown (Unverified Contract or Malformed Data)");
     logMessage(isExternal, `${chalk.gray("Raw Calldata:")} ${calldata}`);
   }
 }
