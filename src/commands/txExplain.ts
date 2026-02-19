@@ -94,7 +94,10 @@ async function decodeExecutionTier(calldata: string, to: string, isTestnet: bool
       }
     }
   } catch (error) {
-
+    logWarning(
+      isExternal,
+      `⚠️ ABI Decoding failed: ${error.message || "Unknown error"}. Falling back to signature database...`
+    );
   }
   const knownSignatures: Record<string, string> = {
     "0xa9059cbb": "transfer(address to, uint256 amount)",
