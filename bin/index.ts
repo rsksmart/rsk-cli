@@ -22,6 +22,9 @@ import { simulateCommand, TransactionSimulationOptions } from "../src/commands/s
 import { parseEther } from "viem";
 import { resolveRNSToAddress } from "../src/utils/rnsHelper.js";
 import { validateAndFormatAddressRSK } from "../src/utils/index.js";
+import { rnsUpdateCommand } from "../src/commands/rnsUpdate.js";
+import { rnsTransferCommand } from "../src/commands/rnsTransfer.js";
+import { rnsRegisterCommand } from "../src/commands/rnsRegister.js";
 
 interface CommandOptions {
   testnet?: boolean;
@@ -103,7 +106,7 @@ program
       }
       holderAddress = resolvedAddress;
     }
-    
+
     await balanceCommand({
       testnet: options.testnet,
       walletName: options.wallet!,
@@ -334,19 +337,6 @@ program
   });
 
 program
-  .command("resolve <name>")
-  .description("Resolve RNS names to addresses or reverse lookup addresses to names")
-  .option("-t, --testnet", "Use testnet (currently mainnet only)")
-  .option("-r, --reverse", "Reverse lookup: address to name")
-  .action(async (name: string, options: CommandOptions) => {
-    await resolveCommand({
-      name,
-      testnet: !!options.testnet,
-      reverse: !!options.reverse
-    });
-  });
-
-program
   .command("config")
   .description("Manage CLI configuration settings")
   .action(async () => {
@@ -482,6 +472,90 @@ program
         chalk.red("Error during simulation:"),
         error.message || error
       );
+    }
+  });
+
+program
+  .command("rns")
+  .description("RNS Manager: Register, Transfer, Update, or Resolve domains")
+  .option("--register <domain>", "Register a new RNS domain")
+  .option("--transfer <domain>", "Transfer ownership of a domain")
+  .option("--update <domain>", "Update resolver records for a domain")
+  .option("--resolve <name>", "Resolve a name to address (or address to name)")
+
+  .option("-t, --testnet", "Use testnet network")
+  .option("-w, --wallet <wallet>", "Wallet name or private key to use")
+  .option("--recipient <address>", "Recipient address (required for --transfer)")
+  .option("--address <address>", "New address to set (required for --update)")
+  .option("-r, --reverse", "Perform reverse lookup (required for --resolve)")
+
+  .action(async (options: any) => {
+    const actions = [
+      options.register ? "register" : null,
+      options.transfer ? "transfer" : null,
+      options.update ? "update" : null,
+      options.resolve ? "resolve" : null,
+    ].filter(Boolean);
+
+    if (actions.length === 0) {
+      console.error(chalk.red("❌ Error: You must specify an action."));
+      console.log("Try: --register, --transfer, --update, or --resolve");
+      process.exit(1);
+    }
+    if (actions.length > 1) {
+      console.error(chalk.red("❌ Error: Please specify only one action at a time."));
+      process.exit(1);
+    }
+
+    const action = actions[0];
+
+    try {
+      switch (action) {
+        case "register":
+          await rnsRegisterCommand({
+            domain: options.register,
+            wallet: options.wallet,
+            testnet: !!options.testnet,
+          });
+          break;
+
+        case "transfer":
+          if (!options.recipient) {
+            console.error(chalk.red("❌ Error: --recipient <address> is required for transfer."));
+            process.exit(1);
+          }
+          await rnsTransferCommand({
+            domain: options.transfer,
+            recipient: options.recipient,
+            wallet: options.wallet,
+            testnet: !!options.testnet,
+          });
+          break;
+
+        case "update":
+          if (!options.address) {
+            console.error(chalk.red("❌ Error: --address <address> is required for update."));
+            process.exit(1);
+          }
+          await rnsUpdateCommand({
+            domain: options.update,
+            address: options.address,
+            wallet: options.wallet,
+            testnet: !!options.testnet,
+          });
+          break;
+
+        case "resolve":
+          await resolveCommand({
+            name: options.resolve,
+            testnet: !!options.testnet,
+            reverse: !!options.reverse,
+          });
+          break;
+      }
+    } catch (error: any) {
+      console.error(chalk.red(`❌ Operation failed: ${error.message || error}`));
+      process.exit(1);
     }
   });
 
