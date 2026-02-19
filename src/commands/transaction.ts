@@ -1,37 +1,16 @@
 import ViemProvider from "../utils/viemProvider.js";
 import chalk from "chalk";
-import ora from "ora";
 import fs from "fs";
 import inquirer from "inquirer";
 import { Address, parseEther, formatEther, getAddress } from "viem";
 import { walletFilePath } from "../utils/constants.js";
 import { getTokenInfo, isERC20Contract } from "../utils/tokenHelper.js";
 import { getConfig } from "./config.js";
+import { logError, logSuccess, logInfo, logWarning } from "../utils/logger.js";
+import { createSpinner } from "../utils/spinner.js";
 
 interface TransactionCommandOptions {
   isExternal?: boolean;
-}
-
-function logMessage(params: TransactionCommandOptions, message: string, color: any = chalk.white) {
-  if (!params.isExternal) {
-    console.log(color(message));
-  }
-}
-
-function logError(params: TransactionCommandOptions, message: string) {
-  logMessage(params, `❌ ${message}`, chalk.red);
-}
-
-function logSuccess(params: TransactionCommandOptions, message: string) {
-  logMessage(params, `✅ ${message}`, chalk.green);
-}
-
-function logWarning(params: TransactionCommandOptions, message: string) {
-  logMessage(params, `⚠️  ${message}`, chalk.yellow);
-}
-
-function logInfo(params: TransactionCommandOptions, message: string) {
-  logMessage(params, `📊 ${message}`, chalk.blue);
 }
 
 type TransactionType = 'simple' | 'advanced' | 'raw';
@@ -58,24 +37,24 @@ export async function transactionCommand(
   const isTestnet = testnet !== undefined ? testnet : (config.defaultNetwork === 'testnet');
   const params: TransactionCommandOptions = { isExternal };
   
-  logInfo(params, `Network: ${isTestnet ? 'Testnet' : 'Mainnet'}`);
+  logInfo(params.isExternal || false, `Network: ${isTestnet ? 'Testnet' : 'Mainnet'}`);
   
   try {
     if (!fs.existsSync(walletFilePath)) {
-      logError(params, "No saved wallet found. Please create a wallet first.");
+      logError(params.isExternal || false, "No saved wallet found. Please create a wallet first.");
       return;
     }
 
     const walletsData = JSON.parse(fs.readFileSync(walletFilePath, "utf8"));
     if (!walletsData.currentWallet || !walletsData.wallets) {
-      logError(params, "No valid wallet found. Please create or import a wallet first.");
+      logError(params.isExternal || false,"No valid wallet found. Please create or import a wallet first.");
       return;
     }
 
     const { currentWallet, wallets } = walletsData;
     let wallet = name ? wallets[name] : wallets[currentWallet];
     if (!wallet) {
-      logError(params, "Wallet not found.");
+      logError(params.isExternal || false,"Wallet not found.");
       return;
     }
 
@@ -85,7 +64,7 @@ export async function transactionCommand(
     const account = walletClient.account;
 
     if (!account) {
-      logError(params, "Failed to retrieve the account.");
+      logError(params.isExternal || false,"Failed to retrieve the account.");
       return;
     }
 
@@ -106,7 +85,7 @@ export async function transactionCommand(
     try {
       toAddress = getAddress(toAddress);
     } catch (error) {
-      logError(params, `Invalid recipient address: ${toAddress}. Please provide a valid Ethereum address.`);
+      logError(params.isExternal || false,`Invalid recipient address: ${toAddress}. Please provide a valid Ethereum address.`);
       throw new Error(`Invalid recipient address: ${toAddress}. Please provide a valid Ethereum address.`);
     }
 
@@ -114,7 +93,7 @@ export async function transactionCommand(
       try {
         tokenAddress = getAddress(tokenAddress);
       } catch (error) {
-        logError(params, `Invalid token address: ${tokenAddress}. Please provide a valid Ethereum address.`);
+        logError(params.isExternal || false,`Invalid token address: ${tokenAddress}. Please provide a valid Ethereum address.`);
         throw new Error(`Invalid token address: ${tokenAddress}. Please provide a valid Ethereum address.`);
       }
     }
@@ -130,30 +109,30 @@ export async function transactionCommand(
 
     const gasPrice = await publicClient.getGasPrice();
     const formattedGasPrice = formatEther(gasPrice);
-    logInfo(params, `Current Gas Price: ${formattedGasPrice} RBTC`);
+    logInfo(params.isExternal || false, `Current Gas Price: ${formattedGasPrice} RBTC`);
 
-    logInfo(params, `Checking balance for address: ${wallet.address}`);
+    logInfo(params.isExternal || false, `Checking balance for address: ${wallet.address}`);
     const balance = await publicClient.getBalance({ address: wallet.address });
     const balanceInRBTC = formatEther(balance);
-    logInfo(params, `Wallet Balance: ${balanceInRBTC} RBTC`);
-    logInfo(params, `Network RPC: ${isTestnet ? 'Rootstock Testnet' : 'Rootstock Mainnet'}`);
+    logInfo(params.isExternal || false, `Wallet Balance: ${balanceInRBTC} RBTC`);
+    logInfo(params.isExternal || false, `Network RPC: ${isTestnet ? 'Rootstock Testnet' : 'Rootstock Mainnet'}`);
     
     if (balance === 0n) {
-      logError(params, "Wallet balance is 0 RBTC.");
-      logWarning(params, "You need to fund your wallet first.");
-      logInfo(params, `Your wallet address: ${wallet.address}`);
-      logInfo(params, "Options to get RBTC:");
-      logInfo(params, "   1. Use a faucet: https://faucet.rootstock.io/");
-      logInfo(params, "   2. Buy RBTC from an exchange");
-      logInfo(params, "   3. Receive RBTC from another wallet");
-      logInfo(params, "   4. Check your balance with: rsk-cli balance");
+      logError(params.isExternal || false, "Wallet balance is 0 RBTC.");
+      logWarning(params.isExternal || false, "You need to fund your wallet first.");
+      logInfo(params.isExternal || false, `Your wallet address: ${wallet.address}`);
+      logInfo(params.isExternal || false, "Options to get RBTC:");
+      logInfo(params.isExternal || false, "   1. Use a faucet: https://faucet.rootstock.io/");
+      logInfo(params.isExternal || false, "   2. Buy RBTC from an exchange");
+      logInfo(params.isExternal || false, "   3. Receive RBTC from another wallet");
+      logInfo(params.isExternal || false, "   4. Check your balance with: rsk-cli balance");
       return;
     }
     
     if (balance < parseEther(stringValue)) {
-      logError(params, "Insufficient balance for this transaction.");
-      logWarning(params, `Required: ${numericValue} RBTC, Available: ${balanceInRBTC} RBTC`);
-      logWarning(params, `You need ${(numericValue - parseFloat(balanceInRBTC)).toFixed(6)} more RBTC`);
+      logError(params.isExternal || false, "Insufficient balance for this transaction.");
+      logWarning(params.isExternal || false, `Required: ${numericValue} RBTC, Available: ${balanceInRBTC} RBTC`);
+      logWarning(params.isExternal || false, `You need ${(numericValue - parseFloat(balanceInRBTC)).toFixed(6)} more RBTC`);
       return;
     }
 
@@ -185,20 +164,20 @@ export async function transactionCommand(
       );
     }
   } catch (error: any) {
-    logError(params, "Error during transaction, please check the transaction details.");
-    logError(params, `Error details: ${error.message || error}`);
+    logError(params.isExternal || false, "Error during transaction, please check the transaction details.");
+    logError(params.isExternal || false, `Error details: ${error.message || error}`);
     
     if (error.message && error.message.includes('insufficient funds')) {
-      logWarning(params, 'Tip: Your wallet balance is insufficient. Check your balance with: rsk-cli balance');
+      logWarning(params.isExternal || false, 'Tip: Your wallet balance is insufficient. Check your balance with: rsk-cli balance');
     } else if (error.message && error.message.includes('gas')) {
-      logWarning(params, 'Tip: Gas estimation failed. Try with a higher gas limit or gas price.');
+      logWarning(params.isExternal || false, 'Tip: Gas estimation failed. Try with a higher gas limit or gas price.');
     } else if (error.message && error.message.includes('network')) {
-      logWarning(params, 'Tip: Network connection issue. Check your internet connection and try again.');
+      logWarning(params.isExternal || false, 'Tip: Network connection issue. Check your internet connection and try again.');
     } else if (error.message && error.message.includes('wallet')) {
-      logWarning(params, 'Tip: Wallet issue. Try creating a new wallet or importing an existing one.');
+      logWarning(params.isExternal || false, 'Tip: Wallet issue. Try creating a new wallet or importing an existing one.');
     } else if (error.message && error.message.includes('balance')) {
-      logWarning(params, 'Tip: Your wallet has insufficient balance. You need to fund your wallet first.');
-      logInfo(params, 'Get RBTC from: https://faucet.rootstock.io/');
+      logWarning(params.isExternal || false, 'Tip: Your wallet has insufficient balance. You need to fund your wallet first.');
+      logInfo(params.isExternal || false, 'Get RBTC from: https://faucet.rootstock.io/');
     }
   }
 }
@@ -335,14 +314,15 @@ async function handleTokenTransfer(
   const tokenInfo = await getTokenInfo(publicClient, tokenAddress, fromAddress);
   const defaultParams = params || { isExternal: false };
   
-  logInfo(defaultParams, 'Token Transfer Details:');
-  logInfo(defaultParams, `Token: ${tokenInfo.name} (${tokenInfo.symbol})`);
-  logInfo(defaultParams, `Contract: ${tokenAddress}`);
-  logInfo(defaultParams, `From: ${fromAddress}`);
-  logInfo(defaultParams, `To: ${toAddress}`);
-  logInfo(defaultParams, `Amount: ${value} ${tokenInfo.symbol}`);
+  logInfo(defaultParams.isExternal || false, 'Token Transfer Details:');
+  logInfo(defaultParams.isExternal || false, `Token: ${tokenInfo.name} (${tokenInfo.symbol})`);
+  logInfo(defaultParams.isExternal || false, `Contract: ${tokenAddress}`);
+  logInfo(defaultParams.isExternal || false, `From: ${fromAddress}`);
+  logInfo(defaultParams.isExternal || false, `To: ${toAddress}`);
+  logInfo(defaultParams.isExternal || false, `Amount: ${value} ${tokenInfo.symbol}`);
 
-  const spinner = ora('⏳ Simulating token transfer...').start();
+  const spinner = createSpinner(defaultParams.isExternal || false);
+  spinner.start('⏳ Simulating token transfer...');
   
   try {
     const { request } = await publicClient.simulateContract({
@@ -363,22 +343,22 @@ async function handleTokenTransfer(
       ...options
     });
 
-    spinner.succeed('✅ Simulation successful');
+    spinner.succeed('Simulation successful');
 
     const txHash = await walletClient.writeContract(request);
     await handleTransactionReceipt(publicClient, txHash, testnet, defaultParams);
   } catch (error: any) {
-    spinner.fail('❌ Transaction failed');
-    logError(defaultParams, `Error details: ${error.message}`);
+    spinner.fail('Transaction failed');
+    logError(defaultParams.isExternal || false, `Error details: ${error.message}`);
     
     if (error.message.includes('insufficient funds')) {
-      logWarning(defaultParams, 'Tip: Check your RBTC balance for gas fees.');
+      logWarning(defaultParams.isExternal || false, 'Tip: Check your RBTC balance for gas fees.');
     } else if (error.message.includes('insufficient token balance')) {
-      logWarning(defaultParams, 'Tip: Check your token balance. You might not have enough tokens to transfer.');
+      logWarning(defaultParams.isExternal || false, 'Tip: Check your token balance. You might not have enough tokens to transfer.');
     } else if (error.message.includes('gas')) {
-      logWarning(defaultParams, 'Tip: Try increasing the gas limit or gas price.');
+      logWarning(defaultParams.isExternal || false, 'Tip: Try increasing the gas limit or gas price.');
     } else if (error.message.includes('allowance')) {
-      logWarning(defaultParams, 'Tip: You might need to approve the token spending first.');
+      logWarning(defaultParams.isExternal || false, 'Tip: You might need to approve the token spending first.');
     }
     
     throw error;
@@ -399,16 +379,17 @@ async function handleRBTCTransfer(
 ) {
   const defaultParams = params || { isExternal: false };
 
-  logInfo(defaultParams, 'RBTC Transfer Details:');
-  logInfo(defaultParams, `From: ${fromAddress}`);
-  logInfo(defaultParams, `To: ${toAddress}`);
-  logInfo(defaultParams, `Amount: ${value.toFixed(18)} RBTC`);
+  logInfo(defaultParams.isExternal || false, 'RBTC Transfer Details:');
+  logInfo(defaultParams.isExternal || false, `From: ${fromAddress}`);
+  logInfo(defaultParams.isExternal || false, `To: ${toAddress}`);
+  logInfo(defaultParams.isExternal || false, `Amount: ${value.toFixed(18)} RBTC`);
 
   if (value < 0.000001) {
-    logWarning(defaultParams, 'Very small amount detected. This might fail due to gas costs.');
+    logWarning(defaultParams.isExternal || false, 'Very small amount detected. This might fail due to gas costs.');
   }
 
-  const spinner = ora('⏳ Preparing transaction...').start();
+  const spinner = createSpinner(defaultParams.isExternal || false);
+  spinner.start('⏳ Preparing transaction...');
 
   try {
     const gasPrice = await publicClient.getGasPrice();
@@ -418,16 +399,16 @@ async function handleRBTCTransfer(
       value: parseEther(value.toFixed(18)),
     });
 
-    logInfo(defaultParams, `Estimated Gas: ${gasEstimate}`);
-    logInfo(defaultParams, `Gas Price: ${formatEther(gasPrice)} RBTC`);
+    logInfo(defaultParams.isExternal || false, `Estimated Gas: ${gasEstimate}`);
+    logInfo(defaultParams.isExternal || false, `Gas Price: ${formatEther(gasPrice)} RBTC`);
 
     const finalGasPrice = options?.gasPrice || gasPrice;
     const gasPriceInRBTC = formatEther(finalGasPrice);
     const gasPriceInGwei = Number(gasPriceInRBTC) * 1e9;
     
     if (gasPriceInGwei > 1000) {
-      logWarning(defaultParams, `Gas price is very high: ${gasPriceInGwei.toFixed(2)} gwei`);
-      logWarning(defaultParams, `Consider using a lower gas price for better cost efficiency`);
+      logWarning(defaultParams.isExternal || false, `Gas price is very high: ${gasPriceInGwei.toFixed(2)} gwei`);
+      logWarning(defaultParams.isExternal || false, `Consider using a lower gas price for better cost efficiency`);
     }
 
     const totalGasCost = BigInt(gasEstimate) * finalGasPrice;
@@ -435,13 +416,13 @@ async function handleRBTCTransfer(
     const totalCost = totalGasCost + valueInWei;
     const totalCostInRBTC = formatEther(totalCost);
     
-    logInfo(defaultParams, `Total Transaction Cost: ${totalCostInRBTC} RBTC`);
-    logInfo(defaultParams, `Gas Cost: ${formatEther(totalGasCost)} RBTC`);
-    logInfo(defaultParams, `Value: ${value.toFixed(18)} RBTC`);
+    logInfo(defaultParams.isExternal || false, `Total Transaction Cost: ${totalCostInRBTC} RBTC`);
+    logInfo(defaultParams.isExternal || false, `Gas Cost: ${formatEther(totalGasCost)} RBTC`);
+    logInfo(defaultParams.isExternal || false, `Value: ${value.toFixed(18)} RBTC`);
 
     if (balance && totalCost > balance) {
-      logError(defaultParams, `Transaction cost (${totalCostInRBTC} RBTC) exceeds wallet balance (${formatEther(balance)} RBTC)`);
-      logWarning(defaultParams, `You need ${formatEther(totalCost - balance)} more RBTC to complete this transaction`);
+      logError(defaultParams.isExternal || false, `Transaction cost (${totalCostInRBTC} RBTC) exceeds wallet balance (${formatEther(balance)} RBTC)`);
+      logWarning(defaultParams.isExternal || false, `You need ${formatEther(totalCost - balance)} more RBTC to complete this transaction`);
       return;
     }
 
@@ -455,18 +436,18 @@ async function handleRBTCTransfer(
       ...(options?.data && { data: options.data })
     });
 
-    spinner.succeed('✅ Transaction sent');
+    spinner.succeed('Transaction sent');
     await handleTransactionReceipt(publicClient, txHash, testnet, defaultParams);
   } catch (error: any) {
-    spinner.fail('❌ Transaction failed');
-    logError(defaultParams, `Error details: ${error.message}`);
+    spinner.fail('Transaction failed');
+    logError(defaultParams.isExternal || false, `Error details: ${error.message}`);
     
     if (error.message.includes('insufficient funds')) {
-      logWarning(defaultParams, 'Tip: Check your wallet balance. You need enough RBTC for the transaction amount plus gas fees.');
+      logWarning(defaultParams.isExternal || false, 'Tip: Check your wallet balance. You need enough RBTC for the transaction amount plus gas fees.');
     } else if (error.message.includes('gas')) {
-      logWarning(defaultParams, 'Tip: Try increasing the gas limit or gas price.');
+      logWarning(defaultParams.isExternal || false, 'Tip: Try increasing the gas limit or gas price.');
     } else if (error.message.includes('value')) {
-      logWarning(defaultParams, 'Tip: The transaction amount might be too small. Try a larger amount.');
+      logWarning(defaultParams.isExternal || false, 'Tip: The transaction amount might be too small. Try a larger amount.');
     }
     
     throw error;
@@ -479,42 +460,43 @@ async function handleTransactionReceipt(
   testnet: boolean,
   params?: TransactionCommandOptions
 ) {
-  const spinner = ora('⏳ Waiting for confirmation...').start();
   const config = getConfig();
   const defaultParams = params || { isExternal: false };
+  const spinner = createSpinner(defaultParams.isExternal || false);
+  spinner.start('⏳ Waiting for confirmation...');
   
   try {
     const receipt = await publicClient.waitForTransactionReceipt({ hash: txHash });
     spinner.stop();
 
     if (receipt.status === 'success') {
-      logSuccess(defaultParams, 'Transaction confirmed successfully!');
+      logSuccess(defaultParams.isExternal || false, 'Transaction confirmed successfully!');
       
       if (config.displayPreferences.showBlockDetails) {
-        logInfo(defaultParams, `Block Number: ${receipt.blockNumber}`);
+        logInfo(defaultParams.isExternal || false, `Block Number: ${receipt.blockNumber}`);
       }
       
       if (config.displayPreferences.showGasDetails) {
-        logInfo(defaultParams, `Gas Used: ${receipt.gasUsed}`);
+        logInfo(defaultParams.isExternal || false, `Gas Used: ${receipt.gasUsed}`);
       }
       
       if (config.displayPreferences.showExplorerLinks) {
         const explorerUrl = testnet
           ? `https://explorer.testnet.rootstock.io/tx/${txHash}`
           : `https://explorer.rootstock.io/tx/${txHash}`;
-        logInfo(defaultParams, `View on Explorer: ${explorerUrl}`);
+        logInfo(defaultParams.isExternal || false, `View on Explorer: ${explorerUrl}`);
       }
 
       if (config.displayPreferences.compactMode) {
-        logInfo(defaultParams, `Tx: ${txHash}`);
+        logInfo(defaultParams.isExternal || false, `Tx: ${txHash}`);
       } else {
-        logInfo(defaultParams, `Transaction Hash: ${txHash}`);
+        logInfo(defaultParams.isExternal || false, `Transaction Hash: ${txHash}`);
       }
     } else {
-      logError(defaultParams, 'Transaction failed');
+      logError(defaultParams.isExternal || false, 'Transaction failed');
     }
   } catch (error) {
-    spinner.fail('❌ Transaction confirmation failed');
+    spinner.fail('Transaction confirmation failed');
     throw error;
   }
 } 

@@ -1,6 +1,7 @@
 import chalk from "chalk";
 import fs from "fs";
 import { walletFilePath } from "../utils/constants.js";
+import { logError, logSuccess, logInfo, logWarning } from "../utils/logger.js";
 
 type HistoryCommandOptions = {
   testnet: boolean;
@@ -21,32 +22,6 @@ type HistoryResult = {
   error?: string;
 };
 
-function logMessage(
-  params: HistoryCommandOptions,
-  message: string,
-  color: any = chalk.white
-) {
-  if (!params.isExternal) {
-    console.log(color(message));
-  }
-}
-
-function logError(params: HistoryCommandOptions, message: string) {
-  logMessage(params, `❌ ${message}`, chalk.red);
-}
-
-function logSuccess(params: HistoryCommandOptions, message: string) {
-  logMessage(params, message, chalk.green);
-}
-
-function logInfo(params: HistoryCommandOptions, message: string) {
-  logMessage(params, message, chalk.blue);
-}
-
-function logWarning(params: HistoryCommandOptions, message: string) {
-  logMessage(params, message, chalk.yellow);
-}
-
 export async function historyCommand(
   params: HistoryCommandOptions
 ): Promise<HistoryResult | void> {
@@ -59,7 +34,7 @@ export async function historyCommand(
 
     if (!finalApiKey) {
       const errorMessage = "🔑 Add the Alchemy API key as a parameter in the command. Provide it once, and it will be securely saved for future use.";
-      logError(params, errorMessage);
+      logError(params.isExternal || false, errorMessage);
       return {
         error: errorMessage,
         success: false,
@@ -73,7 +48,7 @@ export async function historyCommand(
     } else {
       if (!fs.existsSync(walletFilePath)) {
         const errorMessage = "No saved wallet found. Please create a wallet first.";
-        logError(params, errorMessage);
+        logError(params.isExternal || false, errorMessage);
         return {
           error: errorMessage,
           success: false,
@@ -84,7 +59,7 @@ export async function historyCommand(
 
     if (!walletsData.currentWallet || !walletsData.wallets) {
       const errorMessage = "⚠️ No valid wallet found. Please create or import a wallet first.";
-      logError(params, errorMessage);
+      logError(params.isExternal || false, errorMessage);
       return {
         error: errorMessage,
         success: false,
@@ -95,7 +70,7 @@ export async function historyCommand(
     const wallet = wallets[currentWallet];
     const { address: walletAddress } = wallet;
 
-    logInfo(params, `🔍 Fetching transaction history on Rootstock ${params.testnet ? "Testnet" : "Mainnet"} for ${walletAddress}...`);
+    logInfo(params.isExternal || false, `🔍 Fetching transaction history on Rootstock ${params.testnet ? "Testnet" : "Mainnet"} for ${walletAddress}...`);
 
     const data = JSON.stringify({
       jsonrpc: "2.0",
@@ -123,7 +98,7 @@ export async function historyCommand(
 
     if (!response.ok) {
       const errorMessage = `API request failed with status: ${response.status}`;
-      logError(params, errorMessage);
+      logError(params.isExternal || false, errorMessage);
       return {
         error: errorMessage,
         success: false,
@@ -134,7 +109,7 @@ export async function historyCommand(
 
     if (result.error) {
       const errorMessage = `Error from Alchemy: ${result.error.message}`;
-      logError(params, errorMessage);
+      logError(params.isExternal || false, errorMessage);
       return {
         error: errorMessage,
         success: false,
@@ -145,7 +120,7 @@ export async function historyCommand(
 
     if (!transfers || transfers.length === 0) {
       const errorMessage = "⚠️ No transactions found.";
-      logWarning(params, errorMessage);
+      logWarning(params.isExternal || false, errorMessage);
       return {
         error: errorMessage,
         success: false,
@@ -160,13 +135,13 @@ export async function historyCommand(
 
     if (!params.isExternal) {
       for (const transfer of transfers) {
-        logSuccess(params, "✅ Transfer:");
-        logInfo(params, `   From: ${transfer.from}`);
-        logInfo(params, `   To: ${transfer.to}`);
-        logInfo(params, `   Token: ${transfer.asset || "N/A"}`);
-        logInfo(params, `   Value: ${transfer.value || "N/A"}`);
-        logInfo(params, `   Tx Hash: ${transfer.hash}`);
-        logInfo(params, `   Time: ${new Date(transfer.metadata.blockTimestamp)}`);
+        logSuccess(params.isExternal || false, "✅ Transfer:");
+        logInfo(params.isExternal || false, `   From: ${transfer.from}`);
+        logInfo(params.isExternal || false, `   To: ${transfer.to}`);
+        logInfo(params.isExternal || false, `   Token: ${transfer.asset || "N/A"}`);
+        logInfo(params.isExternal || false, `   Value: ${transfer.value || "N/A"}`);
+        logInfo(params.isExternal || false, `   Tx Hash: ${transfer.hash}`);
+        logInfo(params.isExternal || false, `   Time: ${new Date(transfer.metadata.blockTimestamp)}`);
       }
     }
 
@@ -181,7 +156,7 @@ export async function historyCommand(
     };
   } catch (error: any) {
     const errorMessage = `An unknown error occurred: ${error.message || error}`;
-    logError(params, errorMessage);
+    logError(params.isExternal || false, errorMessage);
     return {
       error: errorMessage,
       success: false,
