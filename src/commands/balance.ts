@@ -6,7 +6,6 @@ import {
   isERC20Contract,
   resolveTokenAddress,
 } from "../utils/tokenHelper.js";
-import ora from "ora";
 import {
   getAddress,
   isValidContract,
@@ -18,6 +17,8 @@ import fs from "fs";
 import { walletFilePath } from "../utils/constants.js";
 import { WalletData } from "../utils/types.js";
 import { getConfig } from "./config.js";
+import { logError, logSuccess, logInfo } from "../utils/logger.js";
+import { createSpinner } from "../utils/spinner.js";
 
 type BalanceCommandOptions = {
   testnet?: boolean;
@@ -28,54 +29,6 @@ type BalanceCommandOptions = {
   customTokenAddress?: Address;
   walletsData?: WalletData;
 };
-
-function logMessage(
-  params: BalanceCommandOptions,
-  message: string,
-  color: any = chalk.white
-) {
-  if (!params.isExternal) {
-    console.log(color(message));
-  }
-}
-
-function logError(params: BalanceCommandOptions, message: string) {
-  logMessage(params, `❌ ${message}`, chalk.red);
-}
-
-function logSuccess(params: BalanceCommandOptions, message: string) {
-  logMessage(params, message, chalk.green);
-}
-
-function logInfo(params: BalanceCommandOptions, message: string) {
-  logMessage(params, message, chalk.blue);
-}
-
-function startSpinner(
-  params: BalanceCommandOptions,
-  spinner: any,
-  message: string
-) {
-  if (!params.isExternal) {
-    spinner.start(message);
-  }
-}
-
-function stopSpinner(params: BalanceCommandOptions, spinner: any) {
-  if (!params.isExternal) {
-    spinner.stop();
-  }
-}
-
-function succeedSpinner(
-  params: BalanceCommandOptions,
-  spinner: any,
-  message: string
-) {
-  if (!params.isExternal) {
-    spinner.succeed(message);
-  }
-}
 
 type BalanceResult = {
   success: boolean;
@@ -96,8 +49,8 @@ type BalanceResult = {
 export async function balanceCommand(params: BalanceCommandOptions): Promise<BalanceResult | void> {
   const config = getConfig();
   const isTestnet = params.testnet !== undefined ? params.testnet : (config.defaultNetwork === 'testnet');
-  
-  const spinner = params.isExternal ? ora({isEnabled: false}) : ora();
+
+  const spinner = createSpinner(params.isExternal || false);
 
   try {
     let targetAddress: Address | undefined;
@@ -111,7 +64,7 @@ export async function balanceCommand(params: BalanceCommandOptions): Promise<Bal
 
       if (!walletsData.currentWallet || !walletsData.wallets) {
         const errorMessage = "No valid wallet found. Please create or import a wallet first.";
-        logError(params, errorMessage);
+        logError(params.isExternal || false, errorMessage);
         return {
           error: errorMessage,
           success: false,
@@ -124,7 +77,7 @@ export async function balanceCommand(params: BalanceCommandOptions): Promise<Bal
       if (params.walletName) {
         if (!wallets[params.walletName]) {
           const errorMessage = "Wallet with the provided name does not exist.";
-          logError(params, errorMessage);
+          logError(params.isExternal || false, errorMessage);
           return {
             error: errorMessage,
             success: false,
@@ -137,7 +90,7 @@ export async function balanceCommand(params: BalanceCommandOptions): Promise<Bal
       const address = wallet.address;
       if (!address) {
         const errorMessage = "No valid address found in the saved wallet.";
-        logError(params, errorMessage);
+        logError(params.isExternal || false, errorMessage);
         return {
           error: errorMessage,
           success: false,
@@ -148,7 +101,7 @@ export async function balanceCommand(params: BalanceCommandOptions): Promise<Bal
 
     if (!targetAddress) {
       const errorMessage = "Invalid address format.";
-      logError(params, errorMessage);
+      logError(params.isExternal || false, errorMessage);
       return {
         error: errorMessage,
         success: false,
@@ -181,27 +134,19 @@ export async function balanceCommand(params: BalanceCommandOptions): Promise<Bal
     }
 
     if (token === "rBTC") {
-      startSpinner(
-        params,
-        spinner,
-        `⏳ Checking balance...`
-      );
-      
+      spinner.start(`⏳ Checking balance...`);
+
       const balance = await client.getBalance({ address: targetAddress });
       const rbtcBalance = formatUnits(balance, 18);
 
-      succeedSpinner(
-        params,
-        spinner,
-        chalk.white("Balance retrieved successfully")
-      );
+      spinner.succeed(chalk.white("Balance retrieved successfully"));
       if (config.displayPreferences.compactMode) {
-        logSuccess(params, `${targetAddress}: ${rbtcBalance} RBTC`);
+        logSuccess(params.isExternal || false, `${targetAddress}: ${rbtcBalance} RBTC`);
       } else {
-        logSuccess(params, `📄 Wallet Address: ${targetAddress}`);
-        logSuccess(params, `🌐 Network: ${isTestnet ? "Rootstock Testnet" : "Rootstock Mainnet"}`);
-        logSuccess(params, `💰 Current Balance: ${rbtcBalance} RBTC`);
-        logInfo(params, "🔗 Ensure that transactions are being conducted on the correct network.");
+        logSuccess(params.isExternal || false, `📄 Wallet Address: ${targetAddress}`);
+        logSuccess(params.isExternal || false, `🌐 Network: ${isTestnet ? "Rootstock Testnet" : "Rootstock Mainnet"}`);
+        logSuccess(params.isExternal || false, `💰 Current Balance: ${rbtcBalance} RBTC`);
+        logInfo(params.isExternal || false, "🔗 Ensure that transactions are being conducted on the correct network.");
       }
       
       return {
@@ -234,7 +179,7 @@ export async function balanceCommand(params: BalanceCommandOptions): Promise<Bal
       } else if (params.isExternal && !params.customTokenAddress) {
         return { error: "Custom token address is required when using Custom Token in external mode.", success: false };
       } else {
-        stopSpinner(params, spinner);
+        spinner.stop();
         const { address } = await inquirer.prompt({
           type: "input",
           name: "address",
@@ -244,15 +189,15 @@ export async function balanceCommand(params: BalanceCommandOptions): Promise<Bal
               const address = input as Address;
               const formattedContractAddress = validateAndFormatAddress(address);
               if (!formattedContractAddress) {
-                logError(params, "Invalid contract address");
+                logError(params.isExternal || false, "Invalid contract address");
                 return "🚫 Invalid contract address";
               }
               if (!(await isValidContract(client, formattedContractAddress))) {
-                logError(params, "Invalid contract address or contract not found");
+                logError(params.isExternal || false, "Invalid contract address or contract not found");
                 return "🚫 Invalid contract address or contract not found";
               }
               if (!(await isERC20Contract(client, formattedContractAddress))) {
-                logError(params, "Invalid contract address, only ERC20 tokens are supported");
+                logError(params.isExternal || false, "Invalid contract address, only ERC20 tokens are supported");
                 return "🚫 Invalid contract address, only ERC20 tokens are supported";
               }
               return true;
@@ -267,11 +212,7 @@ export async function balanceCommand(params: BalanceCommandOptions): Promise<Bal
       tokenAddress = resolveTokenAddress(token, isTestnet);
     }
 
-    startSpinner(
-      params,
-      spinner,
-      `⏳ Checking balance...`
-    );
+    spinner.start(`⏳ Checking balance...`);
 
     const { balance, decimals, name, symbol } = await getTokenInfo(
       client,
@@ -280,24 +221,20 @@ export async function balanceCommand(params: BalanceCommandOptions): Promise<Bal
     );
     const formattedBalance = formatUnits(balance, decimals);
 
-    succeedSpinner(
-      params,
-      spinner,
-      chalk.white("Balance retrieved successfully")
-    );
+    spinner.succeed(chalk.white("Balance retrieved successfully"));
 
 
     if (config.displayPreferences.compactMode) {
-      logSuccess(params, `${targetAddress}: ${formattedBalance} ${symbol}`);
+      logSuccess(params.isExternal || false, `${targetAddress}: ${formattedBalance} ${symbol}`);
     } else {
-      logSuccess(params, `📄 Token Information:
+      logSuccess(params.isExternal || false, `📄 Token Information:
          Name: ${name}
          Contract: ${tokenAddress}
       👤 Holder Address: ${targetAddress}
       💰 Balance: ${formattedBalance} ${symbol}
       🌐 Network: ${isTestnet ? "Rootstock Testnet" : "Rootstock Mainnet"}`);
 
-      logInfo(params, "🔗 Ensure that transactions are being conducted on the correct network.");
+      logInfo(params.isExternal || false, "🔗 Ensure that transactions are being conducted on the correct network.");
     }
     
     if (params.isExternal) {
@@ -318,7 +255,7 @@ export async function balanceCommand(params: BalanceCommandOptions): Promise<Bal
     }
   } catch (error) {
     const errorMessage = "Error checking balance, please check the token address.";
-    logError(params, errorMessage);
+    logError(params.isExternal || false, errorMessage);
     
     return { error: errorMessage, success: false };
   } finally {
