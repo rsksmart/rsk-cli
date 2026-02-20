@@ -19,6 +19,7 @@ import { resolveCommand } from "../src/commands/resolve.js";
 import { configCommand } from "../src/commands/config.js";
 import { transactionCommand } from "../src/commands/transaction.js";
 import { monitorCommand, listMonitoringSessions, stopMonitoringSession } from "../src/commands/monitor.js";
+import { gasCommand } from "../src/commands/gas.js";
 import { simulateCommand, TransactionSimulationOptions } from "../src/commands/simulate.js";
 import { parseEther } from "viem";
 import { resolveRNSToAddress } from "../src/utils/rnsHelper.js";
@@ -56,6 +57,12 @@ interface CommandOptions {
   gasLimit?: string;
   gasPrice?: string;
   data?: string;
+  abiPath?: string;
+  function?: string;
+  functionName?: string;
+  simulate?: boolean;
+  optimize?: boolean;
+  bytecodePath?: string;
   attestDeployment?: boolean;
   attestVerification?: boolean;
   attestTransfer?: boolean;
@@ -580,6 +587,56 @@ program
       console.error(chalk.red(`❌ Operation failed: ${error.message || error}`));
       process.exit(1);
     }
+  });
+
+program
+  .command("gas")
+  .description("Estimate gas costs for transactions and contract interactions with optimization tips")
+  .option("-t, --testnet", "Use testnet")
+  .option("-c, --contract <address>", "Contract address for function call estimation")
+  .option("--abi <path>", "Path to contract ABI file")
+  .option("-f, --function <name>", "Function name to estimate")
+  .option("--args <args...>", "Function arguments (space-separated)")
+  .option("-a, --address <address>", "Recipient address for transaction estimation")
+  .option("--value <value>", "Amount to send (in RBTC)")
+  .option("--data <data>", "Transaction data (hex)")
+  .option("-s, --simulate", "Run transaction simulation")
+  .option("-o, --optimize", "Show gas optimization tips")
+  .option("-i, --interactive", "Interactive mode with guided prompts")
+  .action(async (options: CommandOptions) => {
+    try {
+      await gasCommand({
+        testnet: !!options.testnet,
+        contractAddress: options.contract as Address | undefined,
+        abiPath: options.abi,
+        functionName: options.function,
+        args: options.args,
+        to: options.address as Address | undefined,
+        value: options.value,
+        data: options.data,
+        simulate: !!options.simulate,
+        optimize: !!options.optimize,
+        interactive: !!options.interactive,
+      });
+    } catch (error: any) {
+      console.error(
+        chalk.red("Error during gas estimation:"),
+        error.message || error
+      );
+    }
+  });
+
+program
+  .command("resolve <name>")
+  .description("Resolve RNS names to addresses or reverse lookup addresses to names")
+  .option("-t, --testnet", "Use testnet (currently mainnet only)")
+  .option("-r, --reverse", "Reverse lookup: address to name")
+  .action(async (name: string, options: CommandOptions) => {
+    await resolveCommand({
+      name,
+      testnet: !!options.testnet,
+      reverse: !!options.reverse
+    });
   });
 
 program.parse(process.argv);

@@ -116,7 +116,7 @@ export class WalletSignerService {
         ? privateKey 
         : `0x${privateKey}`;
 
-      const provider = new ethers.JsonRpcProvider(this.getRpcUrl());
+      const provider = new ethers.providers.JsonRpcProvider(this.getRpcUrl());
       const signer = new ethers.Wallet(formattedPrivateKey, provider);
 
       return signer;
