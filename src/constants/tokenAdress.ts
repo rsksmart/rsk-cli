@@ -14,3 +14,16 @@ export const TOKENS: Record<string, Record<string, Address>> = {
     testnet: "0xd37a3e5874be2dc6c732ad21c008a1e4032a6040",
   },
 };
+
+export const TOKENS_METADATA = {
+  RIF: {
+    mainnet: "RIF",
+    testnet: "tRIF",
+    faucet : {link : "https://faucet.rootstock.io/"}
+  },
+  RBTC: {
+    mainnet: "rBTC",
+    testnet: "tRBTC",
+    faucet : {link : "https://faucet.rifos.org/"},
+  },
+};

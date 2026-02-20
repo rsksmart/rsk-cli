@@ -1,8 +1,9 @@
 import chalk from "chalk";
-import ora from "ora";
 import { Address } from "viem";
 import { resolveRNSToAddress, resolveAddressToRNS } from "../utils/rnsHelper.js";
 import { validateAndFormatAddressRSK, toEip1191ChecksumAddress } from "../utils/index.js";
+import { logInfo } from "../utils/logger.js";
+import { createSpinner } from "../utils/spinner.js";
 
 type ResolveCommandOptions = {
   name: string;
@@ -21,84 +22,35 @@ type ResolveResult = {
   error?: string;
 };
 
-function logMessage(
-  params: ResolveCommandOptions,
-  message: string,
-  color: any = chalk.white
-) {
-  if (!params.isExternal) {
-    console.log(color(message));
-  }
-}
-
-function logInfo(params: ResolveCommandOptions, message: string) {
-  logMessage(params, message, chalk.blue);
-}
-
-function startSpinner(
-  params: ResolveCommandOptions,
-  spinner: any,
-  message: string
-) {
-  if (!params.isExternal) {
-    spinner.start(message);
-  }
-}
-
-function stopSpinner(params: ResolveCommandOptions, spinner: any) {
-  if (!params.isExternal) {
-    spinner.stop();
-  }
-}
-
-function succeedSpinner(
-  params: ResolveCommandOptions,
-  spinner: any,
-  message: string
-) {
-  if (!params.isExternal) {
-    spinner.succeed(message);
-  }
-}
-
-function failSpinner(
-  params: ResolveCommandOptions,
-  spinner: any,
-  message: string
-) {
-  if (!params.isExternal) {
-    spinner.fail(message);
-  }
-}
 
 export async function resolveCommand(
   params: ResolveCommandOptions = { name: "", testnet: false, reverse: false }
 ): Promise<ResolveResult | void> {
-  const spinner = ora();
+  const spinner = createSpinner(params.isExternal || false);
 
   try {
     if (params.reverse) {
       const formattedAddress = validateAndFormatAddressRSK(params.name, params.testnet);
       if (!formattedAddress) {
         const errorMessage = "Invalid address format for reverse lookup";
-        failSpinner(params, spinner, chalk.red(`❌ ${errorMessage}`));
+        spinner.fail(chalk.red(`❌ ${errorMessage}`));
         return params.isExternal ? { success: false, error: errorMessage } : undefined;
       }
 
-      startSpinner(params, spinner, chalk.white("🔍 Looking up name for address..."));
+      spinner.start(chalk.white("🔍 Looking up name for address..."));
       const resolverName = await resolveAddressToRNS({
         address: formattedAddress as `0x${string}`,
         testnet: params.testnet,
         isExternal: params.isExternal
       });
 
-      stopSpinner(params, spinner);
+      spinner.stop();
 
       if (resolverName) {
-        succeedSpinner(params, spinner, chalk.green("✅ Name found successfully"));
+        spinner.succeed(chalk.green("✅ Name found successfully"));
         const displayAddress = toEip1191ChecksumAddress(formattedAddress as string, params.testnet) as Address;
-        logMessage(params, chalk.white(`📄 Address:`) + " " + chalk.green(displayAddress));
-        logMessage(params, chalk.white(`🏷️  Name:`) + " " + chalk.green(resolverName));
+        logInfo(params.isExternal || false, `📄 Address: ${displayAddress}`);
+        logInfo(params.isExternal || false, `🏷️  Name: ${resolverName}`);
         
         if (params.isExternal) {
           return {
@@ -111,8 +63,8 @@ export async function resolveCommand(
           };
         }
       } else {
-        failSpinner(params, spinner, chalk.yellow("⚠️ No name found for this address"));
-        logInfo(params, "💡 To enable reverse lookup for your address, you need to set a reverse record in the RNS manager");
+        spinner.fail(chalk.yellow("⚠️ No name found for this address"));
+        logInfo(params.isExternal || false,"💡 To enable reverse lookup for your address, you need to set a reverse record in the RNS manager");
 
         if (params.isExternal) {
           return {
@@ -127,7 +79,7 @@ export async function resolveCommand(
         domainName = domainName + ".rsk";
       }
 
-      startSpinner(params, spinner, chalk.white(`🔍 Resolving ${domainName}...`));
+      spinner.start(chalk.white(`🔍 Resolving ${domainName}...`));
 
       const resolvedAddress = await resolveRNSToAddress({
         name: domainName,
@@ -135,13 +87,13 @@ export async function resolveCommand(
         isExternal: params.isExternal
       });
 
-      stopSpinner(params, spinner);
+      spinner.stop();
 
       if (resolvedAddress) {
-        succeedSpinner(params, spinner, chalk.green("✅ Domain resolved successfully"));
-        logMessage(params, chalk.white(`🏷️  Domain:`) + " " + chalk.green(domainName));
-        logMessage(params, chalk.white(`📄 Address:`) + " " + chalk.green(resolvedAddress));
-        logMessage(params, chalk.white(`🌐 Network:`) + " " + chalk.green(params.testnet ? "Rootstock Testnet" : "Rootstock Mainnet"));
+        spinner.succeed(chalk.green("✅ Domain resolved successfully"));
+        logInfo(params.isExternal || false, `🏷️  Domain: ${domainName}`);
+        logInfo(params.isExternal || false, `📄 Address: ${resolvedAddress}`);
+        logInfo(params.isExternal || false, `🌐 Network: ${params.testnet ? "Rootstock Testnet" : "Rootstock Mainnet"}`);
         
         if (params.isExternal) {
           return {
@@ -154,8 +106,8 @@ export async function resolveCommand(
           };
         }
       } else {
-        failSpinner(params, spinner, chalk.yellow(`⚠️ No address found for ${domainName}`));
-        logInfo(params, "💡 This domain may not be registered or has no address configured");
+        spinner.fail(chalk.yellow(`⚠️ No address found for ${domainName}`));
+        logInfo(params.isExternal || false,"💡 This domain may not be registered or has no address configured");
         
         if (params.isExternal) {
           return {
@@ -166,7 +118,7 @@ export async function resolveCommand(
       }
     }
   } catch (error) {
-    stopSpinner(params, spinner);
+    spinner.stop();
     const errorMessage = error instanceof Error ? error.message : "An unknown error occurred";
     
     if (params.isExternal) {

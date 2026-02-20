@@ -3,7 +3,8 @@ import chalk from "chalk";
 import Table from "cli-table3";
 import { DataTx, TxResult } from "../utils/types.js";
 import { MonitorManager } from "../utils/monitoring/MonitorManager.js";
-import ora from "ora";
+import { logError, logSuccess, logInfo, logWarning, logMessage } from "../utils/logger.js";
+import { createSpinner } from "../utils/spinner.js";
 
 type TxCommandOptions = {
   testnet: boolean;
@@ -13,61 +14,12 @@ type TxCommandOptions = {
   confirmations?: number;
 };
 
-function logMessage(
-  params: TxCommandOptions,
-  message: string,
-  color: any = chalk.white
-) {
-  if (!params.isExternal) {
-    console.log(color(message));
-  }
-}
-
-function logError(params: TxCommandOptions, message: string) {
-  logMessage(params, `❌ ${message}`, chalk.red);
-}
-
-function logSuccess(params: TxCommandOptions, message: string) {
-  logMessage(params, message, chalk.green);
-}
-
-function logInfo(params: TxCommandOptions, message: string) {
-  logMessage(params, message, chalk.blue);
-}
-
-function logWarning(params: TxCommandOptions, message: string) {
-  logMessage(params, message, chalk.yellow);
-}
-
-function startSpinner(
-  params: TxCommandOptions,
-  spinner: any,
-  message: string
-) {
-  if (!params.isExternal) {
-    spinner.start(message);
-  }
-}
-
-function stopSpinner(params: TxCommandOptions, spinner: any) {
-  if (!params.isExternal) {
-    spinner.stop();
-  }
-}
-
-function succeedSpinner(
-  params: TxCommandOptions,
-  spinner: any,
-  message: string
-) {
-  if (!params.isExternal) {
-    spinner.succeed(message);
-  }
-}
 
 export async function txCommand(
   params: TxCommandOptions
 ): Promise<TxResult | void> {
+  const isExternal = params.isExternal || false;
+
   try {
     const formattedTxId = params.txid.startsWith("0x") ? params.txid : `0x${params.txid}`;
     const txidWithCorrectType = formattedTxId as `0x${string}`;
@@ -82,7 +34,7 @@ export async function txCommand(
       const network = params.testnet ? "testnet" : "mainnet";
       const oppositeNetwork = params.testnet ? "mainnet" : "testnet";
       const errorMessage = `Transaction not found on ${network}. Please check the transaction ID and network. Try with --testnet flag if the transaction is on ${oppositeNetwork}.`;
-      logError(params, errorMessage);
+      logError(isExternal, `❌ ${errorMessage}`);
       return {
         error: errorMessage,
         success: false,
@@ -130,9 +82,9 @@ export async function txCommand(
     const network = params.testnet ? "testnet" : "mainnet";
     const oppositeNetwork = params.testnet ? "mainnet" : "testnet";
     const errorMessage = `Error checking transaction status on ${network}. Please check the transaction ID and network. Try with --testnet flag if the transaction is on ${oppositeNetwork}.`;
-    
-    logError(params, errorMessage);
-    
+
+    logError(isExternal, errorMessage);
+
     return {
       error: errorMessage,
       success: false,
@@ -144,36 +96,37 @@ async function handleTransactionMonitoring(
   params: TxCommandOptions,
   txHash: `0x${string}`
 ): Promise<TxResult | void> {
-  const spinner = params.isExternal ? ora({isEnabled: false}) : ora();
-  
+  const isExternal = params.isExternal || false;
+  const spinner = createSpinner(isExternal);
+
   try {
     const confirmations = params.confirmations ?? 12;
-    
-    logInfo(params, `🔍 Starting transaction monitoring...`);
-    logMessage(params, `Network: ${params.testnet ? 'Testnet' : 'Mainnet'}`, chalk.gray);
-    logMessage(params, `Transaction: ${txHash}`, chalk.gray);
-    logMessage(params, `Required confirmations: ${confirmations}`, chalk.gray);
-    logMessage(params, '');
 
-    startSpinner(params, spinner, '⏳ Initializing monitor...');
+    logInfo(isExternal, `🔍 Starting transaction monitoring...`);
+    logMessage(isExternal, `Network: ${params.testnet ? 'Testnet' : 'Mainnet'}`, chalk.gray);
+    logMessage(isExternal, `Transaction: ${txHash}`, chalk.gray);
+    logMessage(isExternal, `Required confirmations: ${confirmations}`, chalk.gray);
+    logMessage(isExternal, '', chalk.white);
+
+    spinner.start('⏳ Initializing monitor...');
     const monitorManager = new MonitorManager(params.testnet);
     await monitorManager.initialize();
-    succeedSpinner(params, spinner, '✅ Monitor initialized successfully');
+    spinner.succeed('✅ Monitor initialized successfully');
 
-    startSpinner(params, spinner, '⏳ Starting transaction monitoring...');
+    spinner.start('⏳ Starting transaction monitoring...');
     const sessionId = await monitorManager.startTransactionMonitoring(
       txHash,
       confirmations,
       params.testnet
     );
-    succeedSpinner(params, spinner, '✅ Transaction monitoring started successfully');
+    spinner.succeed('✅ Transaction monitoring started successfully');
 
-    logSuccess(params, `\n🎯 Monitoring started successfully!`);
-    logInfo(params, `Press Ctrl+C to stop monitoring`);
-    logMessage(params, '');
+    logSuccess(isExternal, `\n🎯 Monitoring started successfully!`);
+    logInfo(isExternal, `Press Ctrl+C to stop monitoring`);
+    logMessage(isExternal, '', chalk.white);
 
     process.on('SIGINT', async () => {
-      logWarning(params, `\n⏹️  Stopping monitoring...`);
+      logWarning(isExternal, `\n⏹️  Stopping monitoring...`);
       await monitorManager.stopMonitoring(sessionId);
       process.exit(0);
     });
@@ -190,8 +143,8 @@ async function handleTransactionMonitoring(
       } as any,
     };
   } catch (error: any) {
-    stopSpinner(params, spinner);
-    logError(params, `Error in monitoring: ${error.message || error}`);
+    spinner.stop();
+    logError(isExternal, `Error in monitoring: ${error.message || error}`);
     return {
       error: error.message || error,
       success: false,

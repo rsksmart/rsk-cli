@@ -10,9 +10,9 @@ import { privateKeyToAccount } from "viem/accounts";
 import fs from "fs";
 import crypto from "crypto";
 import inquirer from "inquirer";
-import chalk from "chalk";
 import { walletFilePath } from "./constants.js";
 import { WalletData } from "./types.js";
+import { logError } from "./logger.js";
 
 class ViemProvider {
   public chain: typeof rootstock | typeof rootstockTestnet;
@@ -38,6 +38,30 @@ class ViemProvider {
     });
   }
 
+  public async getWalletClientWithPassword(name?: string | null): Promise<{
+    client: WalletClient;
+    password: string;
+    data: any;
+    name: string;
+  }> {
+    const { account, password, walletsData, walletName } = await this.decryptPrivateKeyWithPassword(
+      name ? name : undefined
+    );
+
+    const client = createWalletClient({
+      chain: this.chain,
+      transport: http(),
+      account: account,
+    });
+
+    return {
+      client,
+      password,
+      data: walletsData,
+      name: walletName
+    };
+  }
+
   private async decryptPrivateKey(name: string | undefined): Promise<{
     account: ReturnType<typeof privateKeyToAccount>;
   }> {
@@ -50,11 +74,7 @@ class ViemProvider {
     const walletsData = JSON.parse(fs.readFileSync(walletFilePath, "utf8"));
 
     if (!walletsData.currentWallet || !walletsData.wallets) {
-      console.log(
-        chalk.red(
-          "⚠️ No valid wallet found. Please create or import a wallet first."
-        )
-      );
+      logError(false, "No valid wallet found. Please create or import a wallet first.");
       throw new Error();
     }
 
@@ -63,10 +83,7 @@ class ViemProvider {
 
     if (name) {
       if (!wallets[name]) {
-        console.log(
-          chalk.red("⚠️ Wallet with the provided name does not exist.")
-        );
-
+        logError(false, "Wallet with the provided name does not exist.");
         throw new Error();
       } else {
         wallet = wallets[name];
@@ -107,6 +124,80 @@ class ViemProvider {
       const account = privateKeyToAccount(prefixedPrivateKey as `0x${string}`);
 
       return { account };
+    } catch (error) {
+      throw new Error(
+        "Failed to decrypt the private key. Please check your password and try again."
+      );
+    }
+  }
+
+  private async decryptPrivateKeyWithPassword(name: string | undefined): Promise<{
+    account: ReturnType<typeof privateKeyToAccount>;
+    password: string;
+    walletsData: any;
+    walletName: string;
+  }> {
+    if (!fs.existsSync(walletFilePath)) {
+      throw new Error(
+        "No wallets found. Please create or import a wallet first."
+      );
+    }
+
+    const walletsData = JSON.parse(fs.readFileSync(walletFilePath, "utf8"));
+
+    if (!walletsData.currentWallet || !walletsData.wallets) {
+      logError(false, "No valid wallet found. Please create or import a wallet first.");
+      throw new Error();
+    }
+
+    const { currentWallet, wallets } = walletsData;
+    let wallet = wallets[currentWallet];
+    let walletName = currentWallet;
+
+    if (name) {
+      if (!wallets[name]) {
+        logError(false, "Wallet with the provided name does not exist.");
+        throw new Error();
+      } else {
+        wallet = wallets[name];
+        walletName = name;
+      }
+    }
+
+    const passwordQuestion: any = [
+      {
+        type: "password",
+        name: "password",
+        message: "Enter your password to decrypt the wallet:",
+        mask: "*",
+      },
+    ];
+
+    const { password } = await inquirer.prompt(passwordQuestion);
+
+    const { encryptedPrivateKey, iv } = wallet;
+
+    try {
+      const decipherIv = Uint8Array.from(Buffer.from(iv, "hex"));
+      const key = crypto.scryptSync(password, decipherIv, 32);
+      const decipher = crypto.createDecipheriv(
+        "aes-256-cbc",
+        Uint8Array.from(key),
+        decipherIv
+      );
+
+      let decryptedPrivateKey = decipher.update(
+        encryptedPrivateKey,
+        "hex",
+        "utf8"
+      );
+      decryptedPrivateKey += decipher.final("utf8");
+
+      const prefixedPrivateKey = `0x${decryptedPrivateKey.replace(/^0x/, "")}`;
+
+      const account = privateKeyToAccount(prefixedPrivateKey as `0x${string}`);
+
+      return { account, password, walletsData, walletName };
     } catch (error) {
       throw new Error(
         "Failed to decrypt the private key. Please check your password and try again."
