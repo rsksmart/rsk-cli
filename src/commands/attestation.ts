@@ -1,10 +1,9 @@
 import chalk from "chalk";
 import ora from "ora";
-import inquirer from "inquirer";
 import { EAS, SchemaEncoder } from "@ethereum-attestation-service/eas-sdk";
 import ViemProvider from "../utils/viemProvider.js";
 import { AttestationResult } from "../utils/types.js";
-import { GraphQLService, AttestationData } from "../utils/graphqlService.js";
+import { GraphQLService } from "../utils/graphqlService.js";
 
 type AttestationCommandOptions = {
   testnet: boolean;
@@ -53,10 +52,6 @@ function logSuccess(params: AttestationCommandOptions, message: string) {
 
 function logInfo(params: AttestationCommandOptions, message: string) {
   logMessage(params, message, chalk.blue);
-}
-
-function logWarning(params: AttestationCommandOptions, message: string) {
-  logMessage(params, message, chalk.yellow);
 }
 
 function startSpinner(
@@ -332,10 +327,6 @@ async function createSchema(params: AttestationCommandOptions): Promise<Attestat
     
     stopSpinner(params, spinner);
     startSpinner(params, spinner, "⏳ Creating schema...");
-
-    const schemaRegistryAddress = params.testnet 
-      ? SCHEMA_REGISTRY_CONTRACTS.testnet
-      : SCHEMA_REGISTRY_CONTRACTS.mainnet;
     
     const schemaRegistry = await (eas as any).getSchemaRegistry();
     
