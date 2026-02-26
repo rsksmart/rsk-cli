@@ -25,6 +25,7 @@ import { simulateCommand, TransactionSimulationOptions } from "../src/commands/s
 import { parseEther } from "viem";
 import { resolveRNSToAddress } from "../src/utils/rnsHelper.js";
 import { validateAndFormatAddressRSK } from "../src/utils/index.js";
+import { txExplainCommand } from "../src/commands/txExplain.js";
 import { rnsUpdateCommand } from "../src/commands/rnsUpdate.js";
 import { rnsTransferCommand } from "../src/commands/rnsTransfer.js";
 import { rnsRegisterCommand } from "../src/commands/rnsRegister.js";
@@ -80,6 +81,7 @@ interface CommandOptions {
   attestRecipient?: string;
   attestReason?: string;
   rns?: string;
+  raw?: boolean;
 }
 
 const orange = chalk.rgb(255, 165, 0);
@@ -516,6 +518,33 @@ program
   });
 
 program
+  .command("tx-explain <txhash>")
+  .description("Transform raw hexadecimal blockchain data into a human-readable summary")
+  .option("-t, --testnet", "Query the transaction on the Rootstock testnet")
+  .option("--raw", "Display raw calldata without decoding attempt")
+  .action(async (txhash: string, options: CommandOptions) => {
+    try {
+      const formattedTxHash = txhash.startsWith("0x") ? txhash : `0x${txhash}`;
+      const isValidHash = /^0x[0-9a-fA-F]{64}$/.test(formattedTxHash);
+
+      if (!isValidHash) {
+        throw new Error("Invalid transaction hash format. It must be a valid 32-byte hex string (64 characters long).");
+      }
+
+      await txExplainCommand({
+        testnet: !!options.testnet,
+        txhash: formattedTxHash as `0x${string}`,
+        raw: !!options.raw
+      });
+    } catch (error: any) {
+      console.error(
+        chalk.red("Error explaining transaction:"),
+        error.message || error
+      );
+    }
+  });
+
+  program
   .command("rns")
   .description("RNS Manager: Register, Transfer, Update, or Resolve domains")
   .option("--register <domain>", "Register a new RNS domain")

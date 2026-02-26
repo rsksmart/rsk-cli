@@ -26,6 +26,7 @@
   10. [Batch Transfer](#10-batch-transfer)
   11. [Transaction Simulation](#11-transaction-simulation)
   12. [RNS Operations](#12-rns-operations)
+  13. [Transaction Explanation](#13-tx-explain)
 - [Contributing](#contributing)
 
 ## Installation
@@ -1089,6 +1090,134 @@ The command provides:
 - Optimization tips (if applicable)
 =======
 >>>>>>> main
+
+### 13. Tx Explain
+The `tx-explain` command transforms raw, hexadecimal blockchain data into a human-readable summary. It uses a tiered decoding engine to fetch verified ABIs from the Rootstock Explorer, falling back to signature databases or raw data if necessary.
+
+**Features**
+
+- **Tiered Decoding**: Automatically attempts to decode function names and parameters using verified contract ABIs.
+- **Value Tracking**: Shows native RBTC transfers and identifies common ERC20 token interactions.
+- **Resource Analysis**: Provides gas usage and calculates the final transaction fee in RBTC.
+- **Multi-Network**: Supports transaction hashes on both Mainnet and Testnet.
+
+##### Mainnet
+```bash
+# Explain a transaction on Mainnet
+rsk-cli tx-explain <tx-hash>
+```
+
+##### Testnet
+
+```bash
+# Explain a transaction on testnet
+rsk-cli tx-explain <tx-hash> --testnet
+```
+
+Output example:
+
+(Mainnet)
+```
+TRANSACTION SUMMARY
+Network: Rootstock Mainnet
+Status: ✅ Success
+Block: 8517392
+From: 0x93BeAC98aBAC34cc174B5F772b16B388FC5b30e3
+To: 0x0B14ff67f0014046b4b99057Aec4509640b3947A
+Value: 0.0 RBTC
+
+EXECUTION DETAILS
+Function Selector: 0x04e45aaf
+Decoded via Verified ABI: exactInputSingle()
+   └─ params (tuple): 0x2AcC95758f8b5F583470ba265EB685a8F45fC9D5,0x779Ded0c9e1022225f8E0630b35a9b54bE713736,3000,0x93BeAC98aBAC34cc174B5F772b16B388FC5b30e3,3500000000000000000000,139926850,0
+
+⛽ RESOURCE USAGE
+Gas Used: 120631
+Fee Paid: 0.0000047164790904 RBTC
+
+🔗 View on Explorer: https://rootstock.blockscout.com/tx/0xe61df6c93b455bbf7fd63d9d894856f591e9b3286c5749cc9ba1d968b62cec02
+```
+
+(Testnet)
+```
+TRANSACTION SUMMARY
+Network: Rootstock Testnet
+Status: ✅ Success
+Block: 7317736
+From: 0xA4A38934c858c88EC6F601Edd413Eb91D06db6e6
+To: 0x12A0DfA53aBeFF6AA6b1BB55EE59F6DB9fB104F8
+Value: 0.0 RBTC
+
+EXECUTION DETAILS
+Function Selector: 0xa6385803
+Decoded via Verified ABI: vote()
+   └─ teamName (string): Grindoor
+   └─ transferAmount (uint256): 9000000000000000000000
+
+⛽ RESOURCE USAGE
+Gas Used: 120086
+Fee Paid: 0.00000371745967147 RBTC
+
+🔗 View on Explorer: https://rootstock-testnet.blockscout.com/tx/0x8d3df301156a16dc695758765ac03935765a5b9c1e217eca4ec3e626fa35189a
+```
+
+#### View Raw calldata only
+
+Read transaction details with raw calldata only:
+
+##### Mainnet
+
+```bash
+rsk-cli tx-explain <tx-hash> --raw
+```
+
+##### Testnet
+
+```bash
+rsk-cli tx-explain <tx-hash> --testnet --raw
+```
+
+Output example:
+
+(Mainnet)
+```
+TRANSACTION SUMMARY
+Network: Rootstock Mainnet
+Status: ✅ Success
+Block: 8517392
+From: 0x93BeAC98aBAC34cc174B5F772b16B388FC5b30e3
+To: 0x0B14ff67f0014046b4b99057Aec4509640b3947A
+Value: 0.0 RBTC
+
+EXECUTION DETAILS
+Raw Calldata: 0x04e45aaf0000000000000000000000002acc95758f8b5f583470ba265eb685a8f45fc9d5000000000000000000000000779ded0c9e1022225f8e0630b35a9b54be7137360000000000000000000000000000000000000000000000000000000000000bb800000000000000000000000093beac98abac34cc174b5f772b16b388fc5b30e30000000000000000000000000000000000000000000000bdbc41e0348b3000000000000000000000000000000000000000000000000000000000000008571d420000000000000000000000000000000000000000000000000000000000000000
+
+⛽ RESOURCE USAGE
+Gas Used: 120631
+Fee Paid: 0.0000047164790904 RBTC
+
+🔗 View on Explorer: https://rootstock.blockscout.com/tx/0xe61df6c93b455bbf7fd63d9d894856f591e9b3286c5749cc9ba1d968b62cec02
+```
+
+(Testnet)
+```
+TRANSACTION SUMMARY
+Network: Rootstock Testnet
+Status: ✅ Success
+Block: 7317736
+From: 0xA4A38934c858c88EC6F601Edd413Eb91D06db6e6
+To: 0x12A0DfA53aBeFF6AA6b1BB55EE59F6DB9fB104F8
+Value: 0.0 RBTC
+
+EXECUTION DETAILS
+Raw Calldata: 0xa638580300000000000000000000000000000000000000000000000000000000000000400000000000000000000000000000000000000000000001e7e4171bf4d3a0000000000000000000000000000000000000000000000000000000000000000000084772696e646f6f72000000000000000000000000000000000000000000000000
+
+⛽ RESOURCE USAGE
+Gas Used: 120086
+Fee Paid: 0.00000371745967147 RBTC
+
+🔗 View on Explorer: https://rootstock-testnet.blockscout.com/tx/0x8d3df301156a16dc695758765ac03935765a5b9c1e217eca4ec3e626fa35189a
+```
 
 ## Contributing
 
