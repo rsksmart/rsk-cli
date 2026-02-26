@@ -1,8 +1,8 @@
-import chalk from "chalk";
-import ora from "ora";
 import inquirer from "inquirer";
 import ViemProvider from "../utils/viemProvider.js";
 import { ContractResult } from "../utils/types.js";
+import { logError, logSuccess, logInfo, logWarning } from "../utils/logger.js";
+import { createSpinner } from "../utils/spinner.js";
 
 type InquirerAnswers = {
   selectedFunction?: string;
@@ -17,57 +17,6 @@ type ContractCommandOptions = {
   args?: string[];
 };
 
-function logMessage(
-  params: ContractCommandOptions,
-  message: string,
-  color: any = chalk.white
-) {
-  if (!params.isExternal) {
-    console.log(color(message));
-  }
-}
-
-function logError(params: ContractCommandOptions, message: string) {
-  logMessage(params, `❌ ${message}`, chalk.red);
-}
-
-function logSuccess(params: ContractCommandOptions, message: string) {
-  logMessage(params, message, chalk.green);
-}
-
-function logInfo(params: ContractCommandOptions, message: string) {
-  logMessage(params, message, chalk.blue);
-}
-
-function logWarning(params: ContractCommandOptions, message: string) {
-  logMessage(params, message, chalk.yellow);
-}
-
-function startSpinner(
-  params: ContractCommandOptions,
-  spinner: any,
-  message: string
-) {
-  if (!params.isExternal) {
-    spinner.start(message);
-  }
-}
-
-function stopSpinner(params: ContractCommandOptions, spinner: any) {
-  if (!params.isExternal) {
-    spinner.stop();
-  }
-}
-
-function failSpinner(
-  params: ContractCommandOptions,
-  spinner: any,
-  message: string
-) {
-  if (!params.isExternal) {
-    spinner.fail(message);
-  }
-}
 
 function isValidAddress(address: string): boolean {
   const regex = /^0x[a-fA-F0-9]{40}$/;
@@ -77,12 +26,13 @@ function isValidAddress(address: string): boolean {
 export async function ReadContract(
   params: ContractCommandOptions
 ): Promise<ContractResult | void> {
+  const isExternal = params.isExternal || false;
   const address = params.address.toLowerCase() as `0x${string}`;
 
   if (!isValidAddress(address)) {
     const errorMessage =
       "Invalid address format. Please provide a valid address.";
-    logError(params, errorMessage);
+    logError(isExternal, `❌ ${errorMessage}`);
     return {
       error: errorMessage,
       success: false,
@@ -90,7 +40,7 @@ export async function ReadContract(
   }
 
   logInfo(
-    params,
+    isExternal,
     `🔧 Initializing interaction on ${
       params.testnet ? "testnet" : "mainnet"
     }...`
@@ -100,10 +50,10 @@ export async function ReadContract(
     ? "https://be.explorer.testnet.rootstock.io"
     : "https://be.explorer.rootstock.io";
 
-  logInfo(params, `🔎 Checking if contract ${address} is verified...`);
+  logInfo(isExternal, `🔎 Checking if contract ${address} is verified...`);
 
-  const spinner = params.isExternal ? ora({ isEnabled: false }) : ora();
-  startSpinner(params, spinner, "⏳ Checking contract verification...");
+  const spinner = createSpinner(isExternal);
+  spinner.start("⏳ Checking contract verification...");
 
   try {
     const response = await fetch(
@@ -112,7 +62,7 @@ export async function ReadContract(
 
     if (!response.ok) {
       const errorMessage = "Error during verification check.";
-      failSpinner(params, spinner, errorMessage);
+      spinner.fail(errorMessage);
       return {
         error: errorMessage,
         success: false,
@@ -123,7 +73,7 @@ export async function ReadContract(
 
     if (!resData.data) {
       const errorMessage = "Contract verification not found.";
-      failSpinner(params, spinner, errorMessage);
+      spinner.fail(errorMessage);
       return {
         error: errorMessage,
         success: false,
@@ -140,15 +90,15 @@ export async function ReadContract(
 
     if (readFunctions.length === 0) {
       const errorMessage = "No read functions found in the contract.";
-      stopSpinner(params, spinner);
-      logWarning(params, errorMessage);
+      spinner.stop();
+      logWarning(isExternal, errorMessage);
       return {
         error: errorMessage,
         success: false,
       };
     }
 
-    stopSpinner(params, spinner);
+    spinner.stop();
 
     let selectedFunction: string;
     let selectedAbiFunction: any;
@@ -185,7 +135,7 @@ export async function ReadContract(
       const answers = await inquirer.prompt<InquirerAnswers>(questions);
       selectedFunction = answers.selectedFunction!;
 
-      logSuccess(params, `📜 You selected: ${selectedFunction}`);
+      logSuccess(isExternal, `📜 You selected: ${selectedFunction}`);
 
       selectedAbiFunction = readFunctions.find(
         (item: any) => item.name === selectedFunction
@@ -219,7 +169,7 @@ export async function ReadContract(
       }
     }
 
-    startSpinner(params, spinner, "⏳ Calling read function...");
+    spinner.start("⏳ Calling read function...");
 
     const provider = new ViemProvider(params.testnet);
     const publicClient = await provider.getPublicClient();
@@ -236,13 +186,13 @@ export async function ReadContract(
         ? `https://explorer.testnet.rootstock.io/address/${address}`
         : `https://explorer.rootstock.io/address/${address}`;
 
-      stopSpinner(params, spinner);
+      spinner.stop();
       logSuccess(
-        params,
+        isExternal,
         `✅ Function ${selectedFunction} called successfully!`
       );
-      logSuccess(params, `🔧 Result: ${data}`);
-      logInfo(params, `🔗 View on Explorer: ${explorerUrl}`);
+      logSuccess(isExternal, `🔧 Result: ${data}`);
+      logInfo(isExternal, `🔗 View on Explorer: ${explorerUrl}`);
 
       return {
         success: true,
@@ -256,7 +206,7 @@ export async function ReadContract(
       };
     } catch (error) {
       const errorMessage = `Error while calling function ${selectedFunction}.`;
-      failSpinner(params, spinner, errorMessage);
+      spinner.fail(errorMessage);
       return {
         error: errorMessage,
         success: false,
@@ -264,7 +214,7 @@ export async function ReadContract(
     }
   } catch (error) {
     const errorMessage = "Error during contract interaction.";
-    failSpinner(params, spinner, errorMessage);
+    spinner.fail(errorMessage);
     return {
       error: errorMessage,
       success: false,

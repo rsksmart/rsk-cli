@@ -1,11 +1,11 @@
 import { Address, isAddress, PublicClient, keccak256, stringToHex } from "viem";
-import chalk from "chalk";
 import fs from "fs";
 import {
   ALLOWED_BRIDGE_METHODS,
   METHOD_TYPES,
   walletFilePath,
 } from "./constants.js";
+import { logError } from "./logger.js";
 
 export function wait(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -16,7 +16,7 @@ export function validateAndFormatAddress(address: string): Address | undefined {
 
   const formattedAddress = address.toLowerCase();
   if (!isAddress(formattedAddress)) {
-    console.log(chalk.red("🚫 Invalid address"));
+    logError(false, "Invalid address");
     return undefined;
   }
   return formattedAddress as Address;
@@ -104,7 +104,7 @@ export function getAddress(address?: Address): Address | undefined {
   }
 
   if (!fs.existsSync(walletFilePath)) {
-    console.log(chalk.red("🚫 No saved wallet found"));
+    logError(false, "No saved wallet found");
     return undefined;
   }
 
@@ -115,7 +115,7 @@ export function getAddress(address?: Address): Address | undefined {
     const savedAddress = wallets[currentWallet].address;
     return validateAndFormatAddress(savedAddress);
   } catch (error) {
-    console.log(chalk.red("⚠️ Invalid wallet data"));
+    logError(false, "Invalid wallet data");
     return undefined;
   }
 }
@@ -171,6 +171,6 @@ export const isAllowedMethod = (
 
     return ALLOWED_BRIDGE_METHODS[type].includes(name);
   } catch (error) {
-    console.error(error);
+    logError(false, String(error));
   }
 };

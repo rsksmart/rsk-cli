@@ -98,6 +98,7 @@ export type DeployData = {
   transactionHash: string;
   network: string;
   explorerUrl: string;
+  attestationUID?: string;
 };
 
 export type VerifyResult = {
@@ -114,6 +115,7 @@ export type VerifyData = {
   verified: boolean;
   alreadyVerified?: boolean;
   verificationData?: any;
+  attestationUID?: string;
 };
 
 export type VerificationRequest = {
