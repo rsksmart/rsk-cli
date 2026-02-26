@@ -602,7 +602,7 @@ async function interactiveContractEstimation(testnet: boolean) {
       name: 'args',
       message: 'Function arguments (JSON array, e.g., ["arg1", 123]):',
       default: '[]',
-      filter: (input) => {
+      filter: (input: any) => {
         try {
           return JSON.parse(input);
         } catch {
