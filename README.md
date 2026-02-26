@@ -24,8 +24,9 @@
   8. [Interact with RSK Bridge](#8-interact-with-rsk-bridge-contract)
   9. [Fetch Wallet History](#9-fetch-wallet-history)
   10. [Batch Transfer](#10-batch-transfer)
-  11. [Transaction Simulation](#11-transaction-simulation)
-  12. [RNS Operations](#12-rns-operations)
+  11. [Pipe Commands](#11-pipe-commands)
+  12. [Transaction Simulation](#12-transaction-simulation)
+  13. [RNS Operations](#13-rns-operations)
 - [Contributing](#contributing)
 
 ## Installation
@@ -942,7 +943,7 @@ The simulation provides comprehensive information:
 
 > **Note**: Simulation uses real blockchain state but does not execute transactions. It provides accurate estimates based on current network conditions. Gas prices may vary, so actual costs might differ slightly from simulation results.
 
-### 12. RNS Operations
+### 13. RNS Operations
 The `rns` command provides a unified interface to interact with the RIF Name Service (RNS). You can Register, Transfer, Update, and Resolve domains using specific flags.
 
 #### 1. Register a Domain
