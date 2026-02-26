@@ -268,7 +268,7 @@ export class AttestationService {
   }
 
   static createHash(data: string): string {
-    return ethers.keccak256(ethers.toUtf8Bytes(data));
+    return ethers.utils.keccak256(ethers.utils.toUtf8Bytes(data));
   }
 
   async createVerificationAttestation(
