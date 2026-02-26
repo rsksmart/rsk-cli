@@ -98,6 +98,7 @@ export type DeployData = {
   transactionHash: string;
   network: string;
   explorerUrl: string;
+  attestationUID?: string;
 };
 
 export type VerifyResult = {
@@ -114,6 +115,7 @@ export type VerifyData = {
   verified: boolean;
   alreadyVerified?: boolean;
   verificationData?: any;
+  attestationUID?: string;
 };
 
 export type VerificationRequest = {
@@ -123,4 +125,23 @@ export type VerificationRequest = {
   sources: string;
   settings: any;
   constructorArguments?: any[];
+};
+
+export type AttestationResult = {
+  success: boolean;
+  data?: AttestationData;
+  error?: string;
+};
+
+export type AttestationData = {
+  uid?: string;
+  transactionHash?: string;
+  recipient?: string;
+  schema?: string;
+  network?: string;
+  explorerUrl?: string;
+  attestation?: any;
+  attestations?: any[];
+  count?: number;
+  revocable?: boolean;
 };

@@ -4,9 +4,10 @@ import { formatBridgeFragments } from "../utils/index.js";
 import inquirer from "inquirer";
 import { ALLOWED_BRIDGE_METHODS } from "../utils/constants.js";
 import ViemProvider from "../utils/viemProvider.js";
-import ora from "ora";
 import { WalletData } from "../utils/types.js";
 import { getConfig } from "./config.js";
+import { logError, logSuccess, logInfo } from "../utils/logger.js";
+import { createSpinner } from "../utils/spinner.js";
 
 type InquirerAnswers = {
   selectedType?: FunctionType;
@@ -14,7 +15,7 @@ type InquirerAnswers = {
   args?: string[];
 };
 type BridgeCommandOptions = {
-  testnet?: boolean | undefined; 
+  testnet?: boolean | undefined;
   name: string;
   isExternal?: boolean;
   selectedType?: FunctionType;
@@ -29,86 +30,40 @@ enum FunctionType {
   WRITE = "write",
 }
 
-function logMessage(
-  params: BridgeCommandOptions,
-  message: string,
-  color: any = chalk.white
-) {
-  if (!params.isExternal) {
-    console.log(color(message));
-  }
-}
-
-function logInfo(params: BridgeCommandOptions, message: string) {
-  logMessage(params, message, chalk.blue);
-}
-function logError(params: BridgeCommandOptions, message: string) {
-  logMessage(params, `❌ ${message}`, chalk.red);
-}
-function logSuccess(params: BridgeCommandOptions, message: string) {
-  logMessage(params, message, chalk.green);
-}
-
-function startSpinner(
-  params: BridgeCommandOptions,
-  spinner: any,
-  message: string
-) {
-  if (!params.isExternal) {
-    spinner.start(message);
-  }
-}
-
-function stopSpinner(params: BridgeCommandOptions, spinner: any) {
-  if (!params.isExternal) {
-    spinner.stop();
-  }
-}
-
-function succeedSpinner(
-  params: BridgeCommandOptions,
-  spinner: any,
-  message: string
-) {
-  if (!params.isExternal) {
-    spinner.succeed(message);
-  }
-}
-
 export async function bridgeCommand(params: BridgeCommandOptions) {
   try {
     let config;
     try {
       config = getConfig();
-      
+
       if (!config || !config.defaultNetwork || !config.displayPreferences) {
-        logError(params, "Invalid configuration detected. Please run 'rsk-cli config' to set up your configuration.");
+        logError(params.isExternal || false, "Invalid configuration detected. Please run 'rsk-cli config' to set up your configuration.");
         return {
           error: "Invalid configuration",
           success: false,
         };
       }
     } catch (error: any) {
-      logError(params, `Failed to load configuration: ${error.message}`);
+      logError(params.isExternal || false, `Failed to load configuration: ${error.message}`);
       return {
         error: "Configuration loading failed",
         success: false,
       };
     }
-    
+
     const isTestnet = params.testnet === undefined ? (config.defaultNetwork === 'testnet') : params.testnet;
-    
+
     if (!params.isExternal) {
       logInfo(
-        params,
+        params.isExternal || false,
         `Using network: ${isTestnet ? 'testnet' : 'mainnet'} (${params.testnet === undefined ? 'from config' : 'from parameter'})`
       );
     }
-    
-    const spinner = params.isExternal ? ora({ isEnabled: false }) : ora();
+
+    const spinner = createSpinner(params.isExternal || false);
     if (!config.displayPreferences.compactMode) {
       logInfo(
-        params,
+        params.isExternal || false,
         `🔧 Initializing bridge for ${isTestnet ? "testnet" : "mainnet"}...`
       );
     }
@@ -135,7 +90,7 @@ export async function bridgeCommand(params: BridgeCommandOptions) {
         finalSelectedType = selectedType!;
       } catch (error: any) {
         if (error.isTtyError) {
-          logError(params, "Interactive prompts are not supported in this environment. Please use the --help flag to see available options.");
+          logError(params.isExternal || false, "Interactive prompts are not supported in this environment. Please use the --help flag to see available options.");
           return {
             error: "Interactive prompts not supported",
             success: false,
@@ -146,7 +101,7 @@ export async function bridgeCommand(params: BridgeCommandOptions) {
     }
 
     if (!finalSelectedType) {
-      logError(params, "Selected type is required.");
+      logError(params.isExternal || false, "Selected type is required.");
       return {
         error: "Selected type is required.",
         success: false,
@@ -180,7 +135,7 @@ export async function bridgeCommand(params: BridgeCommandOptions) {
         finalSelectedFunction = selectedFunction!;
       } catch (error: any) {
         if (error.isTtyError) {
-          logError(params, "Interactive prompts are not supported in this environment. Please use the --help flag to see available options.");
+          logError(params.isExternal || false, "Interactive prompts are not supported in this environment. Please use the --help flag to see available options.");
           return {
             error: "Interactive prompts not supported",
             success: false,
@@ -190,7 +145,7 @@ export async function bridgeCommand(params: BridgeCommandOptions) {
       }
     }
     if (!finalSelectedFunction) {
-      logError(params, "Selected function is required.");
+      logError(params.isExternal || false, "Selected function is required.");
       return {
         error: "Selected function is required.",
         success: false,
@@ -202,7 +157,7 @@ export async function bridgeCommand(params: BridgeCommandOptions) {
     );
 
     if (!selectedAbiFunction) {
-      logError(params, "Selected function is not available.");
+      logError(params.isExternal || false, "Selected function is not available.");
       return {
         error: "Selected function is not available.",
         success: false,
@@ -230,7 +185,7 @@ export async function bridgeCommand(params: BridgeCommandOptions) {
         );
       } catch (error: any) {
         if (error.isTtyError) {
-          logError(params, "Interactive prompts are not supported in this environment. Please provide arguments via command line options.");
+          logError(params.isExternal || false, "Interactive prompts are not supported in this environment. Please provide arguments via command line options.");
           return {
             error: "Interactive prompts not supported",
             success: false,
@@ -241,11 +196,7 @@ export async function bridgeCommand(params: BridgeCommandOptions) {
     }
     try {
       if (finalSelectedType === FunctionType.READ) {
-        startSpinner(
-          params,
-          spinner,
-          `⏳ Calling ${finalSelectedFunction} function...`
-        );
+        spinner.start(`⏳ Calling ${finalSelectedFunction} function...`);
         const data = await publicClient.readContract({
           address: bridge.address as `0x${string}`,
           abi: bridge.abi,
@@ -253,24 +204,16 @@ export async function bridgeCommand(params: BridgeCommandOptions) {
           args,
         });
 
-        stopSpinner(params, spinner);
+        spinner.stop();
         if (data) {
           logSuccess(
-            params,
+            params.isExternal || false,
             `✅ Function ${finalSelectedFunction} called successfully!`
           );
           if (config.displayPreferences.compactMode) {
-            succeedSpinner(
-              params,
-              spinner,
-              chalk.green(`${data}`)
-            );
+            spinner.succeed(chalk.green(`${data}`));
           } else {
-            succeedSpinner(
-              params,
-              spinner,
-              chalk.white(`🔧 Result: `) + chalk.green(data)
-            );
+            spinner.succeed(chalk.white(`🔧 Result: `) + chalk.green(data));
           }
           return {
             success: true,
@@ -284,7 +227,7 @@ export async function bridgeCommand(params: BridgeCommandOptions) {
         if (params.isExternal) {
           if (!params.name || !params.password || !params.walletsData) {
             logError(
-              params,
+              params.isExternal || false,
               "Wallet name, password and wallets data are required."
             );
             return {
@@ -302,7 +245,7 @@ export async function bridgeCommand(params: BridgeCommandOptions) {
           finalWalletClient = await provider.getWalletClient(params.name);
         }
         if (!finalWalletClient) {
-          logError(params, "Failed to get wallet client.");
+          logError(params.isExternal || false, "Failed to get wallet client.");
           return {
             error: "Failed to get wallet client.",
             success: false,
@@ -311,14 +254,10 @@ export async function bridgeCommand(params: BridgeCommandOptions) {
         const account = finalWalletClient.account;
 
         if (!config.displayPreferences.compactMode) {
-          logInfo(params, `🔑 Wallet account: ${account?.address}`);
+          logInfo(params.isExternal || false, `🔑 Wallet account: ${account?.address}`);
         }
 
-        startSpinner(
-          params,
-          spinner,
-          `⏳ Calling ${finalSelectedFunction} function...`
-        );
+        spinner.start(`⏳ Calling ${finalSelectedFunction} function...`);
 
        
         const gasConfig: any = {
@@ -341,24 +280,16 @@ export async function bridgeCommand(params: BridgeCommandOptions) {
 
         const hash = await finalWalletClient.writeContract(contractParams);
 
-        stopSpinner(params, spinner);
+        spinner.stop();
         logSuccess(
-          params,
+          params.isExternal || false,
           `✅ Function ${finalSelectedFunction} called successfully!`
         );
         
         if (config.displayPreferences.compactMode) {
-          succeedSpinner(
-            params,
-            spinner,
-            chalk.green(`Transaction Hash: ${hash}`)
-          );
+          spinner.succeed(chalk.green(`Transaction Hash: ${hash}`));
         } else {
-          succeedSpinner(
-            params,
-            spinner,
-            chalk.white(`🔧 Transaction Hash: `) + chalk.green(hash)
-          );
+          spinner.succeed(chalk.white(`🔧 Transaction Hash: `) + chalk.green(hash));
         }
         
         return {
@@ -367,16 +298,13 @@ export async function bridgeCommand(params: BridgeCommandOptions) {
         };
       }
       if (!config.displayPreferences.compactMode && config.displayPreferences.showExplorerLinks) {
-        logInfo(params, `🔗 View on Explorer: ${explorerUrl}`);
+        logInfo(params.isExternal || false, `🔗 View on Explorer: ${explorerUrl}`);
       }
     } catch (error) {
-      stopSpinner(params, spinner);
+      spinner.stop();
       throw error;
     }
   } catch (error: any) {
-    console.error(
-      chalk.red("❌ Error interacting with the bridge: "),
-      chalk.yellow(error.message || error)
-    );
+    logError(params.isExternal || false, `Error interacting with the bridge: ${error.message || error}`);
   }
 }
