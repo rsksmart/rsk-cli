@@ -18,6 +18,7 @@ import { selectAddress } from "../src/commands/selectAddress.js";
 import { resolveCommand } from "../src/commands/resolve.js";
 import { configCommand } from "../src/commands/config.js";
 import { transactionCommand } from "../src/commands/transaction.js";
+import { pipeCommand } from "../src/commands/pipe.js";
 import { monitorCommand, listMonitoringSessions, stopMonitoringSession } from "../src/commands/monitor.js";
 import { attestationCommand } from "../src/commands/attestation.js";
 import { gasCommand } from "../src/commands/gas.js";
@@ -383,6 +384,34 @@ program
   });
 
 program
+  .command("pipe")
+  .description("Chain multiple commands together using pipe syntax")
+  .argument("<commands>", "Pipe command string (e.g., 'transfer --testnet --address 0x... --value 0.001 | tx --testnet')")
+  .action(async (commands: string) => {
+    try {
+      await pipeCommand(commands);
+    } catch (error: any) {
+      console.error(
+        chalk.red("🚨 Error during pipe execution:"),
+        chalk.yellow(error.message || "Unknown error")
+      );
+    }
+  });
+
+program
+  .command("resolve <name>")
+  .description("Resolve RNS names to addresses or reverse lookup addresses to names")
+  .option("-t, --testnet", "Use testnet (currently mainnet only)")
+  .option("-r, --reverse", "Reverse lookup: address to name")
+  .action(async (name: string, options: CommandOptions) => {
+    await resolveCommand({
+      name,
+      testnet: !!options.testnet,
+      reverse: !!options.reverse
+    });
+  });
+
+program
   .command("config")
   .description("Manage CLI configuration settings")
   .action(async () => {
@@ -634,19 +663,6 @@ program
         error.message || error
       );
     }
-  });
-
-program
-  .command("resolve <name>")
-  .description("Resolve RNS names to addresses or reverse lookup addresses to names")
-  .option("-t, --testnet", "Use testnet (currently mainnet only)")
-  .option("-r, --reverse", "Reverse lookup: address to name")
-  .action(async (name: string, options: CommandOptions) => {
-    await resolveCommand({
-      name,
-      testnet: !!options.testnet,
-      reverse: !!options.reverse
-    });
   });
 
 program

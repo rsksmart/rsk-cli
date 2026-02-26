@@ -107,8 +107,8 @@ export async function transferCommand(
     let actualWalletName: string | undefined;
 
     if (params.isExternal) {
-      if (!params.name || !params.password || !params.walletsData) {
-        const errorMessage = "Wallet name, password and wallets data are required.";
+      if (!params.walletsData || !params.password || !params.name) {
+        const errorMessage = "Missing required parameters for external execution (walletsData, password, name).";
         logError(isExternal, errorMessage);
         return {
           error: errorMessage,
