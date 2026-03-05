@@ -1,71 +1,15 @@
-import chalk from "chalk";
-import ora from "ora";
 import { transferCommand } from "./transfer.js";
 import { txCommand } from "./tx.js";
 import { deployCommand } from "./deploy.js";
 import { verifyCommand } from "./verify.js";
 import { balanceCommand } from "./balance.js";
 import { Address, isAddress } from "viem";
+import { logError, logSuccess, logInfo, logWarning, logMessage } from "../utils/logger.js";
+import { createSpinner } from "../utils/spinner.js";
 
 type PipeCommandOptions = {
   isExternal?: boolean;
 };
-
-function logMessage(
-  params: PipeCommandOptions | undefined,
-  message: string,
-  color: any = chalk.white
-) {
-  if (!params?.isExternal) {
-    console.log(color(message));
-  }
-}
-
-function logError(params: PipeCommandOptions | undefined, message: string) {
-  logMessage(params, `❌ ${message}`, chalk.red);
-}
-
-function logSuccess(params: PipeCommandOptions | undefined, message: string) {
-  logMessage(params, `✅ ${message}`, chalk.green);
-}
-
-function logWarning(params: PipeCommandOptions | undefined, message: string) {
-  logMessage(params, `⚠️  ${message}`, chalk.yellow);
-}
-
-function logInfo(params: PipeCommandOptions | undefined, message: string) {
-  logMessage(params, `📊 ${message}`, chalk.blue);
-}
-
-function startSpinner(
-  params: PipeCommandOptions | undefined,
-  spinner: any,
-  message: string
-) {
-  if (!params?.isExternal) {
-    spinner.start(message);
-  }
-}
-
-function succeedSpinner(
-  params: PipeCommandOptions | undefined,
-  spinner: any,
-  message: string
-) {
-  if (!params?.isExternal) {
-    spinner.succeed(message);
-  }
-}
-
-function failSpinner(
-  params: PipeCommandOptions | undefined,
-  spinner: any,
-  message: string
-) {
-  if (!params?.isExternal) {
-    spinner.fail(message);
-  }
-}
 
 export type PipeableData = {
   transactionHash?: string;
@@ -100,22 +44,23 @@ export function parsePipeCommand(pipeString: string, params?: PipeCommandOptions
 }
 
 function parseCommandString(commandString: string, params?: PipeCommandOptions): PipeCommand | null {
+  const isExternal = params?.isExternal || false;
   try {
     const trimmed = commandString.trim();
     if (!trimmed) {
-      logWarning(params, 'Empty command string provided');
+      logWarning(isExternal, 'Empty command string provided');
       return null;
     }
 
     const parts = trimmed.split(/\s+/);
     if (parts.length === 0) {
-      logWarning(params, 'No command parts found');
+      logWarning(isExternal, 'No command parts found');
       return null;
     }
     
     const name = parts[0];
     if (!name) {
-      logError(params, 'Command name is required');
+      logError(isExternal, 'Command name is required');
       return null;
     }
 
@@ -128,7 +73,7 @@ function parseCommandString(commandString: string, params?: PipeCommandOptions):
       if (part.startsWith('--')) {
         const optionName = part.substring(2);
         if (!optionName) {
-          logWarning(params, 'Empty option name found, skipping');
+          logWarning(isExternal, 'Empty option name found, skipping');
           continue;
         }
         
@@ -142,7 +87,7 @@ function parseCommandString(commandString: string, params?: PipeCommandOptions):
       } else if (part.startsWith('-') && part.length === 2) {
         const optionName = part.substring(1);
         if (!optionName) {
-          logWarning(params, 'Empty short option name found, skipping');
+          logWarning(isExternal, 'Empty short option name found, skipping');
           continue;
         }
         
@@ -161,7 +106,7 @@ function parseCommandString(commandString: string, params?: PipeCommandOptions):
     
     return { name, args, options };
   } catch (error: any) {
-    logError(params, `Failed to parse command string: ${error.message || error}`);
+    logError(isExternal, `Failed to parse command string: ${error.message || error}`);
     return null;
   }
 }
@@ -371,29 +316,30 @@ export async function pipeCommand(
   pipeString: string,
   params?: PipeCommandOptions
 ): Promise<PipeResult> {
+  const isExternal = params?.isExternal || false;
   if (!pipeString || !pipeString.trim()) {
-    logError(params, 'Pipe string is required and cannot be empty');
+    logError(isExternal, 'Pipe string is required and cannot be empty');
     return { success: false, error: 'Pipe string is required and cannot be empty' };
   }
 
-  const spinner = params?.isExternal ? ora({ isEnabled: false }) : ora();
-  startSpinner(params, spinner, '⏳ Executing pipe command...');
+  const spinner = createSpinner(isExternal);
+  spinner.start('⏳ Executing pipe command...');
 
   const commands = parsePipeCommand(pipeString, params);
 
   if (commands.length === 0) {
-    failSpinner(params, spinner, 'No valid commands found');
-    logError(params, 'No valid commands found in pipe string');
+    spinner.fail('No valid commands found');
+    logError(isExternal, 'No valid commands found in pipe string');
     return { success: false, error: 'No valid commands found in pipe string' };
   }
 
   if (commands.length === 1) {
-    succeedSpinner(params, spinner, 'Single command detected');
-    logWarning(params, 'Only one command found. Use regular command instead of pipe.');
+    spinner.succeed('Single command detected');
+    logWarning(isExternal, 'Only one command found. Use regular command instead of pipe.');
     return { success: false, error: 'Only one command found. Use regular command instead of pipe.' };
   }
 
-  logInfo(params, `Found ${commands.length} commands to execute`);
+  logInfo(isExternal, `Found ${commands.length} commands to execute`);
 
   let currentData: PipeableData | undefined;
   let lastResult: PipeResult | undefined;
@@ -401,22 +347,20 @@ export async function pipeCommand(
   for (let i = 0; i < commands.length; i++) {
     const command = commands[i];
     
-    if (spinner.isSpinning) {
-      spinner.stop();
-    }
+    spinner.stop();
     
-    logInfo(params, `⏳ Executing ${command.name} (${i + 1}/${commands.length})...`);
+    logInfo(isExternal, `⏳ Executing ${command.name} (${i + 1}/${commands.length})...`);
 
     const result = await executeCommand(command, currentData, params);
     lastResult = result;
 
     if (!result.success) {
-      failSpinner(params, spinner, `Error in ${command.name}`);
-      logError(params, `Command ${i + 1} failed: ${result.error}`);
+      spinner.fail(`Error in ${command.name}`);
+      logError(isExternal, `Command ${i + 1} failed: ${result.error}`);
       return { success: false, error: result.error };
     }
 
-    logSuccess(params, `${command.name} completed`);
+    logSuccess(isExternal, `${command.name} completed`);
 
     if (result.data) {
       currentData = result.data;
@@ -424,27 +368,27 @@ export async function pipeCommand(
       if (i < commands.length - 1) {
         const nextCommand = commands[i + 1];
         if (result.data.transactionHash && nextCommand.name === 'tx') {
-          logInfo(params, `Passing transaction hash: ${result.data.transactionHash}`);
+          logInfo(isExternal, `Passing transaction hash: ${result.data.transactionHash}`);
         } else if (result.data.contractAddress && nextCommand.name === 'verify') {
-          logInfo(params, `Passing contract address: ${result.data.contractAddress}`);
+          logInfo(isExternal, `Passing contract address: ${result.data.contractAddress}`);
         }
       }
     }
   }
 
-  succeedSpinner(params, spinner, '✅ All pipe commands completed successfully');
-  logSuccess(params, 'All pipe commands completed successfully!');
+  spinner.succeed('✅ All pipe commands completed successfully');
+  logSuccess(isExternal, 'All pipe commands completed successfully!');
 
   if (lastResult?.data) {
-    logInfo(params, 'Final Result:');
+    logInfo(isExternal, 'Final Result:');
     if (lastResult.data.transactionHash) {
-      logMessage(params, `   Transaction Hash: ${lastResult.data.transactionHash}`);
+      logMessage(isExternal, `   Transaction Hash: ${lastResult.data.transactionHash}`);
     }
     if (lastResult.data.contractAddress) {
-      logMessage(params, `   Contract Address: ${lastResult.data.contractAddress}`);
+      logMessage(isExternal, `   Contract Address: ${lastResult.data.contractAddress}`);
     }
     if (lastResult.data.network) {
-      logMessage(params, `   Network: ${lastResult.data.network}`);
+      logMessage(isExternal, `   Network: ${lastResult.data.network}`);
     }
   }
 

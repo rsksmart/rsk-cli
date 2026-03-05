@@ -77,7 +77,7 @@ export async function deployCommand(
     if (params.isExternal) {
       if (!params.password) {
         const errorMessage = "Password is required for external execution.";
-        logError(params, errorMessage);
+        logError(isExternal, errorMessage);
         return {
           error: errorMessage,
           success: false,
