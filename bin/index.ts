@@ -80,6 +80,7 @@ interface CommandOptions {
   attestRecipient?: string;
   attestReason?: string;
   rns?: string;
+  write?: boolean;
 }
 
 const orange = chalk.rgb(255, 165, 0);
@@ -319,10 +320,12 @@ program
   .description("Interact with a contract")
   .requiredOption("-a, --address <address>", "Address of a verified contract")
   .option("-t, --testnet", "Deploy on the testnet")
+  .option("--write", "Call write (nonpayable/payable) functions")
   .action(async (options: CommandOptions) => {
     await ReadContract({
       address: options.address! as `0x${string}`,
       testnet: !!options.testnet,
+      write: !!options.write,
     });
   });
 
