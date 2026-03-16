@@ -1087,6 +1087,38 @@ The command provides:
 - Cost in RBTC and Wei
 - Recommended gas limits (with buffers)
 - Optimization tips (if applicable)
+
+### 13. Liquidation Risk (Stress Testing)
+
+The `risk` command group simulates liquidation stress scenarios for Rootstock DeFi lending protocols. It can model price shocks, estimate bad debt/collateral deficits, and generate structured reports.
+
+> **Note**:
+> - Currently focused on **Sovryn v1**.
+> - Price data is fetched from CoinGecko; repeated runs may hit rate limits (`429 Too Many Requests`). If that happens, retry after a short wait.
+
+#### Simulate
+
+```bash
+# Simulate a 40% market shock
+rsk-cli risk simulate --shock 40
+
+# Simulate a 40% shock but only for a specific asset
+rsk-cli risk simulate --shock 40 --asset rbtc
+```
+
+#### Sandbox
+
+```bash
+# Compare default parameters vs custom LTV/threshold
+rsk-cli risk sandbox --ltv 65 --threshold 80
+```
+
+#### Report
+
+```bash
+# Machine-readable JSON output (CI/CD friendly)
+rsk-cli risk report --format json
+```
 =======
 >>>>>>> main
 

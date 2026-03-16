@@ -1,9 +1,11 @@
 import chalk from "chalk";
 import ora from "ora";
-import { EAS, SchemaEncoder } from "@ethereum-attestation-service/eas-sdk";
 import ViemProvider from "../utils/viemProvider.js";
 import { AttestationResult } from "../utils/types.js";
 import { GraphQLService } from "../utils/graphqlService.js";
+import { createRequire } from "module";
+
+const require = createRequire(import.meta.url);
 
 type AttestationCommandOptions = {
   testnet: boolean;
@@ -88,6 +90,11 @@ async function setupEAS(params: AttestationCommandOptions) {
     ? EAS_CONTRACTS.testnet 
     : EAS_CONTRACTS.mainnet;
     
+  // Use CommonJS entry via require() to avoid ESM specifier issues in certain environments.
+  const { EAS } = require("@ethereum-attestation-service/eas-sdk") as {
+    EAS: new (address: `0x${string}`) => any;
+  };
+
   const eas = new EAS(easAddress);
   eas.connect(walletClient as any); 
   
@@ -112,6 +119,9 @@ async function createAttestation(params: AttestationCommandOptions): Promise<Att
     stopSpinner(params, spinner);
     startSpinner(params, spinner, "⏳ Creating attestation...");
 
+    const { SchemaEncoder } = require("@ethereum-attestation-service/eas-sdk") as {
+      SchemaEncoder: new (schema: string) => any;
+    };
     const schemaEncoder = new SchemaEncoder(params.data);
     const encodedData = schemaEncoder.encodeData(JSON.parse(params.data));
 

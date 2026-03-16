@@ -28,6 +28,7 @@ import { validateAndFormatAddressRSK } from "../src/utils/index.js";
 import { rnsUpdateCommand } from "../src/commands/rnsUpdate.js";
 import { rnsTransferCommand } from "../src/commands/rnsTransfer.js";
 import { rnsRegisterCommand } from "../src/commands/rnsRegister.js";
+import { registerRiskCommands } from "../src/commands/risk/index.js";
 
 interface CommandOptions {
   testnet?: boolean;
@@ -100,6 +101,8 @@ program
   .name("rsk-cli")
   .description("CLI tool for interacting with Rootstock blockchain")
   .version("1.4.0", "-v, --version", "Display the current version");
+
+registerRiskCommands(program);
 
 program
   .command("wallet")
