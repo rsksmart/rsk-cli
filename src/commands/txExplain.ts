@@ -102,11 +102,12 @@ export const txExplainCommand = async (params: TxExplainOptions) => {
           logMessage(isExternal, `${chalk.gray("Raw Calldata:")} ${inputString}`);
         }
         const executionResult = await decodeExecutionTier(tx.input as string, tx.to!, testnet, isExternal);
-        if (!executionResult.success) {
-          return executionResult;
+        if (executionResult.success) {
+          methodName = executionResult.methodName;
+          decodedArgs = executionResult.decodedArgs;
+        } else if (executionResult.error && !executionResult.error.includes("Method: Unknown") && !executionResult.error.includes("Invalid ABI JSON")) {
+          logError(isExternal, executionResult.error);
         }
-        methodName = executionResult.methodName;
-        decodedArgs = executionResult.decodedArgs;
       }
     }
 
