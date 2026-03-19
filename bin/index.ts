@@ -28,6 +28,7 @@ import { validateAndFormatAddressRSK } from "../src/utils/index.js";
 import { rnsUpdateCommand } from "../src/commands/rnsUpdate.js";
 import { rnsTransferCommand } from "../src/commands/rnsTransfer.js";
 import { rnsRegisterCommand } from "../src/commands/rnsRegister.js";
+import { devmetricsCommand } from "../src/commands/devmetrics.js";
 
 interface CommandOptions {
   testnet?: boolean;
@@ -695,5 +696,74 @@ program
       );
     }
   });
+
+// ─── devmetrics command ────────────────────────────────────────────────────────
+// Collects repeated flag values into an array (e.g. --repo a --repo b → ['a','b'])
+function collectRepeatable(val: string, prev: string[]): string[] {
+  return [...prev, val];
+}
+
+program
+  .command("devmetrics")
+  .description(
+    "Aggregate GitHub and Rootstock on-chain metrics into a dApp health report"
+  )
+  .option(
+    "-r, --repo <repo>",
+    "GitHub repo in owner/repo format — repeat for multiple repos",
+    collectRepeatable,
+    [] as string[]
+  )
+  .option(
+    "-c, --contract <address>",
+    "Rootstock contract address — repeat for multiple contracts",
+    collectRepeatable,
+    [] as string[]
+  )
+  .option(
+    "-f, --format <format>",
+    "Output format: table | json | markdown",
+    "table"
+  )
+  .option("--ci", "CI/CD mode — forces JSON output (overrides --format)", false)
+  .option(
+    "--github-token <token>",
+    "GitHub personal access token (or set GITHUB_TOKEN env var)"
+  )
+  .option(
+    "-n, --network <network>",
+    "Rootstock network: mainnet or testnet",
+    "mainnet"
+  )
+  .option(
+    "--rpc-url <url>",
+    "Custom Rootstock RPC URL (overrides --network default)"
+  )
+  .action(
+    async (opts: {
+      repo: string[];
+      contract: string[];
+      format: string;
+      ci: boolean;
+      githubToken?: string;
+      network: string;
+      rpcUrl?: string;
+    }) => {
+      try {
+        await devmetricsCommand({
+          repos: opts.repo,
+          contracts: opts.contract,
+          format: opts.format as "table" | "json" | "markdown",
+          ci: opts.ci,
+          githubToken: opts.githubToken,
+          network: opts.network as "mainnet" | "testnet",
+          rpcUrl: opts.rpcUrl,
+        });
+      } catch (error: any) {
+        logError(false, `devmetrics error: ${error.message || error}`);
+        process.exit(1);
+      }
+    }
+  );
 
 program.parse(process.argv);

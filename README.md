@@ -26,6 +26,7 @@
   10. [Batch Transfer](#10-batch-transfer)
   11. [Transaction Simulation](#11-transaction-simulation)
   12. [RNS Operations](#12-rns-operations)
+  13. [Developer Metrics](#13-developer-metrics)
 - [Contributing](#contributing)
 
 ## Installation
@@ -1087,8 +1088,75 @@ The command provides:
 - Cost in RBTC and Wei
 - Recommended gas limits (with buffers)
 - Optimization tips (if applicable)
-=======
->>>>>>> main
+
+### 13. Developer Metrics
+
+The `devmetrics` command generates a combined developer health report using both GitHub repository activity and Rootstock contract activity, with output options for terminal, JSON, or Markdown.
+
+#### Basic Usage
+
+```bash
+rsk-cli devmetrics --repo owner/repo --contract 0xYourContractAddress
+```
+
+#### Network Selection
+
+```bash
+# Mainnet (default)
+rsk-cli devmetrics --repo owner/repo --contract 0xYourContractAddress
+
+# Testnet
+rsk-cli devmetrics --repo owner/repo --contract 0xYourContractAddress --network testnet
+```
+
+#### Output Formats
+
+```bash
+# Table output (default)
+rsk-cli devmetrics --repo owner/repo --contract 0xYourContractAddress --format table
+
+# JSON output
+rsk-cli devmetrics --repo owner/repo --contract 0xYourContractAddress --format json
+
+# Markdown output
+rsk-cli devmetrics --repo owner/repo --contract 0xYourContractAddress --format markdown
+
+# CI mode (forces JSON output)
+rsk-cli devmetrics --repo owner/repo --contract 0xYourContractAddress --ci
+```
+
+#### Multiple Repositories / Contracts
+
+```bash
+# Apply one contract to multiple repos
+rsk-cli devmetrics --repo owner/repo1 --repo owner/repo2 --contract 0xYourContractAddress
+
+# Apply one repo to multiple contracts
+rsk-cli devmetrics --repo owner/repo --contract 0xContract1 --contract 0xContract2
+
+# Pair repos and contracts one-to-one
+rsk-cli devmetrics --repo owner/repo1 --contract 0xContract1 --repo owner/repo2 --contract 0xContract2
+```
+
+#### Authentication and RPC
+
+```bash
+# Use GitHub token to increase API rate limits
+rsk-cli devmetrics --repo owner/repo --contract 0xYourContractAddress --github-token ghp_xxx
+
+# Use custom RPC URL
+rsk-cli devmetrics --repo owner/repo --contract 0xYourContractAddress --rpc-url https://your-rpc-url
+```
+
+You can also configure `devmetrics` via environment variables:
+
+```env
+GITHUB_TOKEN=your_github_token_here
+
+# You can use custom RPC URLs for better performance and rate limits
+ROOTSTOCK_MAINNET_RPC_URL=https://public-node.rsk.co
+ROOTSTOCK_TESTNET_RPC_URL=https://public-node.testnet.rsk.co
+```
 
 ## Contributing
 
