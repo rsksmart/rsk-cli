@@ -322,11 +322,13 @@ program
   .requiredOption("-a, --address <address>", "Address of a verified contract")
   .option("-t, --testnet", "Deploy on the testnet")
   .option("--write", "Call write (nonpayable/payable) functions")
+  .option("--wallet <wallet>", "Name of the wallet")
   .action(async (options: CommandOptions) => {
     await ReadContract({
       address: options.address! as `0x${string}`,
       testnet: !!options.testnet,
       write: !!options.write,
+      wallet: options.wallet,
     });
   });
 

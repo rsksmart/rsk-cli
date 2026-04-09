@@ -15,11 +15,11 @@ type ContractCommandOptions = {
   address: `0x${string}`;
   testnet: boolean;
   write?: boolean;
+  wallet?: string;
   isExternal?: boolean;
   functionName?: string;
   args?: string[];
 };
-
 
 function isValidAddress(address: string): boolean {
   const regex = /^0x[a-fA-F0-9]{40}$/;
@@ -46,15 +46,41 @@ function coerceArg(value: string, solidityType: string): any {
     if (value === "false") return false;
     throw new Error(`Invalid bool: "${value}". Use "true" or "false".`);
   }
-  if (/^bytes(\d+)?$/.test(solidityType)) {
+  const bytesMatch = solidityType.match(/^bytes(\d+)?$/);
+  if (bytesMatch) {
     if (!/^0x[a-fA-F0-9]*$/.test(value))
       throw new Error(`Invalid hex for type ${solidityType}: ${value}`);
+    const n = bytesMatch[1] ? parseInt(bytesMatch[1], 10) : null;
+    if (n !== null) {
+      const expectedLen = 2 + n * 2;
+      if (value.length !== expectedLen)
+        throw new Error(
+          `Type ${solidityType} requires exactly ${n} bytes (${expectedLen} hex chars including 0x), got ${value.length}`
+        );
+    }
+    return value;
+  }
+  if (/^u?fixed(\d+x\d+)?$/.test(solidityType)) {
     return value;
   }
   return value;
 }
 
-export async function ReadContract(
+function validateAbi(abi: any): boolean {
+  if (!Array.isArray(abi)) return false;
+  for (const item of abi) {
+    if (typeof item !== "object" || item === null) return false;
+    if (typeof item.type !== "string") return false;
+    if (item.type === "function") {
+      if (typeof item.name !== "string") return false;
+      if (!Array.isArray(item.inputs)) return false;
+      if (typeof item.stateMutability !== "string") return false;
+    }
+  }
+  return true;
+}
+
+export async function contractCommand(
   params: ContractCommandOptions
 ): Promise<ContractResult | void> {
   const isExternal = params.isExternal || false;
@@ -64,10 +90,7 @@ export async function ReadContract(
     const errorMessage =
       "Invalid address format. Please provide a valid address.";
     logError(isExternal, `❌ ${errorMessage}`);
-    return {
-      error: errorMessage,
-      success: false,
-    };
+    return { error: errorMessage, success: false };
   }
 
   logInfo(
@@ -94,10 +117,7 @@ export async function ReadContract(
     if (!response.ok) {
       const errorMessage = "Error during verification check.";
       spinner.fail(errorMessage);
-      return {
-        error: errorMessage,
-        success: false,
-      };
+      return { error: errorMessage, success: false };
     }
 
     const resData = await response.json();
@@ -105,13 +125,16 @@ export async function ReadContract(
     if (!resData.data) {
       const errorMessage = "Contract verification not found.";
       spinner.fail(errorMessage);
-      return {
-        error: errorMessage,
-        success: false,
-      };
+      return { error: errorMessage, success: false };
     }
 
     const { abi } = resData.data;
+
+    if (!validateAbi(abi)) {
+      const errorMessage = "Contract ABI from API is malformed or invalid.";
+      spinner.fail(errorMessage);
+      return { error: errorMessage, success: false };
+    }
 
     if (params.write) {
       spinner.stop();
@@ -128,33 +151,44 @@ export async function ReadContract(
         return { error: "No write functions found in this contract.", success: false };
       }
 
-      const { selectedWriteFn } = await inquirer.prompt<{ selectedWriteFn: string }>([
+      const fnSignature = (item: any) => {
+        const paramTypes = (item.inputs ?? []).map((i: any) => i.type).join(",");
+        return `${item.name}(${paramTypes})`;
+      };
+
+      const { selectedSig } = await inquirer.prompt<{ selectedSig: string }>([
         {
           type: "list",
-          name: "selectedWriteFn",
+          name: "selectedSig",
           message: "Select a write function to call:",
-          choices: writeFunctions.map((item: any) => item.name),
+          choices: writeFunctions.map(fnSignature),
         },
       ]);
 
-      logSuccess(isExternal, `📜 You selected: ${selectedWriteFn}`);
-
       const selectedAbiWriteFn = writeFunctions.find(
-        (item: any) => item.name === selectedWriteFn
+        (item: any) => fnSignature(item) === selectedSig
       );
+
+      if (!selectedAbiWriteFn) {
+        logError(isExternal, "Selected function not found in ABI.");
+        return { error: "Selected function not found in ABI.", success: false };
+      }
+
+      const selectedWriteFn = selectedAbiWriteFn.name;
+      logSuccess(isExternal, `📜 You selected: ${selectedSig}`);
 
       let writeArgs: any[] = [];
       if (selectedAbiWriteFn.inputs?.length > 0) {
         const argAnswers = await inquirer.prompt(
-          selectedAbiWriteFn.inputs.map((input: any) => ({
+          selectedAbiWriteFn.inputs.map((input: any, idx: number) => ({
             type: "input",
-            name: input.name,
-            message: `Enter value for ${input.name} (${input.type}):`,
+            name: `arg_${idx}`,
+            message: `Enter value for ${input.name || `arg${idx}`} (${input.type}):`,
           }))
         );
         try {
-          writeArgs = selectedAbiWriteFn.inputs.map((input: any) =>
-            coerceArg(argAnswers[input.name], input.type)
+          writeArgs = selectedAbiWriteFn.inputs.map((input: any, idx: number) =>
+            coerceArg(argAnswers[`arg_${idx}`], input.type)
           );
         } catch (err: any) {
           logError(isExternal, `Invalid input: ${err.message}`);
@@ -171,23 +205,36 @@ export async function ReadContract(
             message: "RBTC value to send (e.g. 0.01):",
           },
         ]);
-        const parsed = parseFloat(rbtcValue);
-        if (isNaN(parsed) || parsed <= 0) {
-          logError(isExternal, "Invalid RBTC value. Enter a positive number (e.g. 0.01).");
+        if (!/^\d+(\.\d+)?$/.test(rbtcValue)) {
+          logError(isExternal, "Invalid RBTC value. Use decimal format (e.g. 0.01).");
           return { error: "Invalid RBTC value.", success: false };
         }
-        payableValue = parseEther(rbtcValue);
+        let parsedEther: bigint;
+        try {
+          parsedEther = parseEther(rbtcValue);
+        } catch {
+          logError(isExternal, "Invalid RBTC value. Could not parse amount.");
+          return { error: "Invalid RBTC value.", success: false };
+        }
+        if (parsedEther <= 0n) {
+          logError(isExternal, "RBTC value must be greater than zero.");
+          return { error: "Invalid RBTC value.", success: false };
+        }
+        payableValue = parsedEther;
       }
 
       const provider = new ViemProvider(params.testnet);
       const publicClient = await provider.getPublicClient();
-      const { client: walletClient } = await provider.getWalletClientWithPassword();
+      const { client: walletClient } = await provider.getWalletClientWithPassword(params.wallet);
       const account = walletClient.account!;
 
       if (payableValue !== undefined) {
         const balance = await publicClient.getBalance({ address: account.address });
         if (balance < payableValue) {
-          logError(isExternal, `Insufficient RBTC balance. Have ${formatEther(balance)} RBTC, need ${formatEther(payableValue)} RBTC.`);
+          logError(
+            isExternal,
+            `Insufficient RBTC balance. Have ${formatEther(balance)} RBTC, need ${formatEther(payableValue)} RBTC.`
+          );
           return { error: "Insufficient RBTC balance.", success: false };
         }
       }
@@ -207,19 +254,67 @@ export async function ReadContract(
         simulateRequest = request;
       } catch (err: any) {
         spinner.fail("❌ Simulation failed.");
-        logError(isExternal, err.shortMessage || err.message || "Simulation reverted.");
-        return { error: err.shortMessage || err.message, success: false };
+        const userMsg = isExternal
+          ? "Transaction simulation reverted."
+          : err.shortMessage || err.message || "Simulation reverted.";
+        logError(isExternal, userMsg);
+        return { error: userMsg, success: false };
       }
 
       spinner.succeed("✅ Simulation passed.");
+
+      logInfo(isExternal, `\n📋 Transaction summary:`);
+      logInfo(isExternal, `   Function : ${selectedSig}`);
+      if (writeArgs.length > 0) {
+        logInfo(isExternal, `   Arguments: ${writeArgs.map(String).join(", ")}`);
+      }
+      if (payableValue !== undefined) {
+        logInfo(isExternal, `   Value    : ${formatEther(payableValue)} RBTC`);
+      }
+      logInfo(isExternal, `   Network  : ${params.testnet ? "Rootstock Testnet" : "Rootstock Mainnet"}`);
+
+      const { confirmed } = await inquirer.prompt<{ confirmed: boolean }>([
+        {
+          type: "confirm",
+          name: "confirmed",
+          message: "Proceed with transaction?",
+          default: false,
+        },
+      ]);
+
+      if (!confirmed) {
+        logWarning(isExternal, "Transaction cancelled by user.");
+        return { error: "Transaction cancelled.", success: false };
+      }
+
       spinner.start("⏳ Submitting transaction...");
 
-      const txHash = await walletClient.writeContract(simulateRequest);
+      let txHash: `0x${string}`;
+      try {
+        txHash = await walletClient.writeContract(simulateRequest);
+      } catch (err: any) {
+        spinner.fail("❌ Submission failed.");
+        logError(isExternal, err.shortMessage || err.message || "Failed to submit transaction.");
+        return { error: err.shortMessage || err.message || "Submission failed.", success: false };
+      }
+
       spinner.stop();
       logSuccess(isExternal, `🔄 Transaction submitted. Hash: ${txHash}`);
 
       spinner.start("⏳ Waiting for confirmation...");
-      const receipt = await publicClient.waitForTransactionReceipt({ hash: txHash });
+
+      let receipt: any;
+      try {
+        receipt = await publicClient.waitForTransactionReceipt({ hash: txHash });
+      } catch (err: any) {
+        spinner.stop();
+        logWarning(
+          isExternal,
+          `⚠️  Could not confirm receipt. Check status manually with: rsk-cli tx --txid ${txHash}`
+        );
+        return { error: "Receipt polling failed.", success: false };
+      }
+
       spinner.stop();
 
       const explorerUrl = getExplorerUrl(params.testnet, "tx", txHash);
@@ -255,10 +350,7 @@ export async function ReadContract(
       const errorMessage = "No read functions found in the contract.";
       spinner.stop();
       logWarning(isExternal, errorMessage);
-      return {
-        error: errorMessage,
-        success: false,
-      };
+      return { error: errorMessage, success: false };
     }
 
     spinner.stop();
@@ -370,17 +462,13 @@ export async function ReadContract(
     } catch (error) {
       const errorMessage = `Error while calling function ${selectedFunction}.`;
       spinner.fail(errorMessage);
-      return {
-        error: errorMessage,
-        success: false,
-      };
+      return { error: errorMessage, success: false };
     }
   } catch (error) {
     const errorMessage = "Error during contract interaction.";
     spinner.fail(errorMessage);
-    return {
-      error: errorMessage,
-      success: false,
-    };
+    return { error: errorMessage, success: false };
   }
 }
+
+export const ReadContract = contractCommand;

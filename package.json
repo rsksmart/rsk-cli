@@ -21,7 +21,7 @@
     "batch-transfer": "pnpm run build && node dist/bin/index.js batch-transfer",
     "history": "pnpm run build && node dist/bin/index.js history",
     "config": "pnpm run build && node dist/bin/index.js config",
-    "contract:write": "node dist/bin/index.js contract --testnet -a 0xcb46c0ddc60d18efeb0e586c17af6ea36452dae0 --write"
+    "contract:write": "pnpm run build && node dist/bin/index.js contract --testnet --write -a <contract-address>"
   },
   "keywords": [
     "rootstock",
