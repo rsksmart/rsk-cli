@@ -20,7 +20,8 @@
     "tx-status": "pnpm run build && node dist/bin/index.js tx --testnet --txid 0x876a0a9b167889350c41930a4204e5d9acf5704a7f201447a337094189af961c4",
     "batch-transfer": "pnpm run build && node dist/bin/index.js batch-transfer",
     "history": "pnpm run build && node dist/bin/index.js history",
-    "config": "pnpm run build && node dist/bin/index.js config"
+    "config": "pnpm run build && node dist/bin/index.js config",
+    "contract:write": "pnpm run build && node dist/bin/index.js contract --testnet --write -a <contract-address>"
   },
   "keywords": [
     "rootstock",
