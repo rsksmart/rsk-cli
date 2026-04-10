@@ -299,7 +299,7 @@ export class AttestationService {
 
       const attestationData = {
         recipient: recipient || data.contractAddress,
-        expirationTime: 0n, 
+        expirationTime: 0n,
         revocable: true,
         data: encodedData
       };
@@ -403,7 +403,7 @@ export class AttestationService {
   }
 
   static async getDefaultSchemaUID(
-    isTestnet: boolean = false, 
+    isTestnet: boolean = false,
     type: 'deployment' | 'verification' | 'transfer' = 'deployment'
   ): Promise<string | undefined> {
     const network = isTestnet ? 'testnet' : 'mainnet';
