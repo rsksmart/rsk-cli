@@ -24,9 +24,11 @@
   8. [Interact with RSK Bridge](#8-interact-with-rsk-bridge-contract)
   9. [Fetch Wallet History](#9-fetch-wallet-history)
   10. [Batch Transfer](#10-batch-transfer)
-  11. [Transaction Simulation](#11-transaction-simulation)
-  12. [RNS Operations](#12-rns-operations)
-  13. [Transaction Explanation](#13-tx-explain)
+  11. [Pipe Commands](#11-pipe-commands)
+  12. [Transaction Simulation](#12-transaction-simulation)
+  13. [RNS Operations](#13-rns-operations)
+  14. [Gas Estimator](#14-gas-estimator)
+  15. [Transaction Explanation](#15-tx-explain)
 - [Contributing](#contributing)
 
 ## Installation
@@ -738,7 +740,66 @@ Output example:
 ⛽ Gas Used: 21000
 ```
 
-### 11. Transaction Simulation
+### 11. Pipe Commands
+
+The `pipe` command allows you to chain multiple commands together, enabling powerful workflows where the output of one command automatically becomes the input for the next command. This feature is particularly useful for automating common blockchain operations.
+
+#### Basic Syntax
+
+```bash
+rsk-cli pipe "command1 [options] | command2 [options]"
+```
+
+#### Examples
+
+**Transfer and Check Status**
+Execute a transfer and automatically check the transaction status:
+
+```bash
+rsk-cli pipe "transfer --testnet --address 0x8A0d290b2EE35eFde47810CA8fF057e109e4190B --value 0.001 | tx --testnet"
+```
+
+**Deploy and Verify Contract**
+Deploy a smart contract and automatically verify it:
+
+```bash
+rsk-cli pipe "deploy --abi contract.abi --bytecode contract.bin --testnet | verify --json input.json --name MyContract --testnet"
+```
+
+**Transfer Token and Check Status**
+Transfer an ERC20 token and check the transaction status:
+
+```bash
+rsk-cli pipe "transfer --testnet --token 0x32Cd6c5831531F96f57d1faf4DDdf0222c4Af8AB --address 0x8A0d290b2EE35eFde47810CA8fF057e109e4190B --value 0.001 | tx --testnet"
+```
+
+#### Supported Command Chains
+
+The pipe command currently supports the following command combinations:
+
+- **transfer → tx**: Transfer RBTC or tokens and check transaction status
+- **deploy → verify**: Deploy a contract and verify it on the explorer
+- **transfer → tx → verify**: Transfer, check status, and verify (if applicable)
+
+#### How It Works
+
+1. The pipe command parses the command string and splits it by the `|` character
+2. Each command is executed sequentially
+3. The output data from the first command is automatically passed to the second command
+4. For example, when using `transfer | tx`, the transaction hash from the transfer is automatically used as input for the tx command
+
+#### Data Flow
+
+- **transfer** outputs: `transactionHash`, `from`, `to`, `amount`, `token`, `network`
+- **deploy** outputs: `contractAddress`, `transactionHash`, `network`
+- **tx** accepts: `transactionHash` (from previous command or --txid option)
+- **verify** accepts: `contractAddress` (from previous command or --address option)
+
+#### Error Handling
+
+If any command in the pipe fails, the entire pipe execution stops and displays the error message. This ensures that subsequent commands don't execute with invalid data.
+
+### 12. Transaction Simulation
 
 The `simulate` command allows you to simulate RBTC or ERC20 token transfers before executing them. This feature helps you estimate gas costs, validate balances, and ensure your transaction will succeed without actually executing it on the blockchain.
 
@@ -884,7 +945,7 @@ The simulation provides comprehensive information:
 
 > **Note**: Simulation uses real blockchain state but does not execute transactions. It provides accurate estimates based on current network conditions. Gas prices may vary, so actual costs might differ slightly from simulation results.
 
-### 12. RNS Operations
+### 13. RNS Operations
 The `rns` command provides a unified interface to interact with the RIF Name Service (RNS). You can Register, Transfer, Update, and Resolve domains using specific flags.
 
 #### 1. Register a Domain
@@ -1031,8 +1092,64 @@ Output example:
 > - Both checksummed and non-checksummed addresses are supported
 > - The command will show appropriate error messages if the name or address cannot be resolved
 
+### 14. Gas Estimator
 
-### 13. Tx Explain
+The `gas` command allows you to estimate gas costs for transactions and contract interactions on the Rootstock blockchain. It provides detailed analysis including gas price, estimated gas limits, and optimization tips.
+
+#### Interactive Mode
+
+Use the `-i` or `--interactive` flag to use the interactive gas estimator:
+
+```bash
+# Interactive mode on testnet
+rsk-cli gas --testnet -i
+
+# Interactive mode on mainnet
+rsk-cli gas -i
+```
+
+This mode allows you to:
+- View current gas prices and network metrics
+- Estimate simple transaction costs
+- Estimate contract function call costs
+- Estimate contract deployment costs
+- Analyze batch operation savings
+
+#### Quick Gas Check
+
+Check current gas prices and network status:
+
+```bash
+rsk-cli gas
+rsk-cli gas --testnet
+```
+
+#### Transaction Estimation
+
+Estimate gas for a simple transfer:
+
+```bash
+rsk-cli gas --to 0xRecipientAddress --value 0.1
+```
+
+#### Contract Estimation
+
+Estimate gas for a contract function call:
+
+```bash
+rsk-cli gas --contract 0xContractAddress --abi ./abi.json --function myMethod --args '["arg1", 123]'
+```
+
+#### Output
+
+The command provides:
+- Current network gas price
+- Estimated gas units
+- Cost in RBTC and Wei
+- Recommended gas limits (with buffers)
+- Optimization tips (if applicable)
+
+### 15. Tx Explain
 The `tx-explain` command transforms raw, hexadecimal blockchain data into a human-readable summary. It uses a tiered decoding engine to fetch verified ABIs from the Rootstock Explorer, falling back to signature databases or raw data if necessary.
 
 **Features**

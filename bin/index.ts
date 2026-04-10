@@ -18,7 +18,10 @@ import { selectAddress } from "../src/commands/selectAddress.js";
 import { resolveCommand } from "../src/commands/resolve.js";
 import { configCommand } from "../src/commands/config.js";
 import { transactionCommand } from "../src/commands/transaction.js";
+import { pipeCommand } from "../src/commands/pipe.js";
 import { monitorCommand, listMonitoringSessions, stopMonitoringSession } from "../src/commands/monitor.js";
+import { attestationCommand } from "../src/commands/attestation.js";
+import { gasCommand } from "../src/commands/gas.js";
 import { simulateCommand, TransactionSimulationOptions } from "../src/commands/simulate.js";
 import { parseEther } from "viem";
 import { resolveRNSToAddress } from "../src/utils/rnsHelper.js";
@@ -57,6 +60,21 @@ interface CommandOptions {
   gasLimit?: string;
   gasPrice?: string;
   data?: string;
+  action?: string;
+  recipient?: Address;
+  schema?: string;
+  uid?: string;
+  schemaString?: string;
+  resolverAddress?: Address;
+  revocable?: boolean;
+  attester?: Address;
+  limit?: string;
+  abiPath?: string;
+  function?: string;
+  functionName?: string;
+  simulate?: boolean;
+  optimize?: boolean;
+  bytecodePath?: string;
   attestDeployment?: boolean;
   attestVerification?: boolean;
   attestTransfer?: boolean;
@@ -368,6 +386,34 @@ program
   });
 
 program
+  .command("pipe")
+  .description("Chain multiple commands together using pipe syntax")
+  .argument("<commands>", "Pipe command string (e.g., 'transfer --testnet --address 0x... --value 0.001 | tx --testnet')")
+  .action(async (commands: string) => {
+    try {
+      await pipeCommand(commands);
+    } catch (error: any) {
+      console.error(
+        chalk.red("🚨 Error during pipe execution:"),
+        chalk.yellow(error.message || "Unknown error")
+      );
+    }
+  });
+
+program
+  .command("resolve <name>")
+  .description("Resolve RNS names to addresses or reverse lookup addresses to names")
+  .option("-t, --testnet", "Use testnet (currently mainnet only)")
+  .option("-r, --reverse", "Reverse lookup: address to name")
+  .action(async (name: string, options: CommandOptions) => {
+    await resolveCommand({
+      name,
+      testnet: !!options.testnet,
+      reverse: !!options.reverse
+    });
+  });
+
+program
   .command("config")
   .description("Manage CLI configuration settings")
   .action(async () => {
@@ -608,6 +654,90 @@ program
     } catch (error: any) {
       console.error(chalk.red(`❌ Operation failed: ${error.message || error}`));
       process.exit(1);
+    }
+  });
+
+program
+  .command("gas")
+  .description("Estimate gas costs for transactions and contract interactions with optimization tips")
+  .option("-t, --testnet", "Use testnet")
+  .option("-c, --contract <address>", "Contract address for function call estimation")
+  .option("--abi <path>", "Path to contract ABI file")
+  .option("-f, --function <name>", "Function name to estimate")
+  .option("--args <args...>", "Function arguments (space-separated)")
+  .option("-a, --address <address>", "Recipient address for transaction estimation")
+  .option("--value <value>", "Amount to send (in RBTC)")
+  .option("--data <data>", "Transaction data (hex)")
+  .option("-s, --simulate", "Run transaction simulation")
+  .option("-o, --optimize", "Show gas optimization tips")
+  .option("-i, --interactive", "Interactive mode with guided prompts")
+  .action(async (options: CommandOptions) => {
+    try {
+      await gasCommand({
+        testnet: !!options.testnet,
+        contractAddress: options.contract as Address | undefined,
+        abiPath: options.abi,
+        functionName: options.function,
+        args: options.args,
+        to: options.address as Address | undefined,
+        value: options.value,
+        data: options.data,
+        simulate: !!options.simulate,
+        optimize: !!options.optimize,
+        interactive: !!options.interactive,
+      });
+    } catch (error: any) {
+      console.error(
+        chalk.red("Error during gas estimation:"),
+        error.message || error
+      );
+    }
+  });
+
+program
+  .command("attestation")
+  .description("Manage attestations on Rootstock using EAS (Ethereum Attestation Service)")
+  .requiredOption("--action <action>", "Action to perform: create, verify, revoke, list, schema")
+  .option("-t, --testnet", "Operate on the testnet")
+  .option("--wallet <wallet>", "Name of the wallet")
+  .option("--recipient <address>", "Recipient address (for create action)")
+  .option("--schema <schema>", "Schema UID (for create/revoke actions)")
+  .option("--data <data>", "JSON data for the attestation (for create action)")
+  .option("--uid <uid>", "Attestation UID (for verify/revoke actions)")
+  .option("--address <address>", "Address to list attestations for (for list action)")
+  .option("--attester <address>", "Attester address to filter by (for list action)")
+  .option("--limit <number>", "Maximum number of results to return (for list action)")
+  .option("--schema-string <schema>", "Schema string (for schema action)")
+  .option("--resolver-address <address>", "Resolver contract address (for schema action)")
+  .option("--revocable", "Whether the schema should be revocable (for schema action)")
+  .action(async (options: CommandOptions) => {
+    try {
+      if (!options.action || !['create', 'verify', 'revoke', 'list', 'schema'].includes(options.action)) {
+        console.error(chalk.red("🚨 Invalid action. Use: create, verify, revoke, list, or schema"));
+        return;
+      }
+
+      await attestationCommand({
+        testnet: !!options.testnet,
+        walletName: options.wallet,
+        action: options.action as 'create' | 'verify' | 'revoke' | 'list' | 'schema',
+        recipient: options.recipient as `0x${string}` | undefined,
+        schema: options.schema as `0x${string}` | undefined,
+        data: options.data,
+        uid: options.uid as `0x${string}` | undefined,
+        address: options.address as `0x${string}` | undefined,
+        attester: options.attester as `0x${string}` | undefined,
+        limit: options.limit ? parseInt(options.limit) : undefined,
+        schemaString: options.schemaString,
+        resolverAddress: options.resolverAddress as `0x${string}` | undefined,
+        revocable: !!options.revocable,
+        isExternal: false
+      });
+    } catch (error: any) {
+      console.error(
+        chalk.red("🚨 Error during attestation operation:"),
+        chalk.yellow(error.message || "Unknown error")
+      );
     }
   });
 
