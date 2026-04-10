@@ -73,6 +73,7 @@ export const txExplainCommand = async (params: TxExplainOptions) => {
     let nature: "Simple Transfer" | "Contract Deployment" | "Contract Interaction";
     let methodName: string | null = null;
     let decodedArgs: DecodedArg[] | null = null;
+    const inputString = tx.input as string;
 
     if (tx.input === "0x") {
       nature = "Simple Transfer";
@@ -86,7 +87,6 @@ export const txExplainCommand = async (params: TxExplainOptions) => {
       if (raw) {
         logMessage(isExternal, `${chalk.gray("Raw Bytecode:")} ${tx.input}`);
       } else {
-        const inputString = tx.input as string;
         const bytecodeSize = (inputString.length - 2) / 2;
         logMessage(isExternal, `${chalk.gray("Bytecode Size:")} ${bytecodeSize} bytes`);
       }
@@ -95,13 +95,12 @@ export const txExplainCommand = async (params: TxExplainOptions) => {
       if (raw) {
         logMessage(isExternal, `${chalk.gray("Raw Calldata:")} ${tx.input}`);
       } else {
-        const inputString = tx.input as string;
         if (inputString.length > 130) {
           logMessage(isExternal, `${chalk.gray("Raw Calldata:")} ${inputString.slice(0, 130)}... [Truncated]`);
         } else {
           logMessage(isExternal, `${chalk.gray("Raw Calldata:")} ${inputString}`);
         }
-        const executionResult = await decodeExecutionTier(tx.input as string, tx.to!, testnet, isExternal);
+        const executionResult = await decodeExecutionTier(inputString, tx.to!, testnet, isExternal);
         if (executionResult.success) {
           methodName = executionResult.methodName;
           decodedArgs = executionResult.decodedArgs;
@@ -218,7 +217,7 @@ async function decodeExecutionTier(calldata: string, to: string, testnet: boolea
       logMessage(isExternal, `   └─ ${chalk.blue("amount")}: ${chalk.gray(args[2].toString())}`);
     }
     return { success: true, methodName: decoded.functionName, decodedArgs: parsedArgs };
-  } catch (fallbackError) {
+  } catch {
     const errorMsg = "Method: Unknown (Unverified Contract or Malformed Data)";
     logError(isExternal, errorMsg);
     return { success: false, error: errorMsg };
