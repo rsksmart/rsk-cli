@@ -27,7 +27,10 @@
   11. [Pipe Commands](#11-pipe-commands)
   12. [Transaction Simulation](#12-transaction-simulation)
   13. [RNS Operations](#13-rns-operations)
+  14. [Gas Estimator](#14-gas-estimator)
+  15. [Developer Health Metrics](#15-developer-health-metrics)
 - [Contributing](#contributing)
+- [Dependency Notes](#dependency-notes)
 
 ## Installation
 
@@ -1090,8 +1093,7 @@ Output example:
 > - Both checksummed and non-checksummed addresses are supported
 > - The command will show appropriate error messages if the name or address cannot be resolved
 
-<<<<<<< HEAD
-### 12. Gas Estimator
+### 14. Gas Estimator
 
 The `gas` command allows you to estimate gas costs for transactions and contract interactions on the Rootstock blockchain. It provides detailed analysis including gas price, estimated gas limits, and optimization tips.
 
@@ -1147,8 +1149,124 @@ The command provides:
 - Cost in RBTC and Wei
 - Recommended gas limits (with buffers)
 - Optimization tips (if applicable)
-=======
->>>>>>> main
+
+---
+
+### 15. Developer Health Metrics
+
+The `devmetrics` command generates a combined developer health report by aggregating GitHub repository activity and Rootstock on-chain contract metrics into a single, structured output.
+
+#### Usage
+
+```bash
+rsk-cli devmetrics --repo <owner/repo> --contract <address> [options]
+```
+
+#### Options
+
+| Flag | Description | Default |
+|---|---|---|
+| `-r, --repo <owner/repo>` | GitHub repository in `owner/repo` format. Repeatable for batch mode. | Required |
+| `-c, --contract <address>` | Rootstock contract address (`0x...`). Repeatable for batch mode. | Required |
+| `-f, --format <format>` | Output format: `table`, `json`, or `markdown` | `table` |
+| `--ci` | CI/CD mode — forces JSON output, suppresses all progress messages | `false` |
+| `--github-token <token>` | GitHub personal access token (overrides `GITHUB_TOKEN` env var) | — |
+| `--network <network>` | Rootstock network: `mainnet` or `testnet` | `mainnet` |
+| `--rpc-url <url>` | Custom Rootstock RPC URL — must use `http://` or `https://` (overrides `--network`) | — |
+
+#### Examples
+
+**Single repo + contract (table output):**
+```bash
+rsk-cli devmetrics \
+  --repo rsksmart/rsk-cli \
+  --contract 0x9158c22b1799a2527ce8b95f9f1ff5e133fba27d \
+  --network mainnet
+```
+
+**Multiple repos mapped to one contract:**
+```bash
+rsk-cli devmetrics \
+  --repo rsksmart/rsk-cli \
+  --repo rsksmart/rif-wallet \
+  --contract 0x9158c22b1799a2527ce8b95f9f1ff5e133fba27d
+```
+
+**Markdown report:**
+```bash
+rsk-cli devmetrics \
+  --repo rsksmart/rsk-cli \
+  --contract 0x9158c22b1799a2527ce8b95f9f1ff5e133fba27d \
+  --format markdown > report.md
+```
+
+**CI/CD pipeline (JSON to stdout):**
+```bash
+rsk-cli devmetrics \
+  --repo rsksmart/rsk-cli \
+  --contract 0x9158c22b1799a2527ce8b95f9f1ff5e133fba27d \
+  --ci
+```
+
+**With authenticated GitHub access (5,000 req/hour):**
+```bash
+# Via environment variable (recommended)
+GITHUB_TOKEN=ghp_xxx rsk-cli devmetrics --repo rsksmart/rsk-cli --contract 0x...
+
+# Via flag
+rsk-cli devmetrics --repo rsksmart/rsk-cli --contract 0x... --github-token ghp_xxx
+```
+
+**Testnet with custom RPC:**
+```bash
+rsk-cli devmetrics \
+  --repo rsksmart/rsk-cli \
+  --contract 0x... \
+  --rpc-url https://public-node.testnet.rsk.co
+```
+
+#### GitHub Metrics Reported
+
+| Metric | Description |
+|---|---|
+| ⭐ Stars | Total repository stars |
+| 📝 Last Commit | Date of most recent commit |
+| 🐛 Open Issues | Open issue count (includes PRs — GitHub API limitation) |
+| 🔀 Open PRs | Open pull request count (accurate with token, sampled without) |
+| 👥 Contributors | Contributor count (first-page estimate, up to 100 with token) |
+
+#### Rootstock Metrics Reported
+
+| Metric | Description |
+|---|---|
+| 📦 Deployment Block | Block number when the contract was deployed (bounded search) |
+| 📊 Total Transactions | Estimated transaction count directed at the contract |
+| ⏰ Last Transaction | Timestamp of the most recent detected transaction |
+| ⛽ Gas Usage | Average / min / max gas across sampled transactions |
+
+> **Note**: Rootstock metrics use bounded block-window sampling for performance. Transaction counts and gas figures are estimates over the search window, not exact lifetime totals.
+
+#### Authentication Notes
+
+Without a GitHub token the API rate limit is **60 requests/hour**. With a valid `GITHUB_TOKEN` it is **5,000 requests/hour**. The command shows remaining quota in table mode.
+
+#### Security Note
+
+The `--rpc-url` flag validates that the provided URL uses `http://` or `https://` before it is used. Other protocols (`file://`, `ftp://`, internal IPs) are rejected at startup.
+
+---
+
+## Dependency Notes
+
+### `@ethereum-attestation-service/eas-sdk` pinned to `2.7.0`
+
+The EAS SDK dependency is intentionally pinned to **`2.7.0`** (exact, not a range) rather than the latest `2.9.0`.
+
+**Reason:** EAS SDK `2.9.0` uses extensionless internal ESM imports (e.g. `export * from './eas'`) that are incompatible with Node.js ≥ 18's strict ESM module resolver. Under this project's runtime (Node 22, `"type": "module"`), the missing `.js` extension causes a fatal `ERR_MODULE_NOT_FOUND` at startup — crashing the entire CLI before any command runs, including commands completely unrelated to attestation.
+
+`2.7.0` ships with fully-qualified `.js` extensions in its ESM build and is fully compatible. The pin will be re-evaluated when the upstream package ships a corrected ESM build.
+
+---
 
 ## Contributing
 

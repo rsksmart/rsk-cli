@@ -29,6 +29,7 @@ import { validateAndFormatAddressRSK } from "../src/utils/index.js";
 import { rnsUpdateCommand } from "../src/commands/rnsUpdate.js";
 import { rnsTransferCommand } from "../src/commands/rnsTransfer.js";
 import { rnsRegisterCommand } from "../src/commands/rnsRegister.js";
+import { devmetricsCommand } from "../src/commands/devmetrics.js";
 
 interface CommandOptions {
   testnet?: boolean;
@@ -709,6 +710,44 @@ program
         chalk.red("🚨 Error during attestation operation:"),
         chalk.yellow(error.message || "Unknown error")
       );
+    }
+  });
+
+program
+  .command("devmetrics")
+  .description(
+    "Generate developer health reports combining GitHub activity and Rootstock on-chain metrics"
+  )
+  .option(
+    "-r, --repo <repo>",
+    "GitHub repository in owner/repo format (repeatable)",
+    (val: string, prev: string[]) => [...prev, val],
+    [] as string[]
+  )
+  .option(
+    "-c, --contract <address>",
+    "Rootstock contract address (repeatable)",
+    (val: string, prev: string[]) => [...prev, val],
+    [] as string[]
+  )
+  .option("-f, --format <format>", "Output format: table, json, or markdown", "table")
+  .option("--ci", "CI/CD mode — forces JSON output")
+  .option("--github-token <token>", "GitHub personal access token")
+  .option("--network <network>", "Rootstock network: mainnet or testnet", "mainnet")
+  .option("--rpc-url <url>", "Rootstock RPC URL (overrides --network)")
+  .action(async (options: any) => {
+    try {
+      await devmetricsCommand({
+        repos: options.repo ?? [],
+        contracts: options.contract ?? [],
+        format: options.format,
+        ci: !!options.ci,
+        githubToken: options.githubToken,
+        network: options.network,
+        rpcUrl: options.rpcUrl,
+      });
+    } catch (error: any) {
+      logError(false, `Error during devmetrics: ${error.message || error}`);
     }
   });
 
