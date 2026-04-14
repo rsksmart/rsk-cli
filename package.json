@@ -13,14 +13,17 @@
   "scripts": {
     "build": "tsc",
     "dev": "tsc -w",
-    "wallet": "pnpm run build && node dist/bin/index.js wallet",
-    "balance": "pnpm run build && node dist/bin/index.js balance",
-    "transfer": "pnpm run build && node dist/bin/index.js transfer --testnet --address 0xa5f45f5bddefC810C48aCC1D5CdA5e5a4c6BC59E --value 0.000001",
-    "transferToken": "pnpm run build && node dist/bin/index.js transfer --testnet --token 0x32Cd6c5831531F96f57d1faf4DDdf0222c4Af8AB --address 0x8A0d290b2EE35eFde47810CA8fF057e109e4190B --value 0.000001",
-    "tx-status": "pnpm run build && node dist/bin/index.js tx --testnet --txid 0x876a0a9b167889350c41930a4204e5d9acf5704a7f201447a337094189af961c4",
-    "batch-transfer": "pnpm run build && node dist/bin/index.js batch-transfer",
-    "history": "pnpm run build && node dist/bin/index.js history",
-    "config": "pnpm run build && node dist/bin/index.js config"
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "wallet": "npm run build && node dist/bin/index.js wallet",
+    "balance": "npm run build && node dist/bin/index.js balance",
+    "transfer": "npm run build && node dist/bin/index.js transfer --testnet --address 0xa5f45f5bddefC810C48aCC1D5CdA5e5a4c6BC59E --value 0.000001",
+    "transferToken": "npm run build && node dist/bin/index.js transfer --testnet --token 0x32Cd6c5831531F96f57d1faf4DDdf0222c4Af8AB --address 0x8A0d290b2EE35eFde47810CA8fF057e109e4190B --value 0.000001",
+    "tx-status": "npm run build && node dist/bin/index.js tx --testnet --txid 0x876a0a9b167889350c41930a4204e5d9acf5704a7f201447a337094189af961c4",
+    "batch-transfer": "npm run build && node dist/bin/index.js batch-transfer",
+    "history": "npm run build && node dist/bin/index.js history",
+    "config": "npm run build && node dist/bin/index.js config"
   },
   "keywords": [
     "rootstock",
@@ -39,14 +42,17 @@
     "@types/bun": "latest",
     "@types/figlet": "^1.5.8",
     "@types/uuid": "^10.0.0",
+    "@vitest/coverage-v8": "^4.1.4",
     "solc": "0.8.28",
-    "typescript": "^5.0.0"
+    "typescript": "^5.0.0",
+    "vitest": "^4.1.4"
   },
   "peerDependencies": {
     "typescript": "^5.0.0"
   },
   "dependencies": {
-    "@ethereum-attestation-service/eas-sdk": "^2.7.0",
+    "@ethereum-attestation-service/eas-sdk": "2.7.0",
+    "@octokit/rest": "^22.0.1",
     "@openzeppelin/contracts": "^5.0.2",
     "@rsksmart/rns-resolver.js": "^1.1.0",
     "@rsksmart/rns-sdk": "^1.0.0-beta.9",
@@ -57,8 +63,8 @@
     "cli-table3": "^0.6.5",
     "commander": "^13.1.0",
     "dotenv": "^16.3.1",
-    "figlet": "^1.7.0",
     "ethers": "^5.8.0",
+    "figlet": "^1.7.0",
     "fs-extra": "^11.2.0",
     "inquirer": "^12.1.0",
     "ora": "^8.0.1",
