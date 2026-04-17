@@ -27,6 +27,8 @@
   11. [Pipe Commands](#11-pipe-commands)
   12. [Transaction Simulation](#12-transaction-simulation)
   13. [RNS Operations](#13-rns-operations)
+  14. [Gas Estimator](#14-gas-estimator)
+  15. [Swap Command](#15-swap-command)
 - [Contributing](#contributing)
 
 ## Installation
@@ -1090,8 +1092,7 @@ Output example:
 > - Both checksummed and non-checksummed addresses are supported
 > - The command will show appropriate error messages if the name or address cannot be resolved
 
-<<<<<<< HEAD
-### 12. Gas Estimator
+### 14. Gas Estimator
 
 The `gas` command allows you to estimate gas costs for transactions and contract interactions on the Rootstock blockchain. It provides detailed analysis including gas price, estimated gas limits, and optimization tips.
 
@@ -1147,8 +1148,52 @@ The command provides:
 - Cost in RBTC and Wei
 - Recommended gas limits (with buffers)
 - Optimization tips (if applicable)
-=======
->>>>>>> main
+
+### 15. Swap Command
+
+The `swap` command lets you quickly convert `BTC <-> RBTC` using the Flyover protocol.
+
+The command uses the Flyover SDK to fetch live liquidity providers and quotes. Peg-out executes a Rootstock transaction via your local wallet. Peg-in accepts the quote and prepares the deposit flow through the Flyover protocol.
+
+#### Liquidity Providers (quote only)
+
+```bash
+rsk-cli swap --testnet --liquidity
+```
+
+#### Peg-in (BTC -> RBTC)
+
+```bash
+rsk-cli swap --testnet --pegin --amount 0.1
+# Force a specific LP by name or URL
+rsk-cli swap --testnet --pegin --amount 0.1 --provider "teks-staging"
+```
+
+#### Peg-out (RBTC -> BTC)
+
+```bash
+rsk-cli swap --testnet --pegout --amount 0.01 --btc-address <address>
+# Force a specific LP by apiBaseUrl
+rsk-cli swap --testnet --pegout --amount 0.01 --btc-address <address> --provider "https://staging.lps.tekscapital.com"
+```
+
+#### Interactive Mode
+
+```bash
+rsk-cli swap --interactive
+```
+
+#### Available Options
+
+- `--testnet`: Use Rootstock testnet
+- `--liquidity`: Show available liquidity providers (quote only, no wallet required)
+- `--pegin`: Peg-in (BTC -> RBTC). Requires `--amount`
+- `--pegout`: Peg-out (RBTC -> BTC). Requires `--amount` and `--btc-address`
+- `--amount <amount>`: Amount in BTC (for `--pegin`) or RBTC (for `--pegout`)
+- `--btc-address <address>`: Destination BTC address (required for `--pegout`)
+- `--provider <name-or-url>`: Force LP selection by provider name or apiBaseUrl
+- `--interactive`: Run guided interactive swap flow
+- `--wallet <name>`: Wallet name to use for signing (uses current wallet by default)
 
 ## Contributing
 
