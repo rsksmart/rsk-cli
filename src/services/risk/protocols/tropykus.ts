@@ -34,7 +34,6 @@ export interface TropykusPosition extends BorrowPosition {
  * This function can be expanded without changing the engine interface.
  */
 export async function fetchTropykusPositions(): Promise<TropykusPosition[]> {
-  // TODO: integrate with Tropykus indexer / contracts.
   return [];
 }
 

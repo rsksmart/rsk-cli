@@ -1,8 +1,5 @@
 export type ProtocolId = "sovryn-v1" | "tropykus-v2";
 
-// Internal asset symbols used by the risk engine.
-// These should correspond either to CoinGecko IDs (via COINGECKO_IDS)
-// or to synthetic assets we treat specially (e.g. usd = 1).
 export type AssetSymbol = "rbtc" | "rif" | "dllr" | "sov" | "usd";
 
 export interface AssetPriceMap {
@@ -84,6 +81,22 @@ export interface RiskSimulationConfig {
    * Optional protocol-specific overrides for liquidation params.
    */
   protocolConfigs?: Partial<Record<ProtocolId, Partial<LiquidationParameters>>>;
+
+  /**
+   * When true, suppresses all logs (used by MCP/external consumers).
+   */
+  isExternal?: boolean;
+
+  /**
+   * Network timeout for external API calls (ms).
+   */
+  timeoutMs?: number;
+
+  /**
+   * Bad-debt ratio of protocol collateral value used to define insolvency.
+   * Example: 0.01 means "insolvent when bad debt >= 1% of total collateral value".
+   */
+  insolvencyBadDebtRatio?: number;
 }
 
 export interface PositionHealthSnapshot {

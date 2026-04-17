@@ -35,7 +35,6 @@ export interface SovrynPosition extends BorrowPosition {
  * engine API stable.
  */
 export async function fetchSovrynPositions(): Promise<SovrynPosition[]> {
-  // TODO: integrate with Sovryn indexer / contracts.
   return [];
 }
 

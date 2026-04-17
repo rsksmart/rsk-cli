@@ -40,22 +40,45 @@ export function buildProtocolSimulationResult(
  *
  * This is a heuristic and should be refined once more precise models are available.
  */
-export function estimateInsolvencyThresholdForProtocol(
-  config: RiskSimulationConfig,
-  protocolResult: ProtocolSimulationResult
-): InsolvencyThresholdEstimate | undefined {
-  const currentShock = config.shockPercentage;
-  const currentBadDebt = protocolResult.totalBadDebtUsd;
+export function estimateInsolvencyThresholdForProtocol(params: {
+  config: RiskSimulationConfig;
+  protocolId: ProtocolId;
+  protocolCollateralUsd: number;
+  computeBadDebtUsdAtShock: (shockPercentage: number) => number;
+}): InsolvencyThresholdEstimate | undefined {
+  const ratio = params.config.insolvencyBadDebtRatio ?? 0.01;
+  if (!Number.isFinite(ratio) || ratio <= 0) return undefined;
 
-  if (currentShock <= 0 || currentBadDebt <= 0) {
+  const targetBadDebt = params.protocolCollateralUsd * ratio;
+  if (!Number.isFinite(targetBadDebt) || targetBadDebt <= 0) return undefined;
+
+  const lowBound = 0;
+  const highBound = 99;
+
+  let low = lowBound;
+  let high = highBound;
+
+  const badDebtAtHigh = params.computeBadDebtUsdAtShock(high);
+  if (!(badDebtAtHigh >= targetBadDebt)) {
     return undefined;
   }
 
-  // Linear heuristic: assume bad debt grows roughly proportional to shock.
-  // We treat the current shock as the insolvency threshold if any bad debt appears.
+  for (let i = 0; i < 20; i++) {
+    const mid = (low + high) / 2;
+    const badDebt = params.computeBadDebtUsdAtShock(mid);
+    if (badDebt >= targetBadDebt) {
+      high = mid;
+    } else {
+      low = mid;
+    }
+  }
+
+  const shock = high;
+  const badDebt = params.computeBadDebtUsdAtShock(shock);
+
   return {
-    shockPercentage: currentShock,
-    badDebtUsd: currentBadDebt,
+    shockPercentage: shock,
+    badDebtUsd: badDebt,
   };
 }
 
@@ -66,7 +89,8 @@ export function estimateInsolvencyThresholdForProtocol(
 export function buildRiskSimulationResult(
   config: RiskSimulationConfig,
   prices: RiskSimulationResult["prices"],
-  protocolResults: ProtocolSimulationResult[]
+  protocolResults: ProtocolSimulationResult[],
+  insolvencyThresholds: RiskSimulationResult["insolvencyThresholds"] = {}
 ): RiskSimulationResult {
   const totals = protocolResults.reduce(
     (acc, p) => {
@@ -76,15 +100,6 @@ export function buildRiskSimulationResult(
     },
     { totalBadDebtUsd: 0, totalCollateralDeficitUsd: 0 }
   );
-
-  const insolvencyThresholds: RiskSimulationResult["insolvencyThresholds"] = {};
-
-  for (const result of protocolResults) {
-    const estimate = estimateInsolvencyThresholdForProtocol(config, result);
-    if (estimate) {
-      insolvencyThresholds[result.protocol] = estimate;
-    }
-  }
 
   return {
     config,

@@ -21,6 +21,7 @@ import {
   TROPYKUS_RISK_CONFIG,
 } from "./protocols/tropykus.js";
 import { buildProtocolSimulationResult, buildRiskSimulationResult } from "./reporting.js";
+import { estimateInsolvencyThresholdForProtocol } from "./reporting.js";
 
 const DEFAULT_PROTOCOL_CONFIGS: Record<ProtocolId, ProtocolRiskConfig> = {
   "sovryn-v1": SOVRYN_RISK_CONFIG,
@@ -42,6 +43,10 @@ function applyShockToPrices(
 
   for (const [symbol, price] of Object.entries(basePrices)) {
     const sym = symbol as AssetSymbol;
+    if (sym === "usd") {
+      shocked[symbol] = price;
+      continue;
+    }
     if (impactedAssets.includes(sym)) {
       shocked[symbol] = price * factor;
     } else {
@@ -67,7 +72,7 @@ function computeHealthFactor(
   debtUsd: number,
   liquidationThreshold: number
 ): number {
-  if (debtUsd <= 0) return Number.POSITIVE_INFINITY;
+  if (debtUsd <= 0) return 1e30;
   const adjustedCollateral = collateralUsd * liquidationThreshold;
   return adjustedCollateral / debtUsd;
 }
@@ -104,10 +109,19 @@ function simulateLiquidationForPosition(
     };
   }
 
-  const ltv = debtValue / collateralValue;
+  const isLiquidatable = (collateralUsd: number, debtUsd: number): boolean => {
+    if (debtUsd <= 0) return false;
+    if (collateralUsd <= 0) return true;
+    const ltv = debtUsd / collateralUsd;
+    const hf = computeHealthFactor(
+      collateralUsd,
+      debtUsd,
+      params.liquidationThreshold
+    );
+    return ltv > params.maxLtv || hf < 1;
+  };
 
-  if (ltv <= params.maxLtv) {
-    // Not liquidatable under current rules.
+  if (!isLiquidatable(collateralValue, debtValue)) {
     return {
       positionId: position.id,
       protocol: position.protocol,
@@ -123,14 +137,12 @@ function simulateLiquidationForPosition(
   let remainingCollateral = collateralValue;
   let remainingDebt = debtValue;
 
-  // Simple loop: attempt up to a few close-factor based liquidations until
-  // position becomes healthy or collateral is exhausted.
-  const maxSteps = 5;
+  const maxSteps = 60;
+  const minDebtEpsilon = 1e-9;
+
   for (let i = 0; i < maxSteps; i++) {
-    const currentLtv = remainingDebt / remainingCollateral;
-    if (currentLtv <= params.maxLtv || remainingDebt <= 0 || remainingCollateral <= 0) {
-      break;
-    }
+    if (remainingDebt <= minDebtEpsilon || remainingCollateral <= 0) break;
+    if (!isLiquidatable(remainingCollateral, remainingDebt)) break;
 
     const repayDebt = remainingDebt * params.closeFactor;
     const collateralToSeize = repayDebt * (1 + params.liquidationBonus);
@@ -140,7 +152,6 @@ function simulateLiquidationForPosition(
     let liquidationBonusUsd = repayDebt * params.liquidationBonus;
 
     if (actualCollateralSeized > remainingCollateral) {
-      // Not enough collateral to cover repayment + bonus; adjust down.
       const ratio = remainingCollateral / actualCollateralSeized;
       actualCollateralSeized = remainingCollateral;
       actualRepay = repayDebt * ratio;
@@ -164,8 +175,7 @@ function simulateLiquidationForPosition(
   let totalBadDebtUsd = 0;
   let collateralDeficitUsd = 0;
 
-  if (remainingDebt > 0 && remainingCollateral <= 0) {
-    // Collateral completely exhausted, remaining debt is bad debt.
+  if (remainingDebt > minDebtEpsilon && (remainingCollateral <= 0 || isLiquidatable(remainingCollateral, remainingDebt))) {
     totalBadDebtUsd = remainingDebt;
     collateralDeficitUsd = remainingDebt;
   }
@@ -181,11 +191,15 @@ function simulateLiquidationForPosition(
 }
 
 async function fetchPositionsForProtocols(
-  protocols: ProtocolId[]
+  protocols: ProtocolId[],
+  options: { timeoutMs: number; isExternal: boolean }
 ): Promise<Record<ProtocolId, BorrowPosition[]>> {
   const entries = await Promise.all(
     protocols.map(async (id) => {
-      const positions = await fetchBorrowerPositions(id, {});
+      const positions = await fetchBorrowerPositions(id, {
+        timeoutMs: options.timeoutMs,
+        isExternal: options.isExternal,
+      });
       return [id, positions] as const;
     })
   );
@@ -202,57 +216,45 @@ async function fetchPositionsForProtocols(
   return result;
 }
 
-export async function runRiskSimulation(
-  config: RiskSimulationConfig
-): Promise<RiskSimulationResult> {
-  const protocolIds = config.protocols;
-
-  const [basePrices, positionsByProtocol] = await Promise.all([
-    fetchAssetPrices({}),
-    fetchPositionsForProtocols(protocolIds),
-  ]);
-
-  const shockedPrices = applyShockToPrices(
-    basePrices,
-    config.shockPercentage,
-    config.shockedAssets
-  );
-
-  const prices = {
-    before: basePrices,
-    after: shockedPrices,
-  };
-
+function simulateProtocols(params: {
+  protocolIds: ProtocolId[];
+  positionsByProtocol: Record<ProtocolId, BorrowPosition[]>;
+  pricesBefore: AssetPriceMap;
+  pricesAfter: AssetPriceMap;
+  config: RiskSimulationConfig;
+}): ProtocolSimulationResult[] {
   const protocolResults: ProtocolSimulationResult[] = [];
 
-  for (const protocolId of protocolIds) {
-    const positions = positionsByProtocol[protocolId] ?? [];
+  for (const protocolId of params.protocolIds) {
+    const positions = params.positionsByProtocol[protocolId] ?? [];
 
     const baseConfig = DEFAULT_PROTOCOL_CONFIGS[protocolId].liquidation;
-    const override = config.protocolConfigs?.[protocolId];
+    const override = params.config.protocolConfigs?.[protocolId];
     const liquidationParams = mergeLiquidationParams(baseConfig, override);
 
     const healthSnapshots: PositionHealthSnapshot[] = [];
     const liquidationSummaries: PositionLiquidationSummary[] = [];
 
     for (const position of positions) {
-      const collateralBefore = valueExposure(position.collateral, basePrices);
-      const debtBefore = valueExposure(position.debt, basePrices);
+      const collateralBefore = valueExposure(position.collateral, params.pricesBefore);
+      const debtBefore = valueExposure(position.debt, params.pricesBefore);
       const hfBefore = computeHealthFactor(
         collateralBefore,
         debtBefore,
         liquidationParams.liquidationThreshold
       );
 
-      const collateralAfter = valueExposure(position.collateral, shockedPrices);
-      const debtAfter = valueExposure(position.debt, shockedPrices);
+      const collateralAfter = valueExposure(position.collateral, params.pricesAfter);
+      const debtAfter = valueExposure(position.debt, params.pricesAfter);
       const hfAfter = computeHealthFactor(
         collateralAfter,
         debtAfter,
         liquidationParams.liquidationThreshold
       );
 
-      const liquidatable = hfAfter < 1;
+      const ltvAfter =
+        debtAfter <= 0 ? 0 : collateralAfter > 0 ? debtAfter / collateralAfter : Number.POSITIVE_INFINITY;
+      const liquidatable = hfAfter < 1 || ltvAfter > liquidationParams.maxLtv;
 
       healthSnapshots.push({
         positionId: position.id,
@@ -270,23 +272,81 @@ export async function runRiskSimulation(
       if (liquidatable) {
         const summary = simulateLiquidationForPosition(
           position,
-          shockedPrices,
+          params.pricesAfter,
           liquidationParams
         );
-        if (summary) {
-          liquidationSummaries.push(summary);
-        }
+        if (summary) liquidationSummaries.push(summary);
       }
     }
 
-    const protocolResult = buildProtocolSimulationResult(
-      protocolId,
-      healthSnapshots,
-      liquidationSummaries
+    protocolResults.push(
+      buildProtocolSimulationResult(protocolId, healthSnapshots, liquidationSummaries)
     );
-    protocolResults.push(protocolResult);
   }
 
-  return buildRiskSimulationResult(config, prices, protocolResults);
+  return protocolResults;
+}
+
+export async function runRiskSimulation(
+  config: RiskSimulationConfig
+): Promise<RiskSimulationResult> {
+  const protocolIds = config.protocols;
+  const timeoutMs = config.timeoutMs ?? 30000;
+  const isExternal = config.isExternal ?? false;
+
+  const [basePrices, positionsByProtocol] = await Promise.all([
+    fetchAssetPrices({ isExternal, timeoutMs }),
+    fetchPositionsForProtocols(protocolIds, { timeoutMs, isExternal }),
+  ]);
+
+  const shockedPrices = applyShockToPrices(
+    basePrices,
+    config.shockPercentage,
+    config.shockedAssets
+  );
+
+  const prices = {
+    before: basePrices,
+    after: shockedPrices,
+  };
+
+  const protocolResults = simulateProtocols({
+    protocolIds,
+    positionsByProtocol,
+    pricesBefore: basePrices,
+    pricesAfter: shockedPrices,
+    config,
+  });
+
+  const insolvencyThresholds: RiskSimulationResult["insolvencyThresholds"] = {};
+
+  for (const protocolId of protocolIds) {
+    const positions = positionsByProtocol[protocolId] ?? [];
+    const collateralUsd = positions.reduce(
+      (sum, p) => sum + valueExposure(p.collateral, basePrices),
+      0
+    );
+
+    const estimate = estimateInsolvencyThresholdForProtocol({
+      config,
+      protocolId,
+      protocolCollateralUsd: collateralUsd,
+      computeBadDebtUsdAtShock: (shockPercentage: number) => {
+        const pricesAfter = applyShockToPrices(basePrices, shockPercentage, config.shockedAssets);
+        const results = simulateProtocols({
+          protocolIds: [protocolId],
+          positionsByProtocol,
+          pricesBefore: basePrices,
+          pricesAfter,
+          config: { ...config, shockPercentage, protocols: [protocolId] },
+        });
+        return results[0]?.totalBadDebtUsd ?? 0;
+      },
+    });
+
+    if (estimate) insolvencyThresholds[protocolId] = estimate;
+  }
+
+  return buildRiskSimulationResult(config, prices, protocolResults, insolvencyThresholds);
 }
 

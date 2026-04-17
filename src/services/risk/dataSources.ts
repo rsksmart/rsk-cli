@@ -1,71 +1,74 @@
 import { AssetPriceMap, AssetSymbol, BorrowPosition, ProtocolId } from "./types.js";
+import { logWarning } from "../../utils/logger.js";
 
-/**
- * Mapping from internal asset symbols to CoinGecko IDs.
- * These IDs can be adjusted as we refine asset coverage.
- */
-const COINGECKO_IDS: Record<AssetSymbol, string> = {
-  // Rootstock BTC
-  rbtc: "rootstock", // Placeholder; align with actual CoinGecko ID for RBTC if different
-  // RIF token
+const COINGECKO_IDS: Partial<Record<AssetSymbol, string>> = {
+  rbtc: "rootstock",
   rif: "rif-token",
-  // Dollar on Chain / DLLR
   dllr: "dllr",
-  // Sovryn governance token
   sov: "sovryn",
-  // Synthetic USD (we treat this as 1 USD using CoinGecko's usd price)
-  usd: "usd",
 };
 
 const COINGECKO_BASE_URL = "https://api.coingecko.com/api/v3";
 
-// Sovryn v1 subgraph / indexer endpoint.
-// NOTE: The base URL MUST NOT include a trailing `/graphql` when used
-// with POST { query } bodies, otherwise the subgraph name is invalid.
-// Can be overridden via SOVRYN_SUBGRAPH_URL environment variable if needed.
 export const SOVRYN_SUBGRAPH_URL =
   process.env.SOVRYN_SUBGRAPH_URL ||
   "https://subgraph.sovryn.app/subgraphs/name/DistributedCollective/sovryn-subgraph";
 
-// TODO: Replace this placeholder with the actual Tropykus v2 subgraph / indexer endpoint when available.
 export const TROPYKUS_SUBGRAPH_URL =
   process.env.TROPYKUS_SUBGRAPH_URL || "https://TROPYKUS_SUBGRAPH_URL_TODO";
 
 export interface PriceFetchOptions {
   vsCurrency?: string;
   assets?: AssetSymbol[];
+  timeoutMs?: number;
+  isExternal?: boolean;
 }
 
 export async function fetchAssetPrices(
   options: PriceFetchOptions = {}
 ): Promise<AssetPriceMap> {
   const vsCurrency = options.vsCurrency ?? "usd";
-  const assets: AssetSymbol[] = options.assets ?? (Object.keys(COINGECKO_IDS) as AssetSymbol[]);
+  const assets: AssetSymbol[] =
+    options.assets ?? (Object.keys(COINGECKO_IDS) as AssetSymbol[]);
+  const timeoutMs = options.timeoutMs ?? 30000;
+  const isExternal = options.isExternal ?? false;
 
   const ids = assets
     .map((symbol) => COINGECKO_IDS[symbol])
-    .filter(Boolean)
+    .filter((v): v is string => typeof v === "string")
     .join(",");
 
-  if (!ids) {
-    return {};
-  }
+  const priceMap: AssetPriceMap = { usd: 1 };
+  if (!ids) return priceMap;
 
   const url = `${COINGECKO_BASE_URL}/simple/price?ids=${encodeURIComponent(
     ids
   )}&vs_currencies=${encodeURIComponent(vsCurrency)}`;
 
-  const response = await fetch(url);
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
+  let response: Response;
+  try {
+    response = await fetch(url, { signal: controller.signal });
+  } finally {
+    clearTimeout(timeoutId);
+  }
+
   if (!response.ok) {
-    throw new Error(`Failed to fetch prices from CoinGecko: ${response.status} ${response.statusText}`);
+    throw new Error(
+      `Failed to fetch prices from CoinGecko: ${response.status} ${response.statusText}`
+    );
   }
 
   const data = (await response.json()) as Record<string, Record<string, number>>;
 
-  const priceMap: AssetPriceMap = {};
-
   for (const symbol of assets) {
     const id = COINGECKO_IDS[symbol];
+    if (!id) {
+      logWarning(isExternal, `Unpriced asset symbol: ${symbol}`);
+      continue;
+    }
     const entry = data[id];
     if (entry && typeof entry[vsCurrency] === "number") {
       priceMap[symbol] = entry[vsCurrency];
@@ -80,6 +83,8 @@ export interface PositionFetchOptions {
    * Optional hint to use testnet endpoints or mocks.
    */
   testnet?: boolean;
+  timeoutMs?: number;
+  isExternal?: boolean;
 }
 
 interface RawPosition {
@@ -92,17 +97,23 @@ interface RawPosition {
   liquidationThreshold?: string | number | null;
 }
 
-async function fetchJson<T>(url: string, query: string): Promise<T> {
+async function fetchGraphQL<T>(params: {
+  url: string;
+  query: string;
+  variables?: Record<string, any>;
+  timeoutMs: number;
+}): Promise<T> {
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 30000);
+  const timeoutId = setTimeout(() => controller.abort(), params.timeoutMs);
 
   try {
-    const response = await fetch(url, {
+    const response = await fetch(params.url, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
+        Accept: "application/json",
       },
-      body: JSON.stringify({ query }),
+      body: JSON.stringify({ query: params.query, variables: params.variables }),
       signal: controller.signal,
     });
 
@@ -116,24 +127,13 @@ async function fetchJson<T>(url: string, query: string): Promise<T> {
   }
 }
 
-// Map protocol-specific token symbols to our internal AssetSymbol set.
-// This avoids mis-pricing Sovryn tokens as RBTC.
 const SYMBOL_TO_ASSET: Record<string, AssetSymbol> = {
-  // Rootstock BTC variants
   rbtc: "rbtc",
   wrbtc: "rbtc",
-
-  // Sovryn governance token
   sov: "sov",
-
-  // Stablecoins treated as USD
   xusd: "usd",
   doc: "usd",
-
-  // DLLR
   dllr: "dllr",
-
-  // RIF
   rif: "rif",
 };
 
@@ -142,10 +142,37 @@ function resolveAssetSymbol(symbol: string): AssetSymbol {
   if (SYMBOL_TO_ASSET[lower]) {
     return SYMBOL_TO_ASSET[lower];
   }
-
-  // Fallback: treat unknown tokens as USD to avoid extreme mispricing,
-  // rather than defaulting to RBTC.
   return "usd";
+}
+
+const TOKEN_DECIMALS_BY_SYMBOL: Record<string, number> = {
+  wrbtc: 18,
+  rbtc: 18,
+  sov: 18,
+  xusd: 18,
+  doc: 18,
+  dllr: 18,
+  rif: 18,
+};
+
+function parseTokenAmount(params: { raw: string; decimals: number }): number {
+  const s = String(params.raw ?? "").trim();
+  if (!s) return 0;
+
+  if (s.includes(".")) {
+    const n = Number(s);
+    return Number.isFinite(n) ? n : 0;
+  }
+
+  if (!/^\d+$/.test(s)) return 0;
+
+  const decimals = Math.max(0, Math.min(36, params.decimals));
+  const base = 10n ** BigInt(decimals);
+  const bi = BigInt(s);
+  const whole = Number(bi / base);
+  const frac = Number(bi % base) / Number(base);
+  const out = whole + frac;
+  return Number.isFinite(out) ? out : 0;
 }
 
 function mapRawPositionsToBorrowPositions(
@@ -156,8 +183,19 @@ function mapRawPositionsToBorrowPositions(
     const collateralAsset = resolveAssetSymbol(p.collateralAsset);
     const debtAsset = resolveAssetSymbol(p.borrowAsset);
 
-    const collateralAmount = Number(p.collateralAmount) || 0;
-    const debtAmount = Number(p.borrowAmount) || 0;
+    const collateralDecimals =
+      TOKEN_DECIMALS_BY_SYMBOL[p.collateralAsset.toLowerCase()] ?? 18;
+    const debtDecimals =
+      TOKEN_DECIMALS_BY_SYMBOL[p.borrowAsset.toLowerCase()] ?? 18;
+
+    const collateralAmount = parseTokenAmount({
+      raw: p.collateralAmount,
+      decimals: collateralDecimals,
+    });
+    const debtAmount = parseTokenAmount({
+      raw: p.borrowAmount,
+      decimals: debtDecimals,
+    });
 
     return {
       id: p.id,
@@ -182,24 +220,23 @@ function mapRawPositionsToBorrowPositions(
 async function fetchSovrynBorrowerPositions(
   options: PositionFetchOptions
 ): Promise<BorrowPosition[]> {
-  void options;
+  const timeoutMs = options.timeoutMs ?? 30000;
+  const isExternal = options.isExternal ?? false;
 
-  // Exact query confirmed working in Sovryn GraphiQL UI.
   const query = `
-    query SovrynLoans {
-      loans(first: 1000) {
+    query SovrynLoans($lastId: ID) {
+      loans(
+        first: 1000,
+        orderBy: id,
+        orderDirection: asc,
+        where: { id_gt: $lastId }
+      ) {
         id
         borrowedAmount
         positionSize
-        user {
-          id
-        }
-        loanToken {
-          symbol
-        }
-        collateralToken {
-          symbol
-        }
+        user { id }
+        loanToken { symbol }
+        collateralToken { symbol }
       }
     }
   `;
@@ -220,78 +257,64 @@ async function fetchSovrynBorrowerPositions(
   };
 
   try {
-    // Use a direct POST with a { query } JSON body, matching typical GraphQL usage.
-    const httpResponse = await fetch(SOVRYN_SUBGRAPH_URL, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Accept": "application/json",
-      },
-      body: JSON.stringify({ query }),
-    });
+    const allLoans: SovrynLoan[] = [];
+    let lastId: string | null = "";
 
-    const text = await httpResponse.text();
-
-    if (!httpResponse.ok) {
-      console.warn(
-        "[risk][dataSources] Sovryn loans HTTP error:",
-        httpResponse.status,
-        httpResponse.statusText,
-        "- body:",
-        text.slice(0, 300)
-      );
-      return [];
-    }
-
-    let json: {
+    type SovrynLoansResponse = {
       data?: { loans?: SovrynLoan[] };
       errors?: Array<{ message: string }>;
     };
 
-    try {
-      json = JSON.parse(text);
-    } catch (parseError) {
-      console.warn(
-        "[risk][dataSources] Sovryn loans response was not valid JSON. First 300 chars:",
-        text.slice(0, 300)
-      );
-      return [];
+    for (let page = 0; page < 50; page++) {
+      const resp: SovrynLoansResponse = await fetchGraphQL<SovrynLoansResponse>({
+        url: SOVRYN_SUBGRAPH_URL,
+        query,
+        variables: { lastId },
+        timeoutMs,
+      });
+
+      if (resp.errors && resp.errors.length > 0) {
+        logWarning(
+          isExternal,
+          `Sovryn subgraph GraphQL errors: ${resp.errors
+            .map((e: { message: string }) => e.message)
+            .join(", ")}`
+        );
+        return [];
+      }
+
+      const loans: SovrynLoan[] = resp.data?.loans ?? [];
+      if (loans.length === 0) break;
+
+      allLoans.push(...loans);
+      lastId = loans[loans.length - 1]?.id ?? lastId;
+      if (loans.length < 1000) break;
     }
 
-    if (json.errors && json.errors.length > 0) {
-      console.warn(
-        "[risk][dataSources] Sovryn loans query returned GraphQL errors:",
-        json.errors.map((e) => e.message).join(", ")
-      );
-      return [];
-    }
-
-    const loans = json.data?.loans ?? [];
-
-    const rawPositions: RawPosition[] = loans
+    const rawPositions: RawPosition[] = allLoans
       .filter(
         (loan) =>
-          loan.borrowedAmount &&
-          loan.positionSize &&
-          loan.user &&
-          loan.loanToken &&
-          loan.collateralToken
+          loan.user?.id &&
+          loan.loanToken?.symbol &&
+          loan.collateralToken?.symbol &&
+          loan.borrowedAmount != null &&
+          loan.positionSize != null
       )
       .map((loan) => ({
         id: loan.id,
         borrower: loan.user!.id,
         collateralAsset: loan.collateralToken!.symbol,
-        collateralAmount: loan.positionSize as string,
+        collateralAmount: String(loan.positionSize ?? ""),
         borrowAsset: loan.loanToken!.symbol,
-        borrowAmount: loan.borrowedAmount as string,
+        borrowAmount: String(loan.borrowedAmount ?? ""),
         liquidationThreshold: null,
       }));
 
     return mapRawPositionsToBorrowPositions(rawPositions, "sovryn-v1");
   } catch (error: any) {
-    console.warn(
-      "[risk][dataSources] Failed to fetch Sovryn borrower positions:",
-      error?.message || String(error)
+    logWarning(
+      isExternal,
+      `Failed to fetch Sovryn borrower positions: ${error?.message || String(error)}`
     );
     return [];
   }
@@ -300,8 +323,6 @@ async function fetchSovrynBorrowerPositions(
 async function fetchTropykusBorrowerPositions(
   options: PositionFetchOptions
 ): Promise<BorrowPosition[]> {
-  // Tropykus integration is currently disabled. We return an empty
-  // array without logging to avoid noisy output in the CLI.
   void options;
   return [];
 }

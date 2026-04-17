@@ -2,16 +2,12 @@ import { RiskSimulationConfig, RiskSimulationResult } from "../../services/risk/
 import { runRiskSimulation } from "../../services/risk/engine.js";
 import { createSpinner } from "../../utils/spinner.js";
 import { logError, logInfo } from "../../utils/logger.js";
+import { formatNumber } from "../../utils/format.js";
 
 export interface RiskReportCliOptions {
   format?: "table" | "json";
   shock?: number;
   isExternal?: boolean;
-}
-
-function formatNumber(value: number, decimals = 2): string {
-  if (!isFinite(value)) return "∞";
-  return value.toFixed(decimals);
 }
 
 function buildHighLevelTable(result: RiskSimulationResult): string {
@@ -54,14 +50,18 @@ export async function riskReportCommand(
   const format = options.format ?? "json";
 
   const shock = options.shock ?? 40;
-  if (shock <= 0) {
-    logError(isExternal, "Shock percentage must be greater than zero.");
+  if (!Number.isFinite(shock)) {
+    logError(isExternal, "Shock percentage must be a number.");
+    return;
+  }
+
+  if (shock <= 0 || shock >= 100) {
+    logError(isExternal, "Shock percentage must be between 0 and 100.");
     return;
   }
 
   const config: RiskSimulationConfig = {
     shockPercentage: shock,
-    // For now, only include Sovryn v1. Tropykus can be re-enabled later.
     protocols: ["sovryn-v1"],
     protocolConfigs: {},
   };
@@ -82,7 +82,6 @@ export async function riskReportCommand(
       return result;
     }
 
-    // JSON output, suitable for CI/CD and machine consumption.
     const json = JSON.stringify(result, null, 2);
     logInfo(isExternal, json);
     return result;

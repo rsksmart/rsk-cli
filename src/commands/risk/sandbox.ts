@@ -2,16 +2,12 @@ import { RiskSimulationConfig, RiskSimulationResult } from "../../services/risk/
 import { runRiskSimulation } from "../../services/risk/engine.js";
 import { createSpinner } from "../../utils/spinner.js";
 import { logError, logInfo, logSuccess } from "../../utils/logger.js";
+import { formatNumber } from "../../utils/format.js";
 
 export interface RiskSandboxCliOptions {
   ltv?: number;
   threshold?: number;
   isExternal?: boolean;
-}
-
-function formatNumber(value: number, decimals = 2): string {
-  if (!isFinite(value)) return "∞";
-  return value.toFixed(decimals);
 }
 
 function buildComparisonSummaryTable(
@@ -72,8 +68,18 @@ export async function riskSandboxCommand(
 ): Promise<{ base: RiskSimulationResult; sandbox: RiskSimulationResult } | void> {
   const isExternal = options.isExternal ?? false;
 
+  if (options.ltv !== undefined && !Number.isFinite(options.ltv)) {
+    logError(isExternal, "LTV must be a number.");
+    return;
+  }
+
   if (options.ltv !== undefined && (options.ltv <= 0 || options.ltv >= 100)) {
     logError(isExternal, "LTV must be between 0 and 100 (exclusive).");
+    return;
+  }
+
+  if (options.threshold !== undefined && !Number.isFinite(options.threshold)) {
+    logError(isExternal, "Liquidation threshold must be a number.");
     return;
   }
 
@@ -91,10 +97,8 @@ export async function riskSandboxCommand(
   const spinner = createSpinner(isExternal);
 
   try {
-    // Run base simulation with default protocol parameters and a moderate shock.
     const baseConfig: RiskSimulationConfig = {
       shockPercentage: 30,
-      // Focus on Sovryn v1 for now; Tropykus will be enabled later.
       protocols: ["sovryn-v1"],
       protocolConfigs: {},
     };

@@ -2,6 +2,7 @@ import { RiskSimulationConfig, RiskSimulationResult, AssetSymbol } from "../../s
 import { runRiskSimulation } from "../../services/risk/engine.js";
 import { createSpinner } from "../../utils/spinner.js";
 import { logError, logInfo, logSuccess } from "../../utils/logger.js";
+import { formatNumber } from "../../utils/format.js";
 
 export interface RiskSimulateCliOptions {
   shock: number;
@@ -9,10 +10,7 @@ export interface RiskSimulateCliOptions {
   isExternal?: boolean;
 }
 
-function formatNumber(value: number, decimals = 2): string {
-  if (!isFinite(value)) return "∞";
-  return value.toFixed(decimals);
-}
+const ALLOWED_ASSETS: AssetSymbol[] = ["rbtc", "rif", "dllr", "sov", "usd"];
 
 function buildProtocolSummaryTable(result: RiskSimulationResult): string {
   const headers = [
@@ -60,18 +58,28 @@ export async function riskSimulateCommand(
 ): Promise<RiskSimulationResult | void> {
   const isExternal = options.isExternal ?? false;
 
-  if (options.shock <= 0) {
-    logError(isExternal, "Shock percentage must be greater than zero.");
+  if (!Number.isFinite(options.shock)) {
+    logError(isExternal, "Shock percentage must be a number.");
+    return;
+  }
+
+  if (options.shock <= 0 || options.shock >= 100) {
+    logError(isExternal, "Shock percentage must be between 0 and 100.");
+    return;
+  }
+
+  const asset = options.asset?.toLowerCase();
+  if (asset && !ALLOWED_ASSETS.includes(asset as AssetSymbol)) {
+    logError(
+      isExternal,
+      `Invalid asset "${options.asset}". Allowed: ${ALLOWED_ASSETS.join(", ")}`
+    );
     return;
   }
 
   const config: RiskSimulationConfig = {
     shockPercentage: options.shock,
-    shockedAssets: options.asset
-      ? [options.asset.toLowerCase() as AssetSymbol]
-      : undefined,
-    // Currently we only rely on Sovryn v1 data; Tropykus will be added
-    // back once its indexer/subgraph is stable.
+    shockedAssets: asset ? [asset as AssetSymbol] : undefined,
     protocols: ["sovryn-v1"],
     protocolConfigs: {},
   };
