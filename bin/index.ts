@@ -20,7 +20,6 @@ import { configCommand } from "../src/commands/config.js";
 import { transactionCommand } from "../src/commands/transaction.js";
 import { pipeCommand } from "../src/commands/pipe.js";
 import { monitorCommand, listMonitoringSessions, stopMonitoringSession } from "../src/commands/monitor.js";
-import { attestationCommand } from "../src/commands/attestation.js";
 import { gasCommand } from "../src/commands/gas.js";
 import { simulateCommand, TransactionSimulationOptions } from "../src/commands/simulate.js";
 import { parseEther } from "viem";
@@ -29,12 +28,14 @@ import { validateAndFormatAddressRSK } from "../src/utils/index.js";
 import { rnsUpdateCommand } from "../src/commands/rnsUpdate.js";
 import { rnsTransferCommand } from "../src/commands/rnsTransfer.js";
 import { rnsRegisterCommand } from "../src/commands/rnsRegister.js";
+import { swapCommand } from "../src/commands/swap.js";
 
 interface CommandOptions {
   testnet?: boolean;
   address?: Address;
   contract?: Address;
   value?: string;
+  amount?: string;
   txid?: string;
   abi?: string;
   bytecode?: string;
@@ -81,6 +82,13 @@ interface CommandOptions {
   attestRecipient?: string;
   attestReason?: string;
   rns?: string;
+  btcAddress?: string;
+  liquidity?: boolean;
+  pegin?: boolean;
+  pegout?: boolean;
+  provider?: string;
+  trustedWallet?: string;
+  trustedPrivateKey?: string;
 }
 
 const orange = chalk.rgb(255, 165, 0);
@@ -137,6 +145,52 @@ program
       walletName: options.wallet!,
       address: holderAddress,
     });
+  });
+
+program
+  .command("swap")
+  .description("Swap BTC <-> RBTC using the Flyover protocol")
+  .option("-t, --testnet", "Use testnet network")
+  .option("--liquidity", "Show available liquidity providers (quote only)")
+  .option("--pegin", "Peg-in: convert BTC -> RBTC (requires --amount)")
+  .option("--pegout", "Peg-out: convert RBTC -> BTC (requires --amount and --btc-address)")
+  .option("--amount <amount>", "Amount in BTC (for --pegin) or RBTC (for --pegout)")
+  .option("--btc-address <address>", "Destination BTC address (required for --pegout)")
+  .option(
+    "--provider <name-or-url>",
+    "Force a specific liquidity provider by name or apiBaseUrl (optional)"
+  )
+  .option(
+    "--trusted-wallet <name>",
+    "Use a trusted (whitelisted) Rootstock wallet name to accept quotes without captcha (optional)"
+  )
+  .option(
+    "--trusted-private-key <hex>",
+    "Use a trusted (whitelisted) private key to accept quotes without captcha (optional; avoid using in shared shells)"
+  )
+  .option("-i, --interactive", "Run guided interactive swap flow")
+  .option("--wallet <name>", "Wallet name to use for signing (optional; defaults to current wallet)")
+  .action(async (options: CommandOptions) => {
+    try {
+      const amount = options.amount ? parseFloat(options.amount) : undefined;
+
+      await swapCommand({
+        testnet: options.testnet,
+        liquidity: !!options.liquidity,
+        pegin: !!options.pegin,
+        pegout: !!options.pegout,
+        amount: amount && !Number.isNaN(amount) ? amount : undefined,
+        btcAddress: options.btcAddress,
+        provider: options.provider,
+        trustedWalletName: options.trustedWallet,
+        trustedPrivateKey: options.trustedPrivateKey,
+        interactive: !!options.interactive,
+        walletName: options.wallet,
+        isExternal: false,
+      });
+    } catch (error: any) {
+      logError(false, `Error during swap: ${error.message || error}`);
+    }
   });
 
 program
@@ -683,6 +737,10 @@ program
   .option("--revocable", "Whether the schema should be revocable (for schema action)")
   .action(async (options: CommandOptions) => {
     try {
+      // Lazy-load to avoid eager importing heavy EAS SDK.
+      // This also prevents startup crashes when the dependency's ESM subpath resolution is broken.
+      const { attestationCommand } = await import("../src/commands/attestation.js");
+
       if (!options.action || !['create', 'verify', 'revoke', 'list', 'schema'].includes(options.action)) {
         console.error(chalk.red("🚨 Invalid action. Use: create, verify, revoke, list, or schema"));
         return;
