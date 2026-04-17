@@ -87,6 +87,8 @@ interface CommandOptions {
   pegin?: boolean;
   pegout?: boolean;
   provider?: string;
+  trustedWallet?: string;
+  trustedPrivateKey?: string;
 }
 
 const orange = chalk.rgb(255, 165, 0);
@@ -158,6 +160,14 @@ program
     "--provider <name-or-url>",
     "Force a specific liquidity provider by name or apiBaseUrl (optional)"
   )
+  .option(
+    "--trusted-wallet <name>",
+    "Use a trusted (whitelisted) Rootstock wallet name to accept quotes without captcha (optional)"
+  )
+  .option(
+    "--trusted-private-key <hex>",
+    "Use a trusted (whitelisted) private key to accept quotes without captcha (optional; avoid using in shared shells)"
+  )
   .option("-i, --interactive", "Run guided interactive swap flow")
   .option("--wallet <name>", "Wallet name to use for signing (optional; defaults to current wallet)")
   .action(async (options: CommandOptions) => {
@@ -172,6 +182,8 @@ program
         amount: amount && !Number.isNaN(amount) ? amount : undefined,
         btcAddress: options.btcAddress,
         provider: options.provider,
+        trustedWalletName: options.trustedWallet,
+        trustedPrivateKey: options.trustedPrivateKey,
         interactive: !!options.interactive,
         walletName: options.wallet,
         isExternal: false,

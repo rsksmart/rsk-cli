@@ -21,6 +21,10 @@ export type SwapCommandOptions = {
   password?: string;
   walletName?: string;
 
+  // Trusted accounts (captcha bypass)
+  trustedWalletName?: string;
+  trustedPrivateKey?: string;
+
   // Operation selection
   liquidity?: boolean;
   pegin?: boolean;
@@ -127,7 +131,7 @@ async function createBlockchainConnectionFromWallet(params: {
   walletsData?: WalletData;
   password?: string;
   spinner?: SpinnerWrapper;
-}): Promise<{ rskAddress: string; connection: BlockchainConnection }> {
+}): Promise<{ rskAddress: string; connection: BlockchainConnection; resolvedWalletName: string }> {
   const isTestnet = params.testnet;
   const rpcUrl = getRskRpcUrl(isTestnet);
 
@@ -160,6 +164,7 @@ async function createBlockchainConnectionFromWallet(params: {
     return {
       rskAddress: toFlyoverRskAddress(wallet.address, isTestnet),
       connection,
+      resolvedWalletName: params.walletName!,
     };
   }
 
@@ -193,6 +198,39 @@ async function createBlockchainConnectionFromWallet(params: {
   return {
     rskAddress: toFlyoverRskAddress(wallet.address, isTestnet),
     connection,
+    resolvedWalletName,
+  };
+}
+
+async function createBlockchainConnectionFromPrivateKey(params: {
+  testnet: boolean;
+  privateKey: string;
+}): Promise<{ rskAddress: string; connection: BlockchainConnection }> {
+  const isTestnet = params.testnet;
+  const rpcUrl = getRskRpcUrl(isTestnet);
+  const privateKey = params.privateKey.trim().startsWith("0x")
+    ? params.privateKey.trim()
+    : `0x${params.privateKey.trim()}`;
+
+  const provider = new ethers.providers.JsonRpcProvider(rpcUrl);
+  const walletObj = new ethers.Wallet(privateKey, provider);
+
+  // bridges-core-sdk expects encrypted JSON + password.
+  // We'll generate a throwaway password since we already have the raw private key.
+  const tempPassword = crypto.randomBytes(16).toString("hex");
+  const encryptedJson = await walletObj.encrypt(tempPassword);
+  const encryptedJsonObj =
+    typeof encryptedJson === "string" ? JSON.parse(encryptedJson) : encryptedJson;
+
+  const connection = await BlockchainConnection.createUsingEncryptedJson(
+    encryptedJsonObj,
+    tempPassword,
+    rpcUrl
+  );
+
+  return {
+    rskAddress: toFlyoverRskAddress(walletObj.address, isTestnet),
+    connection,
   };
 }
 
@@ -204,6 +242,22 @@ function toFlyoverRskAddress(address: string, isTestnet: boolean): string {
   const chainId = isTestnet ? 31 : 30;
   // Flyover SDK validates checksum, so we must provide a checksummed address.
   return FlyoverUtils.rskChecksum(address, chainId);
+}
+
+function normalizeWalletLabel(name?: string): string {
+  return String(name || "").trim().toLowerCase();
+}
+
+function rethrowIfTrustedAccountRejected(error: unknown): never {
+  const msg = error instanceof Error ? error.message : String(error);
+  if (/trusted account/i.test(msg) || /fetching trusted/i.test(msg)) {
+    throw new Error(
+      "The liquidity provider rejected authenticated (trusted) quote acceptance. " +
+        "Your Rootstock address must be allowlisted on that LP, or use a valid captcha token (set FLYOVER_CAPTCHA_TOKEN) and run without --trusted-wallet. " +
+        "Ask the LP operator to add your address to trusted accounts on their LPS."
+    );
+  }
+  throw error instanceof Error ? error : new Error(msg);
 }
 
 async function resolveCaptchaToken(params: {
@@ -319,6 +373,65 @@ function selectProvider(params: {
   return providers.find((p) => !p?.siteKey) ?? providers[0];
 }
 
+async function createTrustedFlyoverSigner(params: {
+  isTestnet: boolean;
+  isExternal: boolean;
+  trustedWalletName?: string;
+  trustedPrivateKey?: string;
+  walletsData?: WalletData;
+  password?: string;
+  spinner?: SpinnerWrapper;
+  /** When the trusted wallet is the same as the signing wallet, reuse this connection (one password prompt). */
+  reuseSigner?: { rskAddress: string; connection: BlockchainConnection };
+}): Promise<{ trustedAddress: string; trustedFlyover: Flyover } | null> {
+  const trustedWalletName = (params.trustedWalletName || "").trim();
+  const trustedPrivateKey = (params.trustedPrivateKey || "").trim();
+
+  if (!trustedWalletName && !trustedPrivateKey) return null;
+
+  if (trustedWalletName && trustedPrivateKey) {
+    throw new Error("Please provide only one of trustedWalletName or trustedPrivateKey.");
+  }
+
+  let rskAddress: string;
+  let connection: BlockchainConnection;
+
+  if (trustedPrivateKey) {
+    const created = await createBlockchainConnectionFromPrivateKey({
+      testnet: params.isTestnet,
+      privateKey: trustedPrivateKey,
+    });
+    rskAddress = created.rskAddress;
+    connection = created.connection;
+  } else if (params.reuseSigner && trustedWalletName) {
+    rskAddress = params.reuseSigner.rskAddress;
+    connection = params.reuseSigner.connection;
+  } else if (trustedWalletName) {
+    const created = await createBlockchainConnectionFromWallet({
+      testnet: params.isTestnet,
+      isExternal: params.isExternal,
+      walletName: trustedWalletName,
+      walletsData: params.walletsData,
+      password: params.password,
+      spinner: params.spinner,
+    });
+    rskAddress = created.rskAddress;
+    connection = created.connection;
+  } else {
+    return null;
+  }
+
+  const trustedFlyover = new Flyover({
+    network: getFlyoverNetwork(params.isTestnet),
+    rskConnection: connection,
+    // Not used in authenticated acceptance flow, but required by constructor.
+    captchaTokenResolver: async () => "",
+    allowInsecureConnections: false,
+  });
+
+  return { trustedAddress: rskAddress, trustedFlyover };
+}
+
 async function handlePegIn(_params: {
   isTestnet: boolean;
   amount: number;
@@ -328,6 +441,8 @@ async function handlePegIn(_params: {
   password?: string;
   spinner?: SpinnerWrapper;
   provider?: string;
+  trustedWalletName?: string;
+  trustedPrivateKey?: string;
 }): Promise<Pick<
   NonNullable<SwapResult["data"]>,
   "txHash" | "totalFeeEstimate" | "quoteExpiresAt" | "depositAddress"
@@ -339,7 +454,7 @@ async function handlePegIn(_params: {
     _params;
   const amountWei = parseUnits(amount.toString(), 18);
 
-  const { rskAddress, connection } = await createBlockchainConnectionFromWallet({
+  const { rskAddress, connection, resolvedWalletName } = await createBlockchainConnectionFromWallet({
     testnet: isTestnet,
     isExternal,
     walletName,
@@ -347,6 +462,11 @@ async function handlePegIn(_params: {
     password,
     spinner,
   });
+
+  const reuseTrustedConnection =
+    !_params.trustedPrivateKey &&
+    !!_params.trustedWalletName?.trim() &&
+    normalizeWalletLabel(_params.trustedWalletName) === normalizeWalletLabel(resolvedWalletName);
 
   let selectedProvider: any;
   const captchaTokenResolver = async () =>
@@ -416,7 +536,30 @@ async function handlePegIn(_params: {
   logInfo(isExternal, `⛽ Required confirmations: ${quote.quote.confirmations}`);
   logInfo(isExternal, `⏳ Quote expires at: ${quoteExpiresAt}`);
 
-  const accepted = await flyover.acceptQuote(quote);
+  const trusted = await createTrustedFlyoverSigner({
+    isTestnet,
+    isExternal,
+    trustedWalletName: _params.trustedWalletName,
+    trustedPrivateKey: _params.trustedPrivateKey,
+    walletsData,
+    password,
+    spinner,
+    reuseSigner: reuseTrustedConnection ? { rskAddress, connection } : undefined,
+  });
+
+  let accepted: any;
+  if (trusted) {
+    trusted.trustedFlyover.useLiquidityProvider(selectedProvider);
+    const signature = await (trusted.trustedFlyover as any).signQuote(quote);
+    logInfo(isExternal, `🔐 Using trusted account to accept quote: ${trusted.trustedAddress}`);
+    try {
+      accepted = await (flyover as any).acceptAuthenticatedQuote(quote, signature);
+    } catch (e) {
+      rethrowIfTrustedAccountRejected(e);
+    }
+  } else {
+    accepted = await flyover.acceptQuote(quote);
+  }
   void accepted; // signature is not used directly by this CLI for peg-in display
 
   const status = await flyover.getPeginStatus(quote.quoteHash);
@@ -455,6 +598,8 @@ async function handlePegOut(_params: {
   password?: string;
   spinner?: SpinnerWrapper;
   provider?: string;
+  trustedWalletName?: string;
+  trustedPrivateKey?: string;
 }): Promise<Pick<
   NonNullable<SwapResult["data"]>,
   "txHash" | "totalFeeEstimate" | "quoteExpiresAt"
@@ -487,7 +632,7 @@ async function handlePegOut(_params: {
     throw new Error(`Invalid BTC address for ${isTestnet ? "testnet" : "mainnet"}`);
   }
 
-  const { rskAddress, connection } = await createBlockchainConnectionFromWallet({
+  const { rskAddress, connection, resolvedWalletName } = await createBlockchainConnectionFromWallet({
     testnet: isTestnet,
     isExternal,
     walletName,
@@ -495,6 +640,11 @@ async function handlePegOut(_params: {
     password,
     spinner,
   });
+
+  const reuseTrustedConnection =
+    !_params.trustedPrivateKey &&
+    !!_params.trustedWalletName?.trim() &&
+    normalizeWalletLabel(_params.trustedWalletName) === normalizeWalletLabel(resolvedWalletName);
 
   let selectedProvider: any;
   const captchaTokenResolver = async () =>
@@ -551,7 +701,30 @@ async function handlePegOut(_params: {
   );
   logInfo(isExternal, `⏳ Quote expires at: ${quoteExpiresAt}`);
 
-  const acceptedQuote = await flyover.acceptPegoutQuote(quote);
+  const trusted = await createTrustedFlyoverSigner({
+    isTestnet,
+    isExternal,
+    trustedWalletName: _params.trustedWalletName,
+    trustedPrivateKey: _params.trustedPrivateKey,
+    walletsData,
+    password,
+    spinner,
+    reuseSigner: reuseTrustedConnection ? { rskAddress, connection } : undefined,
+  });
+
+  let acceptedQuote: any;
+  if (trusted) {
+    trusted.trustedFlyover.useLiquidityProvider(selectedProvider);
+    const signature = await (trusted.trustedFlyover as any).signQuote(quote);
+    logInfo(isExternal, `🔐 Using trusted account to accept quote: ${trusted.trustedAddress}`);
+    try {
+      acceptedQuote = await (flyover as any).acceptAuthenticatedPegoutQuote(quote, signature);
+    } catch (e) {
+      rethrowIfTrustedAccountRejected(e);
+    }
+  } else {
+    acceptedQuote = await flyover.acceptPegoutQuote(quote);
+  }
   const txHash = await flyover.depositPegout(quote, acceptedQuote.signature, totalFeeEstimateWei);
 
   logSuccess(isExternal, `✅ Peg-out transaction executed. TxHash: ${txHash}`);
@@ -714,6 +887,8 @@ export async function swapCommand(
         password: params.password,
         spinner,
         provider: params.provider,
+        trustedWalletName: params.trustedWalletName,
+        trustedPrivateKey: params.trustedPrivateKey,
       });
 
       spinner.start("⏳ Finalizing peg-in...");
@@ -759,6 +934,8 @@ export async function swapCommand(
       password: params.password,
       spinner,
       provider: params.provider,
+      trustedWalletName: params.trustedWalletName,
+      trustedPrivateKey: params.trustedPrivateKey,
     });
 
     spinner.start("⏳ Finalizing peg-out...");
@@ -775,7 +952,10 @@ export async function swapCommand(
     const errorMessage =
       error instanceof Error ? error.message : "Error executing swap (unknown error).";
     spinner.fail(chalk.red(`❌ ${errorMessage}`));
-    logError(params.isExternal || false, errorMessage);
+    // Avoid duplicating the same line on the console for non-external (MCP) runs.
+    if (params.isExternal) {
+      logError(true, errorMessage);
+    }
     return { success: false, error: errorMessage };
   } finally {
     if (!params.isExternal) {

@@ -1167,6 +1167,8 @@ rsk-cli swap --testnet --liquidity
 rsk-cli swap --testnet --pegin --amount 0.1
 # Force a specific LP by name or URL
 rsk-cli swap --testnet --pegin --amount 0.1 --provider "teks-staging"
+# Bypass captcha using a trusted (whitelisted) account (recommended for automation)
+rsk-cli swap --testnet --pegin --amount 0.1 --trusted-wallet <trustedWalletName>
 ```
 
 #### Peg-out (RBTC -> BTC)
@@ -1175,6 +1177,8 @@ rsk-cli swap --testnet --pegin --amount 0.1 --provider "teks-staging"
 rsk-cli swap --testnet --pegout --amount 0.01 --btc-address <address>
 # Force a specific LP by apiBaseUrl
 rsk-cli swap --testnet --pegout --amount 0.01 --btc-address <address> --provider "https://staging.lps.tekscapital.com"
+# Bypass captcha using a trusted (whitelisted) account (recommended for automation)
+rsk-cli swap --testnet --pegout --amount 0.01 --btc-address <address> --trusted-wallet <trustedWalletName>
 ```
 
 #### Interactive Mode
@@ -1192,6 +1196,8 @@ rsk-cli swap --interactive
 - `--amount <amount>`: Amount in BTC (for `--pegin`) or RBTC (for `--pegout`)
 - `--btc-address <address>`: Destination BTC address (required for `--pegout`)
 - `--provider <name-or-url>`: Force LP selection by provider name or apiBaseUrl
+- `--trusted-wallet <name>`: Use a trusted (whitelisted) Rootstock wallet to accept quotes without captcha
+- `--trusted-private-key <hex>`: Use a trusted (whitelisted) private key to accept quotes without captcha (avoid in shared shells)
 - `--interactive`: Run guided interactive swap flow
 - `--wallet <name>`: Wallet name to use for signing (uses current wallet by default)
 
