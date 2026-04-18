@@ -21,6 +21,7 @@
     "batch-transfer": "pnpm run build && node dist/bin/index.js batch-transfer",
     "history": "pnpm run build && node dist/bin/index.js history",
     "config": "pnpm run build && node dist/bin/index.js config",
+    "contract:read": "pnpm run build && node dist/bin/index.js contract --testnet -a <contract-address>",
     "contract:write": "pnpm run build && node dist/bin/index.js contract --testnet --write -a <contract-address>"
   },
   "keywords": [

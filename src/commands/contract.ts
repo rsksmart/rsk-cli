@@ -6,11 +6,6 @@ import { getExplorerUrl } from "../utils/constants.js";
 import { logError, logSuccess, logInfo, logWarning } from "../utils/logger.js";
 import { createSpinner } from "../utils/spinner.js";
 
-type InquirerAnswers = {
-  selectedFunction?: string;
-  args?: string[];
-};
-
 type ContractCommandOptions = {
   address: `0x${string}`;
   testnet: boolean;
@@ -34,8 +29,25 @@ function coerceArg(value: string, solidityType: string): any {
       throw new Error(`Expected JSON for type ${solidityType}, got: ${value}`);
     }
   }
-  if (/^u?int(\d+)?$/.test(solidityType)) {
-    return BigInt(value);
+  const intMatch = solidityType.match(/^(u?)int(\d+)?$/);
+  if (intMatch) {
+    const isUnsigned = intMatch[1] === "u";
+    const bits = intMatch[2] ? parseInt(intMatch[2], 10) : 256;
+    let parsed: bigint;
+    try {
+      parsed = BigInt(value);
+    } catch {
+      throw new Error(`Invalid integer value for type ${solidityType}: ${value}`);
+    }
+    if (isUnsigned) {
+      if (parsed < 0n) throw new Error(`Type ${solidityType} cannot be negative`);
+      if (parsed >= 2n ** BigInt(bits)) throw new Error(`Value ${value} exceeds maximum for ${solidityType}`);
+    } else {
+      const min = -(2n ** BigInt(bits - 1));
+      const max = 2n ** BigInt(bits - 1) - 1n;
+      if (parsed < min || parsed > max) throw new Error(`Value ${value} is out of range for ${solidityType}`);
+    }
+    return parsed;
   }
   if (solidityType === "address") {
     if (!isValidAddress(value)) throw new Error(`Invalid address: ${value}`);
@@ -75,6 +87,9 @@ function validateAbi(abi: any): boolean {
       if (typeof item.name !== "string") return false;
       if (!Array.isArray(item.inputs)) return false;
       if (typeof item.stateMutability !== "string") return false;
+      for (const input of item.inputs) {
+        if (typeof input.type !== "string") return false;
+      }
     }
   }
   return true;
@@ -226,7 +241,11 @@ export async function contractCommand(
       const provider = new ViemProvider(params.testnet);
       const publicClient = await provider.getPublicClient();
       const { client: walletClient } = await provider.getWalletClientWithPassword(params.wallet);
-      const account = walletClient.account!;
+      if (!walletClient.account) {
+        logError(isExternal, "Wallet account not available.");
+        return { error: "Wallet account not available.", success: false };
+      }
+      const account = walletClient.account;
 
       if (payableValue !== undefined) {
         const balance = await publicClient.getBalance({ address: account.address });
@@ -294,8 +313,11 @@ export async function contractCommand(
         txHash = await walletClient.writeContract(simulateRequest);
       } catch (err: any) {
         spinner.fail("❌ Submission failed.");
-        logError(isExternal, err.shortMessage || err.message || "Failed to submit transaction.");
-        return { error: err.shortMessage || err.message || "Submission failed.", success: false };
+        const submitMsg = isExternal
+          ? "Transaction submission failed."
+          : err.shortMessage || err.message || "Failed to submit transaction.";
+        logError(isExternal, submitMsg);
+        return { error: submitMsg, success: false };
       }
 
       spinner.stop();
@@ -378,23 +400,30 @@ export async function contractCommand(
         };
       }
     } else {
-      const questions: any = [
+      const readFnSignature = (item: any) => {
+        const paramTypes = (item.inputs ?? []).map((i: any) => i.type).join(",");
+        return `${item.name}(${paramTypes})`;
+      };
+
+      const { selectedReadSig } = await inquirer.prompt<{ selectedReadSig: string }>([
         {
           type: "list",
-          name: "selectedFunction",
+          name: "selectedReadSig",
           message: "Select a read function to call:",
-          choices: [...readFunctions.map((item: any) => item.name)],
+          choices: readFunctions.map(readFnSignature),
         },
-      ];
-
-      const answers = await inquirer.prompt<InquirerAnswers>(questions);
-      selectedFunction = answers.selectedFunction!;
-
-      logSuccess(isExternal, `📜 You selected: ${selectedFunction}`);
+      ]);
 
       selectedAbiFunction = readFunctions.find(
-        (item: any) => item.name === selectedFunction
+        (item: any) => readFnSignature(item) === selectedReadSig
       );
+
+      if (!selectedAbiFunction) {
+        return { error: "Selected function not found in ABI.", success: false };
+      }
+
+      selectedFunction = selectedAbiFunction.name;
+      logSuccess(isExternal, `📜 You selected: ${selectedReadSig}`);
     }
 
     let args: any[] = [];
@@ -411,15 +440,15 @@ export async function contractCommand(
         }
         args = params.args;
       } else {
-        const argQuestions = selectedAbiFunction.inputs.map((input: any) => ({
+        const argQuestions = selectedAbiFunction.inputs.map((input: any, idx: number) => ({
           type: "input",
-          name: input.name,
-          message: `Enter the value for argument ${input.name} (${input.type}):`,
+          name: `arg_${idx}`,
+          message: `Enter the value for argument ${input.name || `arg${idx}`} (${input.type}):`,
         }));
 
         const answers = await inquirer.prompt(argQuestions);
         args = selectedAbiFunction.inputs.map(
-          (input: any) => answers[input.name]
+          (_input: any, idx: number) => answers[`arg_${idx}`]
         );
       }
     }
