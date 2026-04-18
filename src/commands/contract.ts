@@ -240,7 +240,7 @@ export async function contractCommand(
 
       const provider = new ViemProvider(params.testnet);
       const publicClient = await provider.getPublicClient();
-      const { client: walletClient } = await provider.getWalletClientWithPassword(params.wallet);
+      const walletClient = await provider.getWalletClient(params.wallet);
       if (!walletClient.account) {
         logError(isExternal, "Wallet account not available.");
         return { error: "Wallet account not available.", success: false };
