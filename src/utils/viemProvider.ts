@@ -82,7 +82,7 @@ class ViemProvider {
     let wallet = wallets[currentWallet];
 
     if (name) {
-      if (!wallets[name]) {
+      if (!Object.hasOwn(wallets, name)) {
         logError(false, "Wallet with the provided name does not exist.");
         throw new Error();
       } else {
@@ -155,7 +155,7 @@ class ViemProvider {
     let walletName = currentWallet;
 
     if (name) {
-      if (!wallets[name]) {
+      if (!Object.hasOwn(wallets, name)) {
         logError(false, "Wallet with the provided name does not exist.");
         throw new Error();
       } else {
