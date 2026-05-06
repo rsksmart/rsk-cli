@@ -27,6 +27,7 @@
   11. [Pipe Commands](#11-pipe-commands)
   12. [Transaction Simulation](#12-transaction-simulation)
   13. [RNS Operations](#13-rns-operations)
+  14. [Devmetrics](#14-devmetrics)
 - [Contributing](#contributing)
 
 ## Installation
@@ -1090,7 +1091,6 @@ Output example:
 > - Both checksummed and non-checksummed addresses are supported
 > - The command will show appropriate error messages if the name or address cannot be resolved
 
-<<<<<<< HEAD
 ### 12. Gas Estimator
 
 The `gas` command allows you to estimate gas costs for transactions and contract interactions on the Rootstock blockchain. It provides detailed analysis including gas price, estimated gas limits, and optimization tips.
@@ -1147,12 +1147,70 @@ The command provides:
 - Cost in RBTC and Wei
 - Recommended gas limits (with buffers)
 - Optimization tips (if applicable)
-=======
->>>>>>> main
+
+### 14. Devmetrics
+
+The `devmetrics` command aggregates GitHub repository activity and Rootstock on-chain contract metrics into a single report.
+
+#### Basic Usage
+
+```bash
+rsk-cli devmetrics \
+  --repo rsksmart/rsk-cli \
+  --contract 0x1234567890abcdef1234567890abcdef12345678
+```
+
+#### Multiple Pairs
+
+You can provide multiple `--repo` and `--contract` values. Pairing rules:
+
+- N repos + N contracts: zipped by position
+- N repos + 1 contract: one contract applied to all repos
+- 1 repo + N contracts: one repo applied to all contracts
+
+```bash
+rsk-cli devmetrics \
+  --repo org/repo-a --repo org/repo-b \
+  --contract 0x1111111111111111111111111111111111111111 \
+  --contract 0x2222222222222222222222222222222222222222 \
+  --network testnet
+```
+
+#### Output Formats
+
+```bash
+rsk-cli devmetrics --repo org/repo --contract 0x1234... --format table
+rsk-cli devmetrics --repo org/repo --contract 0x1234... --format json
+rsk-cli devmetrics --repo org/repo --contract 0x1234... --format markdown
+```
+
+#### CI Mode
+
+Use `--ci` for machine-readable JSON envelope output:
+
+```bash
+rsk-cli devmetrics --repo org/repo --contract 0x1234... --ci
+```
+
+Exit codes in CI mode:
+
+- `0`: all pairs succeeded
+- `2`: partial success (some pairs failed)
+- `1`: all pairs failed
+
+#### Security Notes
+
+- Prefer `GITHUB_TOKEN` environment variable over `--github-token` to avoid secret exposure in shell history/process lists.
+- `--rpc-url` only accepts safe HTTP(S) endpoints and blocks private/local/metadata targets by default.
+- Use `--allow-private-rpc` only when you intentionally need localhost/private RPC hosts.
 
 ## Contributing
 
 We welcome contributions from the community. Please fork the repository and submit pull requests with your changes. Ensure your code adheres to the project's main objective.
+
+## Dependency Note
+
+`@ethereum-attestation-service/eas-sdk` is currently pinned to `2.7.0` for compatibility with the existing attestation command flow in this repository. This dependency is not used by the new `devmetrics` command path. A follow-up maintenance pass should retest `2.9.0` compatibility and upgrade when attestation flows are verified stable.
 
 ## Support
 

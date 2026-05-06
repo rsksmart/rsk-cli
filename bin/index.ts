@@ -20,7 +20,6 @@ import { configCommand } from "../src/commands/config.js";
 import { transactionCommand } from "../src/commands/transaction.js";
 import { pipeCommand } from "../src/commands/pipe.js";
 import { monitorCommand, listMonitoringSessions, stopMonitoringSession } from "../src/commands/monitor.js";
-import { attestationCommand } from "../src/commands/attestation.js";
 import { gasCommand } from "../src/commands/gas.js";
 import { simulateCommand, TransactionSimulationOptions } from "../src/commands/simulate.js";
 import { parseEther } from "viem";
@@ -29,6 +28,7 @@ import { validateAndFormatAddressRSK } from "../src/utils/index.js";
 import { rnsUpdateCommand } from "../src/commands/rnsUpdate.js";
 import { rnsTransferCommand } from "../src/commands/rnsTransfer.js";
 import { rnsRegisterCommand } from "../src/commands/rnsRegister.js";
+import { devMetricsCommand } from "../src/commands/devmetrics.js";
 
 interface CommandOptions {
   testnet?: boolean;
@@ -81,7 +81,17 @@ interface CommandOptions {
   attestRecipient?: string;
   attestReason?: string;
   rns?: string;
+  repo?: string[];
+  format?: string;
+  ci?: boolean;
+  githubToken?: string;
+  network?: string;
+  rpcUrl?: string;
+  allowPrivateRpc?: boolean;
+  maxPairs?: string;
 }
+
+const collectOption = (value: string, previous: string[]): string[] => [...previous, value];
 
 const orange = chalk.rgb(255, 165, 0);
 
@@ -666,6 +676,79 @@ program
   });
 
 program
+  .command("devmetrics")
+  .description("Aggregate GitHub and Rootstock metrics for repository/contract pairs")
+  .option("-r, --repo <repo>", "GitHub repository in format owner/repo (repeatable)", collectOption, [])
+  .option("-c, --contract <address>", "Rootstock contract address (repeatable)", collectOption, [])
+  .option("-f, --format <format>", "Output format: table, json, or markdown", "table")
+  .option("--ci", "CI mode: machine-readable output", false)
+  .option("--github-token <token>", "GitHub personal access token")
+  .option("--network <network>", "Rootstock network: mainnet or testnet", "mainnet")
+  .option("--rpc-url <url>", "Custom Rootstock RPC URL")
+  .option("--allow-private-rpc", "Allow private/loopback RPC hosts")
+  .option("--max-pairs <number>", "Maximum repo/contract combinations (hard cap: 25)")
+  .action(async (options: CommandOptions) => {
+    const normalizedContracts = Array.isArray(options.contract)
+      ? options.contract
+      : options.contract
+      ? [String(options.contract)]
+      : [];
+
+    const result = await devMetricsCommand({
+      repo: options.repo || [],
+      contract: normalizedContracts,
+      format: options.format,
+      ci: !!options.ci,
+      githubToken: options.githubToken,
+      network: options.network,
+      rpcUrl: options.rpcUrl,
+      allowPrivateRpc: !!options.allowPrivateRpc,
+      maxPairs: options.maxPairs,
+      isExternal: false,
+    });
+
+    if (options.ci) {
+      if (result.data) {
+        console.log(JSON.stringify(result.data, null, 2));
+        const successCount = result.data.meta.successCount;
+        const errorCount = result.data.meta.errorCount;
+        if (successCount > 0 && errorCount === 0) {
+          process.exitCode = 0;
+        } else if (successCount > 0 && errorCount > 0) {
+          process.exitCode = 2;
+        } else {
+          process.exitCode = 1;
+        }
+      } else {
+        console.log(
+          JSON.stringify(
+            {
+              reports: [],
+              errors: [{ error: result.error || "Unknown error" }],
+              meta: {
+                network: options.network === "testnet" ? "testnet" : "mainnet",
+                pairCount: 0,
+                successCount: 0,
+                errorCount: 1,
+                generatedAt: new Date().toISOString(),
+                rpcUrl: "",
+              },
+            },
+            null,
+            2
+          )
+        );
+        process.exitCode = 1;
+      }
+      return;
+    }
+
+    if (!result.success && result.error) {
+      logError(false, `Error during devmetrics: ${result.error}`);
+    }
+  });
+
+program
   .command("attestation")
   .description("Manage attestations on Rootstock using EAS (Ethereum Attestation Service)")
   .requiredOption("--action <action>", "Action to perform: create, verify, revoke, list, schema")
@@ -687,6 +770,8 @@ program
         console.error(chalk.red("🚨 Invalid action. Use: create, verify, revoke, list, or schema"));
         return;
       }
+
+      const { attestationCommand } = await import("../src/commands/attestation.js");
 
       await attestationCommand({
         testnet: !!options.testnet,
