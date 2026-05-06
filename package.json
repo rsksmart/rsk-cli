@@ -12,6 +12,7 @@
   },
   "scripts": {
     "build": "tsc",
+    "test": "vitest run",
     "dev": "tsc -w",
     "wallet": "pnpm run build && node dist/bin/index.js wallet",
     "balance": "pnpm run build && node dist/bin/index.js balance",
@@ -40,12 +41,14 @@
     "@types/figlet": "^1.5.8",
     "@types/uuid": "^10.0.0",
     "solc": "0.8.28",
-    "typescript": "^5.0.0"
+    "typescript": "^5.0.0",
+    "vitest": "^2.1.9"
   },
   "peerDependencies": {
     "typescript": "^5.0.0"
   },
   "dependencies": {
+    "@octokit/rest": "^22.0.1",
     "@ethereum-attestation-service/eas-sdk": "^2.7.0",
     "@openzeppelin/contracts": "^5.0.2",
     "@rsksmart/rns-resolver.js": "^1.1.0",
