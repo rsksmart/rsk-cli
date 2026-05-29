@@ -1,6 +1,8 @@
 import chalk from "chalk";
 import ora from "ora";
-import { EAS, SchemaEncoder } from "@ethereum-attestation-service/eas-sdk";
+import { createRequire } from "module";
+const require = createRequire(import.meta.url);
+const { EAS, SchemaEncoder } = require("@ethereum-attestation-service/eas-sdk");
 import ViemProvider from "../utils/viemProvider.js";
 import { AttestationResult } from "../utils/types.js";
 import { GraphQLService } from "../utils/graphqlService.js";
@@ -83,14 +85,14 @@ function failSpinner(
 async function setupEAS(params: AttestationCommandOptions) {
   const provider = new ViemProvider(params.testnet);
   const walletClient = await provider.getWalletClient(params.walletName);
-  
-  const easAddress = params.testnet 
-    ? EAS_CONTRACTS.testnet 
+
+  const easAddress = params.testnet
+    ? EAS_CONTRACTS.testnet
     : EAS_CONTRACTS.mainnet;
-    
+
   const eas = new EAS(easAddress);
-  eas.connect(walletClient as any); 
-  
+  eas.connect(walletClient as any);
+
   return { eas, walletClient };
 }
 
@@ -102,13 +104,13 @@ async function createAttestation(params: AttestationCommandOptions): Promise<Att
   }
 
   const spinner = params.isExternal ? ora({ isEnabled: false }) : ora();
-  
+
   try {
     logInfo(params, `🔧 Creating attestation on ${params.testnet ? "testnet" : "mainnet"}...`);
     startSpinner(params, spinner, "⏳ Setting up EAS connection...");
 
     const { eas } = await setupEAS(params);
-    
+
     stopSpinner(params, spinner);
     startSpinner(params, spinner, "⏳ Creating attestation...");
 
@@ -126,7 +128,7 @@ async function createAttestation(params: AttestationCommandOptions): Promise<Att
     });
 
     const uid = await tx.wait();
-    
+
     const txHash = (tx as any).hash || 'unknown';
     const explorerUrl = params.testnet
       ? `https://explorer.testnet.rootstock.io/tx/${txHash}`
@@ -165,13 +167,13 @@ async function verifyAttestation(params: AttestationCommandOptions): Promise<Att
   }
 
   const spinner = params.isExternal ? ora({ isEnabled: false }) : ora();
-  
+
   try {
     logInfo(params, `🔧 Verifying attestation on ${params.testnet ? "testnet" : "mainnet"}...`);
     startSpinner(params, spinner, "⏳ Setting up EAS connection...");
 
     const { eas } = await setupEAS(params);
-    
+
     stopSpinner(params, spinner);
     startSpinner(params, spinner, "⏳ Fetching attestation...");
 
@@ -210,13 +212,13 @@ async function revokeAttestation(params: AttestationCommandOptions): Promise<Att
   }
 
   const spinner = params.isExternal ? ora({ isEnabled: false }) : ora();
-  
+
   try {
     logInfo(params, `🔧 Revoking attestation on ${params.testnet ? "testnet" : "mainnet"}...`);
     startSpinner(params, spinner, "⏳ Setting up EAS connection...");
 
     const { eas } = await setupEAS(params);
-    
+
     stopSpinner(params, spinner);
     startSpinner(params, spinner, "⏳ Revoking attestation...");
 
@@ -226,7 +228,7 @@ async function revokeAttestation(params: AttestationCommandOptions): Promise<Att
     });
 
     const receipt = await tx.wait();
-    
+
     const txHash = (tx as any).hash || (receipt as any)?.transactionHash || (receipt as any)?.hash || 'unknown';
     const explorerUrl = params.testnet
       ? `https://explorer.testnet.rootstock.io/tx/${txHash}`
@@ -256,30 +258,30 @@ async function revokeAttestation(params: AttestationCommandOptions): Promise<Att
 
 async function listAttestations(params: AttestationCommandOptions): Promise<AttestationResult> {
   const spinner = params.isExternal ? ora({ isEnabled: false }) : ora();
-  
+
   try {
     logInfo(params, `📋 Listing attestations on ${params.testnet ? "testnet" : "mainnet"}...`);
     startSpinner(params, spinner, "⏳ Querying attestations...");
 
     const graphqlService = new GraphQLService(params.testnet);
-    
+
     const filters: {
       recipient?: string;
       attester?: string;
       schema?: string;
       limit?: number;
     } = {};
-    
+
     if (params.address) filters.recipient = params.address;
     if (params.attester) filters.attester = params.attester;
     if (params.schema) filters.schema = params.schema;
     if (params.limit) filters.limit = params.limit;
-    
+
     const attestations = await graphqlService.queryAttestations(filters);
-    
+
     stopSpinner(params, spinner);
     logSuccess(params, `✅ Found ${attestations.length} attestations`);
-    
+
     if (attestations.length === 0) {
       logInfo(params, "No attestations found matching your criteria.");
     } else {
@@ -318,18 +320,18 @@ async function createSchema(params: AttestationCommandOptions): Promise<Attestat
   }
 
   const spinner = params.isExternal ? ora({ isEnabled: false }) : ora();
-  
+
   try {
     logInfo(params, `🔧 Creating schema on ${params.testnet ? "testnet" : "mainnet"}...`);
     startSpinner(params, spinner, "⏳ Setting up EAS connection...");
 
     const { eas } = await setupEAS(params);
-    
+
     stopSpinner(params, spinner);
     startSpinner(params, spinner, "⏳ Creating schema...");
-    
+
     const schemaRegistry = await (eas as any).getSchemaRegistry();
-    
+
     const tx = await schemaRegistry.register(
       params.schemaString,
       params.resolverAddress || "0x0000000000000000000000000000000000000000",
@@ -337,15 +339,15 @@ async function createSchema(params: AttestationCommandOptions): Promise<Attestat
     );
 
     const receipt = await tx.wait();
-    
+
     const txHash = (tx as any).hash || (receipt as any)?.transactionHash || (receipt as any)?.hash || 'unknown';
-    
+
     let schemaUID = 'unknown';
     try {
       schemaUID = await (tx as any).getSchemaUID?.() || 'unknown';
     } catch (e) {
     }
-    
+
     const explorerUrl = params.testnet
       ? `https://explorer.testnet.rootstock.io/tx/${txHash}`
       : `https://explorer.rootstock.io/tx/${txHash}`;
